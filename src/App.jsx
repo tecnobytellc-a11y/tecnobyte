@@ -1,3 +1,4 @@
+import './styles.css';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingCart, Gamepad2, CreditCard, MessageSquare, 

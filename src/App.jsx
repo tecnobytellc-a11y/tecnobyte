@@ -46,8 +46,7 @@ const API_CONFIG = {
         mode: "sandbox" 
     },
     binance: {
-        apiKey: "
-CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 
+        apiKey: "CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 
     }
 };
 

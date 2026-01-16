@@ -1255,3 +1255,6 @@ export default function App() {
         </div>
       )}
       <GeminiChat exchangeRate={exchangeRateBs} />
+    </div>
+  );
+}

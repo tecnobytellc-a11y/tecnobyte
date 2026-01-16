@@ -37,18 +37,13 @@ const db = getFirestore(app);
 const globalAppId = typeof __app_id !== 'undefined' ? __app_id : 'tecnobyte-59f74';
 const appId = globalAppId; // FIX: Alias global para compatibilidad con funciones externas
 
-// --- VERCEL API CONFIG ---
-const VERCEL_API_URL = "https://mech-api-secure.vercel.app"; 
+// --- ⬇️ AQUÍ PEGA TU URL DE VERCEL ⬇️ ---
+const VERCEL_API_URL = "https://api-paypal-secure.vercel.app"; 
 
 // --- DATA & CONFIGURATION ---
 
 const API_CONFIG = {
-    paypal: {
-        // FIX: Eliminado el espacio en blanco accidental en el ClientID que causaría error
-        clientId: "ARTKETeYRDsymqCukcIve_aTTzyFKrDgKeG7exZFgGK0qJwdTxyWcoViI-mdQbfiYG2xQA6TDL-YNkju", 
-        // FIX: Cambiado a 'production' para que funcione con el email real tecnobytellc@gmail.com
-        mode: "production" 
-    },
+    // La configuración segura ahora vive en tu servidor
     binance: {
         apiKey: "CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 
     }
@@ -519,35 +514,37 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
     const [invoiceId, setInvoiceId] = useState('');
     const [approveLink, setApproveLink] = useState('');
 
-    // MODIFICADO: Ahora conecta con tu Vercel API
     const handlePayPalPayment = async () => {
         setStatus('processing');
         try {
-            // FIX: Generamos una orden local y usamos link directo de PayPal 
-            // ya que el servidor intermedio puede fallar o no estar configurado.
-            const localOrderId = "PAY-" + Math.random().toString(36).substr(2, 9).toUpperCase();
-            setInvoiceId(localOrderId);
+            // FIX: Verificar si el usuario ya puso su URL de servidor
+            if (VERCEL_API_URL.includes("PON_AQUI")) {
+                 alert("⚠️ FALTANTE: No has puesto la URL de tu servidor en el archivo App.jsx (Línea 39). Edita el archivo y pega la URL.");
+                 setStatus('idle');
+                 return;
+            }
 
-            // Construir link de pago directo (Standard Checkout)
-            // Usamos el email de binance que suele ser el principal de pagos, o el de soporte.
-            // Siendo un sandbox, este correo debe ser el de un vendedor sandbox si se usa el modo sandbox.
-            const businessEmail = "tecnobytellc@gmail.com"; 
-            const itemName = `Orden ${localOrderId} - TecnoByte`;
-            const returnUrl = window.location.href; // Para que el usuario vuelva
+            const response = await fetch(`${VERCEL_API_URL}/api/create-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: cartTotal.toFixed(2) })
+            });
+
+            if (!response.ok) throw new Error("Error en servidor al crear orden");
+
+            const data = await response.json();
             
-            // URL de Sandbox o Producción según config
-            const baseUrl = API_CONFIG.paypal.mode === 'sandbox' 
-                ? "https://www.sandbox.paypal.com/cgi-bin/webscr" 
-                : "https://www.paypal.com/cgi-bin/webscr";
-
-            const paypalLink = `${baseUrl}?cmd=_xclick&business=${businessEmail}&item_name=${encodeURIComponent(itemName)}&amount=${cartTotal.toFixed(2)}&currency_code=USD&return=${encodeURIComponent(returnUrl)}`;
-
-            // Simular delay de "Creando orden"
-            setTimeout(() => {
-                 setApproveLink(paypalLink);
-                 window.open(paypalLink, '_blank');
-                 setStatus('verifying');
-            }, 1500);
+            // Buscamos el link "approve" que nos devuelve PayPal via Backend
+            const link = data.links.find(l => l.rel === "approve");
+            
+            if (link) {
+                setInvoiceId(data.id); // Guardamos el ID real de PayPal (ej: 5T7...)
+                setApproveLink(link.href);
+                window.open(link.href, '_blank');
+                setStatus('verifying');
+            } else {
+                throw new Error("No se recibió link de aprobación de PayPal");
+            }
 
         } catch (error) {
            console.error(error);
@@ -556,51 +553,32 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
         }
     };
 
-    // MODIFICADO: Ahora verifica el pago REAL en Vercel
+    // VERIFICACIÓN REAL CON EL SERVIDOR
     const handleVerification = async () => {
         if (!invoiceId) return;
 
         try {
-            if (isExchange) {
-                setStatus('dispersing'); // Conectando a Binance via Vercel
-                
-                // Si el servidor falla, simulamos éxito para no bloquear al usuario en la demo
-                try {
-                    const response = await fetch(`${VERCEL_API_URL}/api/capture-and-exchange`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            orderId: invoiceId,
-                            receiveAddress: exchangeData.receiveAddress,
-                            receiveType: exchangeData.receiveType,
-                            userData: paypalData // Enviamos datos del usuario para el registro
-                        })
-                    });
-                    const result = await response.json();
-                     if (result.success) {
-                        setStatus('completed');
-                        onPaymentComplete(invoiceId, result.binanceTxId);
-                    } else {
-                        // Fallback si la API lógica falla
-                         setStatus('completed');
-                         onPaymentComplete(invoiceId, "PENDING-MANUAL-VERIFICATION");
-                    }
-                } catch(e) {
-                     // Fallback total si la conexión falla (Vercel caído)
-                     console.warn("Backend unreached, simulating success");
-                     setStatus('completed');
-                     onPaymentComplete(invoiceId, "PENDING-MANUAL-VERIFICATION");
-                }
+            // Llamamos a TU servidor para que le pregunte a PayPal si está pagado
+            const response = await fetch(`${VERCEL_API_URL}/api/capture-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: invoiceId })
+            });
 
-            } else {
-                // Lógica normal si no es exchange (solo captura) - Opcional, por ahora asumimos el mismo flujo
+            const result = await response.json();
+
+            if (result.success) {
+                // ¡SÍ SE PAGÓ REALMENTE!
                 setStatus('completed');
-                onPaymentComplete(invoiceId, null);
+                onPaymentComplete(invoiceId, isExchange ? "PENDING-DISPERSION" : null);
+            } else {
+                alert("PayPal dice que el pago aún no está completo. Estado: " + (result.status || "Desconocido"));
+                // No avanzamos, dejamos que el usuario intente de nuevo el botón verificar
             }
+
         } catch (error) {
             console.error(error);
-            alert("Error de conexión con el servidor de pagos.");
-            setStatus('verifying');
+            alert("Error de conexión verificando el pago.");
         }
     };
 
@@ -637,7 +615,7 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
                 <div className="text-center py-8">
                     <Loader className="w-12 h-12 text-[#003087] animate-spin mx-auto mb-4" />
                     <p className="text-white font-bold">Iniciando Transacción...</p>
-                    <p className="text-xs text-gray-400">Conectando con PayPal...</p>
+                    <p className="text-xs text-gray-400">Creando factura en PayPal...</p>
                 </div>
             )}
 

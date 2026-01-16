@@ -35,6 +35,7 @@ const db = getFirestore(app);
 
 // Esta variable debe ser global para evitar el error de "appId is not defined"
 const globalAppId = typeof __app_id !== 'undefined' ? __app_id : 'tecnobyte-59f74';
+const appId = globalAppId; // FIX: Alias global para compatibilidad con funciones externas
 
 // --- VERCEL API CONFIG ---
 const VERCEL_API_URL = "https://mech-api-secure.vercel.app"; 
@@ -365,7 +366,10 @@ const AdminPanel = ({ setView, orders, setAllOrders }) => {
                 <tr key={order.id} className="hover:bg-gray-800/50">
                   <td className="p-4 font-mono text-sm text-gray-400">{order.id}</td>
                   <td className="p-4 font-medium text-white">{order.user}</td>
-                  <td className="p-4 text-sm text-gray-300 max-w-xs truncate">{order.items}</td>
+                  {/* FIX: Asegurar que items sea un string o renderizable */}
+                  <td className="p-4 text-sm text-gray-300 max-w-xs truncate">
+                    {Array.isArray(order.items) ? order.items.map(i => i.title).join(', ') : order.items}
+                  </td>
                   <td className="p-4 text-green-400 font-bold">${order.total}</td>
                   <td className="p-4">
                     <select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} className="bg-gray-800 border border-gray-700 text-xs rounded p-1">
@@ -1012,7 +1016,8 @@ export default function App() {
       // Use dynamic appId for Firestore path
       const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
         userId: user.uid,
-        items: sanitizedCart, // Use sanitized cart
+        items: sanitizedCart.map(i => i.title).join(', '), // FIX: Guardar como string para evitar error de renderizado
+        rawItems: sanitizedCart, // Guardar objetos completos aquí
         total: cartTotal,
         status: 'pending',
         createdAt: new Date().toISOString()

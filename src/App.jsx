@@ -46,7 +46,8 @@ const API_CONFIG = {
     paypal: {
         // FIX: Eliminado el espacio en blanco accidental en el ClientID que causaría error
         clientId: "ARTKETeYRDsymqCukcIve_aTTzyFKrDgKeG7exZFgGK0qJwdTxyWcoViI-mdQbfiYG2xQA6TDL-YNkju", 
-        mode: "sandbox" 
+        // FIX: Cambiado a 'production' para que funcione con el email real tecnobytellc@gmail.com
+        mode: "production" 
     },
     binance: {
         apiKey: "CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 

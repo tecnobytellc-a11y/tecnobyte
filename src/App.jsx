@@ -24,7 +24,7 @@ const getFirebaseConfig = () => {
     projectId: "tecnobyte-59f74",
     storageBucket: "tecnobyte-59f74.firebasestorage.app",
     messagingSenderId: "312636053858",
-    appId: "1:312636053858:web:03eff6f29188d8b6348175"
+    appId: "1:312636053858:web:03eff6f29188bcd08f743b"
   };
 };
 

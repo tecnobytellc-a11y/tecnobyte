@@ -1156,7 +1156,23 @@ export default function App() {
                   </div>
               ))}
             </div>
-            <div className="mt-6 border-t border-gray-800 pt-4"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div>
+            <div className="mt-6 border-t border-gray-800 pt-4"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div><button 
+  disabled={cart.length === 0 || checkoutLoading} 
+  onClick={handleCheckoutStart} 
+  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 text-white font-bold py-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20 uppercase tracking-widest text-sm"
+>
+  {checkoutLoading ? (
+    <>
+      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+      <span>Procesando...</span>
+    </>
+  ) : (
+    <>
+      <Lock size={18} />
+      <span>Proceder al pago</span>
+    </>
+  )}
+</button></div>
           </div>
         </div>
       )}

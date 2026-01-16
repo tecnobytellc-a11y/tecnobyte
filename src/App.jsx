@@ -1156,7 +1156,6 @@ export default function App() {
                   </div>
           ))}
         </div>
-        
         <div className="mt-6 border-t border-gray-800 pt-4">
           <div className="flex justify-between text-xl font-bold text-white mb-4">
             <span>Total</span>

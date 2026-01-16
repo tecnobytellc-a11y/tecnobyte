@@ -1159,8 +1159,17 @@ export default function App() {
                         <p className="text-gray-400 text-sm mb-4">{service.description}</p>
                       </div>
                       <div className="flex items-center justify-between mt-auto">
-                        <div className="flex flex-col"><span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">${service.price.toFixed(2)}</span><span className="text-xs text-gray-400 font-mono">≈ {(service.price * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs</span></div>
-                        <button onClick={() => addToCart(service)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-lg transition-colors"><ShoppingCart size={20} /></button>
+                        <div className="flex flex-col">
+                          <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
+                            ${typeof service.price === 'number' ? service.price.toFixed(2) : service.price}
+                          </span>
+                          <span className="text-xs text-gray-400 font-mono">
+                            ≈ {((typeof service.price === 'number' ? service.price : 0) * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                          </span>
+                        </div>
+                        <button onClick={() => addToCart(service)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-lg transition-colors">
+                          <ShoppingCart size={20} />
+                        </button>
                       </div>
                     </div>
                   )
@@ -1183,7 +1192,10 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
           <div className="relative w-full max-w-md bg-gray-900 h-full shadow-2xl border-l border-gray-800 p-6 flex flex-col animate-scale-in">
-            <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4"><h2 className="text-2xl font-bold text-white">Tu Carrito</h2><button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button></div>
+            <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
+              <h2 className="text-2xl font-bold text-white">Tu Carrito</h2>
+              <button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button>
+            </div>
             <div className="flex-1 overflow-y-auto space-y-4">
               {cart.length === 0 ? (
                 <div className="text-center text-gray-500 mt-20">
@@ -1243,6 +1255,3 @@ export default function App() {
         </div>
       )}
       <GeminiChat exchangeRate={exchangeRateBs} />
-    </div>
-  );
-}

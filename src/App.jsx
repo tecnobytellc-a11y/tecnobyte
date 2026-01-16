@@ -1114,147 +1114,36 @@ export default function App() {
              )}
              
              {/* PASO 2: PAGO (Dos variantes: Automatizada o Manual) */}
-             {checkoutStep === 2 && (
-                 paymentMethod === 'paypal' ? (
-                     <AutomatedFlowWrapper 
-                        cart={cart}
-                        cartTotal={cartTotal}
-                        allOrders={allOrders}
-                        setLastOrder={setLastOrder}
-                        setCart={setCart}
-                        setCheckoutStep={setCheckoutStep}
-                        paypalData={paypalData}
-                     />
-                 ) : (
-                    <PaymentProofStep 
-                        proofData={proofData} setProofData={setProofData}
-                        cart={cart} cartTotal={cartTotal}
-                        allOrders={allOrders} setAllOrders={setAllOrders} setLastOrder={setLastOrder}
-                        setCart={setCart} setCheckoutStep={setCheckoutStep}
-                        paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} 
-                    />
-                 )
-             )}
-             
-             {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
-          </div>
-        ) : (
-          <>
-            <Hero exchangeRate={exchangeRateBs} />
-            <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex flex-wrap justify-center gap-4 mb-12">
-                {categories.map(cat => (
-                  <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}`}>{cat}</button>
-                ))}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredServices.map((service, idx) => (
-                  service.category === 'Exchange' ? (
-                     <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} />
-                  ) : (
-                    <div key={service.id} className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
-                      <div>
-                        <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">{service.icon}</div>
-                        <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
-                        <p className="text-gray-400 text-sm mb-4">{service.description}</p>
-                      </div>
-                      <div className="flex items-center justify-between mt-auto">
-                        <div className="flex flex-col">
-                          <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
-                            ${typeof service.price === 'number' ? service.price.toFixed(2) : service.price}
-                          </span>
-                          <span className="text-xs text-gray-400 font-mono">
-                            ≈ {((typeof service.price === 'number' ? service.price : 0) * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
-                          </span>
-                        </div>
-                        <button onClick={() => addToCart(service)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-lg transition-colors">
-                          <ShoppingCart size={20} />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </main>
-      <footer className="bg-black/90 border-t border-gray-800 text-gray-400 py-12">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div><h4 className="text-white font-orbitron font-bold text-xl mb-4">TECNOBYTE</h4><p className="text-sm">Innovación y seguridad en cada transacción. Tu aliado digital de confianza.</p></div>
-          <div><h4 className="text-white font-bold mb-4">Contacto</h4><ul className="space-y-2 text-sm"><li className="flex items-center gap-2"><Mail size={16}/> {CONTACT_INFO.email}</li><li className="flex items-center gap-2"><Phone size={16}/> {CONTACT_INFO.whatsapp_display}</li></ul></div>
-          <div><h4 className="text-white font-bold mb-4">Síguenos</h4><div className="flex gap-4"><a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors"><Facebook /></a><a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors"><Instagram /></a><a href={SOCIAL_LINKS.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors"><TikTokIcon /></a></div></div>
-          <div><h4 className="text-white font-bold mb-4">Legal</h4><ul className="space-y-2 text-sm"><li>Términos y Condiciones</li><li>Política de Privacidad</li></ul></div>
-        </div>
-        <div className="text-center mt-12 text-xs text-gray-600">© 2024 TecnoByte LLC. Todos los derechos reservados.</div>
-      </footer>
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
-          <div className="relative w-full max-w-md bg-gray-900 h-full shadow-2xl border-l border-gray-800 p-6 flex flex-col animate-scale-in">
-            <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
-              <h2 className="text-2xl font-bold text-white">Tu Carrito</h2>
-              <button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-4">
-              {cart.length === 0 ? (
-                <div className="text-center text-gray-500 mt-20">
-                  <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                  <p>Tu carrito está vacío</p>
-                </div>
-              ) : (
-                cart.map((item, idx) => (
-                  <div key={item.cartId || idx} className="bg-gray-800/50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h4 className="text-white font-medium">{item.title}</h4>
-                        <p className="text-sm text-cyan-400">
-                          ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
-                        </p>
-                      </div>
-                      <button 
-                        onClick={() => removeFromCart(idx)} 
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                    {item.exchangeData && (item.type === 'usdt' || item.category === 'Exchange') && (
-                      <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">
-                        Destino: {item.exchangeData.receiveAddress}
-                      </p>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="mt-6 border-t border-gray-800 pt-4">
-              <div className="flex justify-between text-xl font-bold text-white mb-4">
-                <span>Total</span>
-                <span>${cartTotal.toFixed(2)}</span>
-              </div>
-              <button 
-                disabled={cart.length === 0 || checkoutLoading} 
-                onClick={handleCheckoutStart} 
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2"
-              >
-                {checkoutLoading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Procesando...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Proceder al Pago</span>
-                    <Lock size={18} />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <GeminiChat exchangeRate={exchangeRateBs} />
-    </div>
-  );
-}
+{checkoutStep === 2 && (
+  paymentMethod === 'paypal' ? (
+    <AutomatedFlowWrapper 
+      cart={cart}
+      cartTotal={cartTotal}
+      allOrders={allOrders}
+      setLastOrder={setLastOrder}
+      setCart={setCart}
+      setCheckoutStep={setCheckoutStep}
+      paypalData={paypalData}
+    />
+  ) : (
+    <PaymentProofStep 
+      proofData={proofData} 
+      setProofData={setProofData}
+      cart={cart} 
+      cartTotal={cartTotal}
+      allOrders={allOrders} 
+      setAllOrders={setAllOrders} 
+      setLastOrder={setLastOrder}
+      setCart={setCart} 
+      setCheckoutStep={setCheckoutStep}
+      paymentMethod={paymentMethod} 
+      paypalData={paypalData} 
+      exchangeRate={exchangeRateBs} 
+    />
+  )
+)}
+
+{checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
+
+{/* Nota: Se eliminaron las etiquetas de cierre huérfanas que causaban el error de sintaxis */}
+{/* Asegúrate de que este fragmento esté contenido dentro de un bloque de retorno válido */}

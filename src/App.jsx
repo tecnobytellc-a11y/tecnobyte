@@ -1002,29 +1002,38 @@ export default function App() {
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
 
   const handleCheckoutStart = async () => {
-    if (!user) return;
-    setIsProcessing(true); 
+    if (cart.length === 0) return;
+    setCheckoutLoading(true);
     
     try {
-      // Sanitize cart items to remove React components (icons) before saving to Firestore
-      const sanitizedCart = cart.map(({ icon, ...item }) => item);
-
-      // Use dynamic appId for Firestore path
-      const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
-        userId: user.uid,
-        items: sanitizedCart, // Use sanitized cart
-        total: cartTotal,
-        status: 'pending',
-        createdAt: new Date().toISOString()
+      const response = await fetch(`${VERCEL_API_URL}/api/create-order`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          amount: cartTotal.toFixed(2),
+          description: "Compra en TecnoByte",
+          items: cart 
+        })
       });
-      setOrderId(orderRef.id);
-      setCheckoutStep(0);
-      setView('checkout'); // Added this to change the view
-      setIsCartOpen(false); // Added this to close the cart
-    } catch (err) {
-      console.error("Error creating order:", err);
+
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+      const order = await response.json();
+
+      if (order.id && order.links) {
+        const approvalUrl = order.links.find(link => link.rel === 'approve').href;
+        window.location.href = approvalUrl;
+      } else {
+        alert("Error: PayPal no devolvió un enlace de pago.");
+      }
+    } catch (error) {
+      console.error("Error en el proceso de pago:", error);
+      alert("No se pudo conectar con el servidor de pagos.");
     } finally {
-      setIsProcessing(false);
+      setCheckoutLoading(false);
     }
   };
 

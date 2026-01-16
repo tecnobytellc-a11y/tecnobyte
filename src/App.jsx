@@ -1002,15 +1002,19 @@ export default function App() {
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
 
   const handleCheckoutStart = async () => {
+    // 1. Verificamos que el carrito no esté vacío
     if (cart.length === 0) return;
+    
+    // 2. Activamos el estado de carga para el botón
     setCheckoutLoading(true);
     
     try {
+      // 3. Llamada al servidor de Vercel
+      // IMPORTANTE: Asegúrate de que VERCEL_API_URL esté bien definida arriba
       const response = await fetch(`${VERCEL_API_URL}/api/create-order`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
           amount: cartTotal.toFixed(2),
@@ -1019,20 +1023,29 @@ export default function App() {
         })
       });
 
-      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Error en el servidor: ${response.status}`);
+      }
 
       const order = await response.json();
 
+      // 4. Si el servidor responde con la orden, redirigimos a PayPal
       if (order.id && order.links) {
         const approvalUrl = order.links.find(link => link.rel === 'approve').href;
+        
+        // Guardamos el carrito localmente antes de salir por seguridad
+        localStorage.setItem('pending_cart', JSON.stringify(cart));
+        
+        // Redirección directa
         window.location.href = approvalUrl;
       } else {
-        alert("Error: PayPal no devolvió un enlace de pago.");
+        alert("Error: PayPal no generó el enlace de pago.");
       }
     } catch (error) {
       console.error("Error en el proceso de pago:", error);
-      alert("No se pudo conectar con el servidor de pagos.");
+      alert("No se pudo conectar con el servidor de pagos. Revisa tu API de Vercel.");
     } finally {
+      // 5. Quitamos el estado de carga pase lo que pase
       setCheckoutLoading(false);
     }
   };

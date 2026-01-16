@@ -1006,7 +1006,19 @@ export default function App() {
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
 
   const handleCheckoutStart = async () => {
-    if (!user) return;
+    // FIX: Asegurar usuario antes de procesar (Vercel fix)
+    let currentUser = user;
+    if (!currentUser) {
+        try {
+            const result = await signInAnonymously(auth);
+            currentUser = result.user;
+        } catch (error) {
+            console.error("Auth Error:", error);
+            alert("Error de autenticación. Por favor recarga la página.");
+            return;
+        }
+    }
+    
     setIsProcessing(true); 
     
     try {
@@ -1015,7 +1027,7 @@ export default function App() {
 
       // Use dynamic appId for Firestore path
       const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
-        userId: user.uid,
+        userId: currentUser.uid, // FIX: Usar currentUser en lugar de user
         items: sanitizedCart.map(i => i.title).join(', '), // FIX: Guardar como string para evitar error de renderizado
         rawItems: sanitizedCart, // Guardar objetos completos aquí
         total: cartTotal,

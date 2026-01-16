@@ -1149,31 +1149,12 @@ export default function App() {
           <div className="relative w-full max-w-md bg-gray-900 h-full shadow-2xl border-l border-gray-800 p-6 flex flex-col animate-scale-in">
             <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4"><h2 className="text-2xl font-bold text-white">Tu Carrito</h2><button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button></div>
             <div className="flex-1 overflow-y-auto space-y-4">
-              {cart.length === 0 ? (
-                <div className="text-center text-gray-500 mt-20">
-                  <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                  <p>Tu carrito está vacío</p>
-                </div>
-              ) : (
-                cart.map((item, idx) => (
+              {cart.length === 0 ? <div className="text-center text-gray-500 mt-20"><ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" /><p>Tu carrito está vacío</p></div> : cart.map((item, idx) => (
                   <div key={idx} className="bg-gray-800/50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h4 className="text-white font-medium">{item.title}</h4>
-                        <p className="text-sm text-cyan-400">${item.price.toFixed(2)}</p>
-                      </div>
-                      <button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-300">
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                    {item.exchangeData && item.type === 'usdt' && (
-                      <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">
-                        Destino: {item.exchangeData.receiveAddress} ({item.exchangeData.receiveType})
-                      </p>
-                    )}
+                    <div className="flex justify-between items-center"><div><h4 className="text-white font-medium">{item.title}</h4><p className="text-sm text-cyan-400">${item.price.toFixed(2)}</p></div><button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button></div>
+                    {item.exchangeData && item.type === 'usdt' && <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">Destino: {item.exchangeData.receiveAddress} ({item.exchangeData.receiveType})</p>}
                   </div>
-                ))
-              )}
+              ))}
             </div>
             <div className="mt-6 border-t border-gray-800 pt-4">
               <div className="flex justify-between text-xl font-bold text-white mb-4">

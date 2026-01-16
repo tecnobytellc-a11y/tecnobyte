@@ -996,7 +996,12 @@ export default function App() {
   }, []);
 
   const categories = ['All', ...new Set(SERVICES.map(s => s.category))];
-  const addToCart = (service) => { setCart([...cart, service]); setIsCartOpen(true); };
+  const addToCart = (product) => {
+    // Generamos un ID único para evitar errores de renderizado en el carrito
+    const uniqueItem = { ...product, cartId: Date.now() + Math.random() };
+    setCart(prev => [...prev, uniqueItem]);
+    setIsCartOpen(true);
+  };
   const removeFromCart = (index) => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart); };
   const cartTotal = cart.reduce((acc, item) => acc + item.price, 0);
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
@@ -1053,7 +1058,38 @@ export default function App() {
   return (
     <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans">
       <style>{globalStyles}</style>
-      <Navbar cartCount={cart.length} onOpenCart={() => setIsCartOpen(true)} setView={setView} />
+      <Navbar cartCount={cart.length === 0 ? (
+  <div className="text-center text-gray-500 mt-20">
+    <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" />
+    <p>Tu carrito está vacío</p>
+  </div>
+) : (
+  cart.map((item, idx) => (
+    <div key={item.cartId || idx} className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/30">
+      <div className="flex justify-between items-center">
+        <div>
+          <h4 className="text-white font-medium">{item?.title || 'Producto'}</h4>
+          <p className="text-sm text-cyan-400">
+            ${typeof item?.price === 'number' ? item.price.toFixed(2) : '0.00'}
+          </p>
+        </div>
+        <button 
+          onClick={() => removeFromCart(idx)} 
+          className="text-red-400 hover:text-red-300 p-2"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+      {/* Validación de seguridad para datos de exchange */}
+      {item?.exchangeData && item?.category === 'Exchange' && (
+        <div className="mt-2 p-2 bg-yellow-900/10 border border-yellow-700/20 rounded">
+          <p className="text-[10px] text-yellow-500 uppercase font-bold">Destino USDT:</p>
+          <p className="text-[10px] text-gray-400 truncate font-mono">{item.exchangeData.receiveAddress}</p>
+        </div>
+      )}
+    </div>
+  ))
+)}
       
       <main className="pt-6 pb-20">
         {view === 'admin' ? (

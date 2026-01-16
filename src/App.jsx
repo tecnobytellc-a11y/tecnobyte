@@ -1192,19 +1192,24 @@ export default function App() {
                 </div>
               ) : (
                 cart.map((item, idx) => (
-                  <div key={idx} className="bg-gray-800/50 p-4 rounded-lg">
+                  <div key={item.cartId || idx} className="bg-gray-800/50 p-4 rounded-lg">
                     <div className="flex justify-between items-center">
                       <div>
                         <h4 className="text-white font-medium">{item.title}</h4>
-                        <p className="text-sm text-cyan-400">${item.price.toFixed(2)}</p>
+                        <p className="text-sm text-cyan-400">
+                          ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
+                        </p>
                       </div>
-                      <button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-300">
+                      <button 
+                        onClick={() => removeFromCart(idx)} 
+                        className="text-red-400 hover:text-red-300"
+                      >
                         <Trash2 size={18} />
                       </button>
                     </div>
-                    {item.exchangeData && item.type === 'usdt' && (
+                    {item.exchangeData && (item.type === 'usdt' || item.category === 'Exchange') && (
                       <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">
-                        Destino: {item.exchangeData.receiveAddress} ({item.exchangeData.receiveType})
+                        Destino: {item.exchangeData.receiveAddress}
                       </p>
                     )}
                   </div>
@@ -1228,7 +1233,8 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    Proceder al Pago <Lock size={18} />
+                    <span>Proceder al Pago</span>
+                    <Lock size={18} />
                   </>
                 )}
               </button>

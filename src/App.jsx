@@ -924,6 +924,23 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderId, setOrderId] = useState(null);
 
+  // --- NUEVO: CONFIGURACIÓN DE ICONO DE PESTAÑA (FAVICON) ---
+  useEffect(() => {
+    // 1. Cambiar el título de la pestaña
+    document.title = "TecnoByte | Soluciones Digitales";
+
+    // 2. Buscar o crear el elemento <link> para el icono
+    let link = document.querySelector("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    // 3. Asignar tu logo 'unnamed.png' como favicon
+    link.href = 'unnamed.png';
+  }, []);
+
+  // Authentication Logic Fixed
   useEffect(() => {
     const initAuth = async () => {
       try {

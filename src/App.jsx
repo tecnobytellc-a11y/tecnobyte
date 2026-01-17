@@ -412,7 +412,8 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
   const calculateReceive = (amount) => {
     if (!amount || isNaN(amount)) return 0;
     const numAmount = parseFloat(amount);
-    const fee = (numAmount * 0.083) + 0.15; // Comisión ejemplo
+    // Updated commission: 13.60% + $0.47
+    const fee = (numAmount * 0.136) + 0.47; 
     const net = numAmount - fee;
     return net > 0 ? net : 0;
   };
@@ -437,7 +438,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
       exchangeData: {
           sendAmount: parseFloat(amountSend),
           receiveAmount: receiveValue,
-          receiveType: service.type === 'usdt' ? 'bep20' : 'bank_transfer', // FIX: Forzar BEP20 siempre
+          receiveType: service.type === 'usdt' ? 'bep20' : 'bank_transfer', 
           receiveAddress: service.type === 'usdt' ? receiveAddress : 'Cuenta Bancaria Registrada'
       }
     };
@@ -452,11 +453,16 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
             <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center text-indigo-400">{service.icon}</div>
             <div>
                 <h3 className="text-lg font-bold text-white leading-tight">{service.title}</h3>
-                <p className="text-xs text-indigo-400 font-mono">Fee: 8.30% + $0.15</p>
+                <p className="text-xs text-indigo-400 font-mono">Fee: 13.60% + $0.47</p>
             </div>
         </div>
         
         <div className="flex-1 space-y-3 mb-4">
+            {/* Aviso de comisión */}
+            <div className="bg-indigo-500/10 border border-indigo-500/50 rounded py-1 px-2 mb-2 text-center">
+              <p className="text-[10px] font-bold text-indigo-200 tracking-wide">COMISION DE PAYPAL INCLUIDA</p>
+            </div>
+
             <div className="bg-black/40 p-3 rounded-lg border border-gray-700">
                 <label className="text-xs text-gray-400 block mb-1">Envías (PayPal USD)</label>
                 <div className="flex items-center gap-2">
@@ -467,12 +473,11 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
 
             <div className="flex justify-center text-gray-500"><ChevronDown size={16} /></div>
 
-            {/* INPUT DE DESTINO PARA USDT (MODIFICADO: SOLO BEP20) */}
+            {/* INPUT DE DESTINO PARA USDT */}
             {service.type === 'usdt' && (
                 <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700 space-y-2">
                     <label className="text-xs text-yellow-500 font-bold block">¿Dónde recibes?</label>
                     <div className="flex gap-2 text-xs mb-2">
-                        {/* FIX: Se eliminaron los botones de selección, solo hay modo BEP20 */}
                         <div className="flex-1 py-1 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 text-center font-bold">Dirección USDT (BEP20)</div>
                     </div>
                     <input 
@@ -555,7 +560,7 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
                 body: JSON.stringify({ 
                     orderId: invoiceId,
                     receiveAddress: exchangeData?.receiveAddress, 
-                    receiveType: 'bep20' // FIX: Forzamos el tipo que sí funciona
+                    receiveType: 'bep20' 
                 })
             });
 

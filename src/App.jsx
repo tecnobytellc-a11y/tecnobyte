@@ -936,8 +936,25 @@ export default function App() {
       link.rel = 'icon';
       document.getElementsByTagName('head')[0].appendChild(link);
     }
-    // 3. Asignar tu logo 'unnamed.png' como favicon
-    link.href = 'unnamed.png';
+    
+    // 3. Crear canvas para recortar la imagen en círculo
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.src = 'unnamed.png'; // Asegúrate de que esta imagen esté en public/
+    
+    img.onload = () => {
+      // Dibujar círculo
+      ctx.beginPath();
+      ctx.arc(32, 32, 32, 0, 2 * Math.PI);
+      ctx.clip(); // Recortar todo lo que se dibuje después a este círculo
+      // Dibujar imagen dentro del círculo
+      ctx.drawImage(img, 0, 0, 64, 64);
+      // Asignar el resultado como favicon
+      link.href = canvas.toDataURL();
+    };
   }, []);
 
   // Authentication Logic Fixed
@@ -1057,10 +1074,12 @@ export default function App() {
              
              {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} />}
              
+             {/* PASO 1: DETALLES FACTURACIÓN (Si es PayPal API) */}
              {checkoutStep === 1 && paymentMethod === 'paypal' && (
                 <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} />
              )}
              
+             {/* PASO 2: PAGO (Dos variantes: Automatizada o Manual) */}
              {checkoutStep === 2 && (
                  paymentMethod === 'paypal' ? (
                      <AutomatedFlowWrapper 

@@ -33,19 +33,18 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Esta variable debe ser global para evitar el error de "appId is not defined"
 const globalAppId = typeof __app_id !== 'undefined' ? __app_id : 'tecnobyte-59f74';
-const appId = globalAppId; // FIX: Alias global para compatibilidad con funciones externas
+const appId = globalAppId; 
 
-// --- ⬇️ AQUÍ PEGA TU URL DE VERCEL ⬇️ ---
+// --- URL DEL SERVIDOR (Asegúrate que sea la correcta) ---
 const VERCEL_API_URL = "https://api-paypal-secure.vercel.app"; 
 
 // --- DATA & CONFIGURATION ---
 
 const API_CONFIG = {
-    // La configuración segura ahora vive en tu servidor
+    // La configuración segura ahora vive en el servidor
     binance: {
-        apiKey: "CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 
+        apiKey: "", 
     }
 };
 
@@ -56,7 +55,6 @@ const RATE_API_CONFIG = {
 };
 
 const INITIAL_RATE_BS = 570.00;
-// Use empty string for apiKey as per instructions to use runtime key
 const apiKey = ""; 
 
 const SERVICES = [
@@ -64,7 +62,6 @@ const SERVICES = [
   { id: 2, category: 'Virtual Numbers', title: 'Telegram Number', price: 1.85, icon: <MessageSquare />, description: 'Verificación segura para Telegram.' },
   { id: 3, category: 'Virtual Numbers', title: 'PayPal/Banks Number', price: 1.30, icon: <CreditCard />, description: 'Para recibir SMS de bancos y PayPal.' },
   
-  // Servicios de Exchange Mejorados
   { id: 4, category: 'Exchange', title: 'Cambio PayPal a USDT', price: 0, icon: <RefreshCw />, description: 'Recibe USDT netos (Binance Pay/BEP20).', type: 'usdt' },
   { id: 5, category: 'Exchange', title: 'Cambio PayPal a Bs', price: 0, icon: <RefreshCw />, description: 'Recibe Bolívares en tu banco nacional.', type: 'bs' },
   
@@ -487,7 +484,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
                         type="text" 
                         value={receiveAddress} 
                         onChange={(e) => setReceiveAddress(e.target.value)}
-                        placeholder={receiveType === 'binance_id' ? "Ej: 123456789" : "Ej: 0x123..."}
+                        placeholder={receiveType === 'binance_id' ? "Ej: 123456789" : "Ej: 0x123... (Recomendado BEP20)"}
                         className="w-full bg-black/30 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-yellow-500 focus:outline-none font-mono"
                     />
                 </div>
@@ -510,16 +507,15 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
 // --- PAYMENT & API LOGIC ---
 
 const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders }) => {
-    const [status, setStatus] = useState('idle'); // idle, processing, verifying, completed, failed
+    const [status, setStatus] = useState('idle'); 
     const [invoiceId, setInvoiceId] = useState('');
     const [approveLink, setApproveLink] = useState('');
 
     const handlePayPalPayment = async () => {
         setStatus('processing');
         try {
-            // FIX: Verificar si el usuario ya puso su URL de servidor
             if (VERCEL_API_URL.includes("PON_AQUI")) {
-                 alert("⚠️ FALTANTE: No has puesto la URL de tu servidor en el archivo App.jsx (Línea 39). Edita el archivo y pega la URL.");
+                 alert("⚠️ FALTANTE: No has puesto la URL de tu servidor en el archivo App.jsx (Línea 39).");
                  setStatus('idle');
                  return;
             }
@@ -533,12 +529,10 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
             if (!response.ok) throw new Error("Error en servidor al crear orden");
 
             const data = await response.json();
-            
-            // Buscamos el link "approve" que nos devuelve PayPal via Backend
             const link = data.links.find(l => l.rel === "approve");
             
             if (link) {
-                setInvoiceId(data.id); // Guardamos el ID real de PayPal (ej: 5T7...)
+                setInvoiceId(data.id); 
                 setApproveLink(link.href);
                 window.open(link.href, '_blank');
                 setStatus('verifying');
@@ -553,32 +547,43 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
         }
     };
 
-    // VERIFICACIÓN REAL CON EL SERVIDOR
+    // VERIFICACIÓN REAL + EXCHANGE
     const handleVerification = async () => {
         if (!invoiceId) return;
 
         try {
-            // Llamamos a TU servidor para que le pregunte a PayPal si está pagado
-            const response = await fetch(`${VERCEL_API_URL}/api/capture-order`, {
+            if (isExchange) setStatus('dispersing');
+
+            // Enviamos todo al servidor: ID de PayPal + Datos de destino (si es exchange)
+            const response = await fetch(`${VERCEL_API_URL}/api/capture-and-exchange`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId: invoiceId })
+                body: JSON.stringify({ 
+                    orderId: invoiceId,
+                    receiveAddress: exchangeData?.receiveAddress, // Dirección USDT
+                    receiveType: exchangeData?.receiveType // BEP20 o BinanceID
+                })
             });
 
             const result = await response.json();
 
             if (result.success) {
-                // ¡SÍ SE PAGÓ REALMENTE!
                 setStatus('completed');
-                onPaymentComplete(invoiceId, isExchange ? "PENDING-DISPERSION" : null);
+                // Si hubo exchange, pasamos el ID de Binance
+                onPaymentComplete(invoiceId, result.binanceTxId);
+                
+                if(result.manualActionRequired) {
+                    alert("Pago PayPal recibido, pero hubo un error enviando USDT. Revisa el panel Admin.");
+                }
             } else {
-                alert("PayPal dice que el pago aún no está completo. Estado: " + (result.status || "Desconocido"));
-                // No avanzamos, dejamos que el usuario intente de nuevo el botón verificar
+                alert("Pago no completado o fallido. Estado: " + (result.message || "Desconocido"));
+                if(isExchange) setStatus('verifying');
             }
 
         } catch (error) {
             console.error(error);
             alert("Error de conexión verificando el pago.");
+            setStatus('verifying');
         }
     };
 
@@ -675,7 +680,6 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) 
   <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
     <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {/* Botones de métodos existentes */}
       <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3">
         <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span>
       </button>
@@ -683,13 +687,11 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) 
         <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span>
       </button>
       
-      {/* PAYPAL AUTOMATIZADO */}
       <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden">
         <div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div>
         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span>
       </button>
 
-      {/* Resto de métodos */}
       <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3">
          <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span>
       </button>
@@ -707,14 +709,11 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) 
   </div>
 );
 
-// --- PASO DE PAGO MANUAL (COMPROBANTE) ---
 const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders, setAllOrders, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate }) => {
   const fileInputRef = useRef(null);
   const idDocRef = useRef(null); 
 
-  // Función interna para manejar el éxito del pago manual
   const executeOrderCreation = async (manualProofData) => {
-      // (Lógica existente de creación de orden en Firestore...)
       const sanitizedFullData = {
           ...manualProofData,
           screenshot: manualProofData.screenshot ? { name: manualProofData.screenshot.name, data: await convertToBase64(manualProofData.screenshot) } : null,
@@ -751,7 +750,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
       <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 h-fit">
         <h3 className="text-xl font-bold text-white mb-4">Datos para Transferir</h3>
-        {/* Lógica de visualización de datos de pago existente... */}
         {paymentMethod === 'binance' && <div className="space-y-4"><p className="text-yellow-500 font-bold">Binance Pay ID</p><p className="text-white font-mono">{CONTACT_INFO.binance_email}</p></div>}
         {paymentMethod === 'pagomovil' && <div className="space-y-4"><p className="text-blue-400 font-bold">Pago Móvil</p><p className="text-white">{CONTACT_INFO.pagomovil.phone} - {CONTACT_INFO.pagomovil.id}</p></div>}
         {paymentMethod === 'transfer_bs' && <div className="space-y-4"><p className="text-green-400 font-bold">Transferencia Bs</p><p className="text-white">{CONTACT_INFO.transfer_bs.account}</p></div>}
@@ -796,38 +794,29 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
   );
 };
 
-// --- AUTOMATED FLOW WRAPPER ---
 const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCart, setCheckoutStep, paypalData }) => {
-    // Detectar si hay un item de exchange en el carrito
     const exchangeItem = cart.find(item => item.type === 'usdt');
     const isExchange = !!exchangeItem;
 
-    // Cuando el pago se completa (llamado desde PayPalAutomatedCheckout)
     const handleAutomatedComplete = async (invoiceId, binanceTxId) => {
-        // Construir la orden automáticamente
         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
         const automatedOrder = {
             id: `ORD-${String(allOrders.length + 1).padStart(3, '0')}`,
-            user: `${paypalData.firstName} ${paypalData.lastName}`, // Usamos datos del form previo de paypal
+            user: `${paypalData.firstName} ${paypalData.lastName}`, 
             items: cart.map(i => i.title).join(', '),
             total: cartTotal.toFixed(2),
-            status: isExchange ? 'COMPLETADO' : 'FACTURADO', // Si es exchange y Binance pagó, está completado. Si no, facturado.
+            status: isExchange ? 'COMPLETADO' : 'FACTURADO', 
             date: new Date().toISOString().split('T')[0],
             rawItems: sanitizedItems,
             paymentMethod: 'paypal_api',
             fullData: {
                 email: paypalData.email,
                 phone: paypalData.phone,
-                refNumber: invoiceId, // ID DE LA FACTURA PAYPAL
-                binanceTxId: binanceTxId, // SI HUBIERA DISPERSIÓN
+                refNumber: invoiceId, 
+                binanceTxId: binanceTxId, 
                 exchangeData: exchangeItem ? exchangeItem.exchangeData : null
             }
         };
-
-        // Nota: El servidor de Vercel ya guardó la orden en Firestore en el endpoint capture-and-exchange.
-        // Aquí solo actualizamos el estado local para mostrar la pantalla de éxito.
-        // Si queremos duplicar o asegurar, podemos guardarlo, pero lo ideal es confiar en el backend.
-        // Para mantener la lógica visual de "SuccessScreen" con "lastOrder", lo seteamos aquí:
         
         setLastOrder(automatedOrder);
         setCart([]);
@@ -862,7 +851,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if(!paypalData.email || !paypalData.firstName) { alert("Completa los campos básicos."); return; }
-    setCheckoutStep(2); // Avanzar a la pantalla de pago automatizada
+    setCheckoutStep(2); 
   };
 
   return (
@@ -920,8 +909,6 @@ const SuccessScreen = ({ lastOrder, setView }) => (
   </div>
 );
 
-// --- APP COMPONENT ---
-
 export default function App() {
   const [view, setView] = useState('home'); 
   const [cart, setCart] = useState([]);
@@ -936,11 +923,9 @@ export default function App() {
   const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', nationalId: '', idDoc: null });
   const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null });
 
-  // Missing state variables added
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderId, setOrderId] = useState(null);
 
-  // Authentication Logic Fixed
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -960,7 +945,6 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    // Use dynamic appId for Firestore path
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
     const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const ordersData = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
@@ -993,25 +977,15 @@ export default function App() {
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
 
   const handleCheckoutStart = async () => {
-    // FIX: Asegurar usuario antes de procesar (Vercel fix)
-    // Usamos auth.currentUser directamente para ser más rápidos que el estado de React
     let currentUser = auth.currentUser;
-    
-    // Si no está listo, usamos el estado
-    if (!currentUser) {
-        currentUser = user;
-    }
+    if (!currentUser) currentUser = user;
 
-    // Si aún no hay usuario, intentamos loguear, y si falla, usamos GUEST MODE para evitar bloqueo
     if (!currentUser) {
         try {
             const result = await signInAnonymously(auth);
             currentUser = result.user;
         } catch (error) {
             console.warn("Auth Error (Using Guest Fallback):", error);
-            // FALLBACK CRÍTICO: Si falla la auth (ej: dominio no autorizado en Vercel),
-            // creamos un ID falso para permitir que la UI avance.
-            // Esto soluciona el mensaje de "Error de autenticación".
             currentUser = { uid: "guest_" + Math.random().toString(36).substr(2, 9) };
         }
     }
@@ -1019,26 +993,21 @@ export default function App() {
     setIsProcessing(true); 
     
     try {
-      // Sanitize cart items to remove React components (icons) before saving to Firestore
       const sanitizedCart = cart.map(({ icon, ...item }) => item);
-
-      // Use dynamic appId for Firestore path
       const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
-        userId: currentUser.uid, // FIX: Usar currentUser en lugar de user
-        items: sanitizedCart.map(i => i.title).join(', '), // FIX: Guardar como string para evitar error de renderizado
-        rawItems: sanitizedCart, // Guardar objetos completos aquí
+        userId: currentUser.uid, 
+        items: sanitizedCart.map(i => i.title).join(', '), 
+        rawItems: sanitizedCart, 
         total: cartTotal,
         status: 'pending',
         createdAt: new Date().toISOString()
       });
       setOrderId(orderRef.id);
       setCheckoutStep(0);
-      setView('checkout'); // Added this to change the view
-      setIsCartOpen(false); // Added this to close the cart
+      setView('checkout'); 
+      setIsCartOpen(false); 
     } catch (err) {
       console.error("Error creating order:", err);
-      // Si falla incluso con Guest ID (por reglas de BD estrictas), al menos intentamos avanzar la vista
-      // para que el usuario no sienta que la app murió.
       if (currentUser.uid.startsWith("guest_")) {
           setCheckoutStep(0);
           setView('checkout');
@@ -1073,12 +1042,10 @@ export default function App() {
              
              {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} />}
              
-             {/* PASO 1: DETALLES FACTURACIÓN (Si es PayPal API) */}
              {checkoutStep === 1 && paymentMethod === 'paypal' && (
                 <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} />
              )}
              
-             {/* PASO 2: PAGO (Dos variantes: Automatizada o Manual) */}
              {checkoutStep === 2 && (
                  paymentMethod === 'paypal' ? (
                      <AutomatedFlowWrapper 

@@ -13,7 +13,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc } from "firebase/firestore";
 
-// --- FIREBASE INIT CORREGIDO ---
+// --- FIREBASE INIT ---
 const getFirebaseConfig = () => {
   if (typeof __firebase_config !== 'undefined' && __firebase_config) {
     try { return JSON.parse(__firebase_config); } catch (e) { console.error(e); }
@@ -36,15 +36,15 @@ const db = getFirestore(app);
 const globalAppId = typeof __app_id !== 'undefined' ? __app_id : 'tecnobyte-59f74';
 const appId = globalAppId; 
 
-// --- URL DEL SERVIDOR (Asegúrate que sea la correcta) ---
+// --- URL DEL SERVIDOR ---
+// ⚠️ Asegúrate de que esta sea la URL de tu servidor Vercel activo
 const VERCEL_API_URL = "https://api-paypal-secure.vercel.app"; 
 
 // --- DATA & CONFIGURATION ---
 
 const API_CONFIG = {
-    // La configuración segura ahora vive en el servidor
     binance: {
-        apiKey: "", 
+        apiKey: "CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 
     }
 };
 
@@ -130,7 +130,6 @@ const ORDER_STATUSES = [
   "PROCESANDO AUTOMÁTICAMENTE"
 ];
 
-// --- STYLES (From styles.css) ---
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
 
@@ -153,7 +152,6 @@ const globalStyles = `
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
 `;
 
-// --- ICONS EXTRA ---
 const TikTokIcon = () => ( <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg> );
 
 // --- GEMINI CHAT COMPONENT ---
@@ -360,7 +358,6 @@ const AdminPanel = ({ setView, orders, setAllOrders }) => {
                 <tr key={order.id} className="hover:bg-gray-800/50">
                   <td className="p-4 font-mono text-sm text-gray-400">{order.id}</td>
                   <td className="p-4 font-medium text-white">{order.user}</td>
-                  {/* FIX: Asegurar que items sea un string o renderizable */}
                   <td className="p-4 text-sm text-gray-300 max-w-xs truncate">
                     {Array.isArray(order.items) ? order.items.map(i => i.title).join(', ') : order.items}
                   </td>
@@ -385,7 +382,6 @@ const AdminPanel = ({ setView, orders, setAllOrders }) => {
                 <div className="space-y-2 text-sm text-gray-300">
                     <p><strong>Cliente:</strong> {selectedOrder.user}</p>
                     <p><strong>Pago:</strong> {selectedOrder.paymentMethod}</p>
-                    {/* Mostrar datos de exchange si existen */}
                     {selectedOrder.fullData?.exchangeData && (
                          <div className="bg-indigo-900/30 p-3 rounded border border-indigo-500/30 my-2">
                              <p className="text-indigo-400 font-bold mb-1">Datos de Dispersión (Binance API):</p>
@@ -411,7 +407,6 @@ const AdminPanel = ({ setView, orders, setAllOrders }) => {
 
 const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
   const [amountSend, setAmountSend] = useState('');
-  const [receiveType, setReceiveType] = useState('binance_id'); // binance_id, bep20
   const [receiveAddress, setReceiveAddress] = useState('');
   
   const calculateReceive = (amount) => {
@@ -430,7 +425,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
   const handleAdd = () => {
     if(!amountSend || parseFloat(amountSend) <= 0) return;
     if(service.type === 'usdt' && !receiveAddress) {
-        alert("Por favor ingresa tu Binance ID o Wallet para recibir los fondos.");
+        alert("Por favor ingresa tu dirección de billetera para recibir los fondos.");
         return;
     }
     
@@ -442,7 +437,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
       exchangeData: {
           sendAmount: parseFloat(amountSend),
           receiveAmount: receiveValue,
-          receiveType: service.type === 'usdt' ? receiveType : 'bank_transfer',
+          receiveType: service.type === 'usdt' ? 'bep20' : 'bank_transfer', // FIX: Forzar BEP20 siempre
           receiveAddress: service.type === 'usdt' ? receiveAddress : 'Cuenta Bancaria Registrada'
       }
     };
@@ -472,21 +467,22 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
 
             <div className="flex justify-center text-gray-500"><ChevronDown size={16} /></div>
 
-            {/* INPUT DE DESTINO PARA USDT */}
+            {/* INPUT DE DESTINO PARA USDT (MODIFICADO: SOLO BEP20) */}
             {service.type === 'usdt' && (
                 <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700 space-y-2">
                     <label className="text-xs text-yellow-500 font-bold block">¿Dónde recibes?</label>
                     <div className="flex gap-2 text-xs mb-2">
-                        <button onClick={() => setReceiveType('binance_id')} className={`flex-1 py-1 rounded ${receiveType === 'binance_id' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50' : 'bg-gray-700 text-gray-400'}`}>Binance ID</button>
-                        <button onClick={() => setReceiveType('bep20')} className={`flex-1 py-1 rounded ${receiveType === 'bep20' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50' : 'bg-gray-700 text-gray-400'}`}>BEP20</button>
+                        {/* FIX: Se eliminaron los botones de selección, solo hay modo BEP20 */}
+                        <div className="flex-1 py-1 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 text-center font-bold">Dirección USDT (BEP20)</div>
                     </div>
                     <input 
                         type="text" 
                         value={receiveAddress} 
                         onChange={(e) => setReceiveAddress(e.target.value)}
-                        placeholder={receiveType === 'binance_id' ? "Ej: 123456789" : "Ej: 0x123... (Recomendado BEP20)"}
+                        placeholder="Ej: 0x123... (Tu dirección de depósito Binance)"
                         className="w-full bg-black/30 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-yellow-500 focus:outline-none font-mono"
                     />
+                    <p className="text-[9px] text-gray-400 mt-1">*Si usas tu dirección de Binance, el envío es interno y gratuito.</p>
                 </div>
             )}
 
@@ -515,7 +511,7 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
         setStatus('processing');
         try {
             if (VERCEL_API_URL.includes("PON_AQUI")) {
-                 alert("⚠️ FALTANTE: No has puesto la URL de tu servidor en el archivo App.jsx (Línea 39).");
+                 alert("⚠️ FALTANTE: No has puesto la URL de tu servidor en el archivo App.jsx. Edita el archivo y pega la URL.");
                  setStatus('idle');
                  return;
             }
@@ -547,21 +543,19 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
         }
     };
 
-    // VERIFICACIÓN REAL + EXCHANGE
     const handleVerification = async () => {
         if (!invoiceId) return;
 
         try {
             if (isExchange) setStatus('dispersing');
 
-            // Enviamos todo al servidor: ID de PayPal + Datos de destino (si es exchange)
             const response = await fetch(`${VERCEL_API_URL}/api/capture-and-exchange`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     orderId: invoiceId,
-                    receiveAddress: exchangeData?.receiveAddress, // Dirección USDT
-                    receiveType: exchangeData?.receiveType // BEP20 o BinanceID
+                    receiveAddress: exchangeData?.receiveAddress, 
+                    receiveType: 'bep20' // FIX: Forzamos el tipo que sí funciona
                 })
             });
 
@@ -569,11 +563,10 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
 
             if (result.success) {
                 setStatus('completed');
-                // Si hubo exchange, pasamos el ID de Binance
                 onPaymentComplete(invoiceId, result.binanceTxId);
                 
                 if(result.manualActionRequired) {
-                    alert("Pago PayPal recibido, pero hubo un error enviando USDT. Revisa el panel Admin.");
+                    alert("Pago PayPal recibido, pero hubo un error enviando USDT (Posiblemente IP Proxy). Revisa el panel Admin.");
                 }
             } else {
                 alert("Pago no completado o fallido. Estado: " + (result.message || "Desconocido"));

@@ -8,7 +8,7 @@ import {
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle
 } from 'lucide-react';
 
-// --- FIREBASE IMPORTS ---
+// --- FIREBASE IMPORTS (NECESARIO PARA QUE EL ADMIN VEA DATOS REALES) ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, query } from "firebase/firestore";

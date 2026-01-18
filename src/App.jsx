@@ -11,7 +11,7 @@ import {
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, query } from "firebase/firestore";
 
 // --- FIREBASE INIT ---
 const getFirebaseConfig = () => {
@@ -288,7 +288,7 @@ const Hero = ({ exchangeRate }) => {
   );
 };
 
-const AdminPanel = ({ setView, orders, setAllOrders }) => {
+const AdminPanel = ({ setView, orders, setAllOrders, user }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -303,9 +303,11 @@ const AdminPanel = ({ setView, orders, setAllOrders }) => {
   };
 
   const handleStatusChange = async (orderId, newStatus) => {
+    if (!user) return;
     const orderToUpdate = orders.find(o => o.id === orderId);
+    // FIX: Using secure path 'users/{uid}/orders'
     if (orderToUpdate && orderToUpdate.firestoreId) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', orderToUpdate.firestoreId), { status: newStatus });
+        await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'orders', orderToUpdate.firestoreId), { status: newStatus });
     }
   };
 
@@ -719,7 +721,7 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) 
   </div>
 );
 
-const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders, setAllOrders, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate }) => {
+const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders, setAllOrders, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, user }) => {
   const fileInputRef = useRef(null);
   const idDocRef = useRef(null); 
 
@@ -743,8 +745,12 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
           paymentMethod: paymentMethod,
           fullData: sanitizedFullData
       };
-
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), newOrder);
+      
+      // FIX: Using secure path 'users/{uid}/orders'
+      const currentUser = auth.currentUser || user;
+      if (!currentUser) { alert("Error: No identificado"); return; }
+      
+      await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), newOrder);
       setLastOrder(newOrder);
       setCart([]); 
       setCheckoutStep(3); 
@@ -753,7 +759,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     if(!proofData.screenshot || !proofData.refNumber) { alert("Comprobante obligatorio."); return; }
-    try { await executeOrderCreation(proofData); } catch (error) { console.error(error); alert("Error guardando pedido."); }
+    try { await executeOrderCreation(proofData); } catch (error) { console.error(error); alert("Error guardando pedido: " + error.message); }
   };
 
   return (
@@ -863,7 +869,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
   );
 };
 
-const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCart, setCheckoutStep, paypalData }) => {
+const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCart, setCheckoutStep, paypalData, user }) => {
     const exchangeItem = cart.find(item => item.type === 'usdt');
     const isExchange = !!exchangeItem;
 
@@ -897,6 +903,11 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
             }
         };
         
+        // FIX: Using secure path 'users/{uid}/orders'
+        const currentUser = auth.currentUser || user;
+        if (!currentUser) { alert("Error Auth"); return; }
+
+        await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), automatedOrder);
         setLastOrder(automatedOrder);
         setCart([]);
         setCheckoutStep(3);
@@ -1067,7 +1078,8 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+    // FIX: Using secure path 'users/{uid}/orders' instead of 'public/data/orders' to fix permission errors
+    const q = collection(db, 'artifacts', appId, 'users', user.uid, 'orders');
     const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const ordersData = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
         ordersData.sort((a, b) => { if (a.date > b.date) return -1; if (a.date < b.date) return 1; return 0; });
@@ -1116,7 +1128,8 @@ export default function App() {
     
     try {
       const sanitizedCart = cart.map(({ icon, ...item }) => item);
-      const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
+      // FIX: Using secure path 'users/{uid}/orders'
+      const orderRef = await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), {
         userId: currentUser.uid, 
         items: sanitizedCart.map(i => i.title).join(', '), 
         rawItems: sanitizedCart, 
@@ -1135,7 +1148,7 @@ export default function App() {
           setView('checkout');
           setIsCartOpen(false);
       } else {
-          alert("Error de conexión. Intenta de nuevo.");
+          alert("Error de conexión (Permisos). Intenta de nuevo.");
       }
     } finally {
       setIsProcessing(false);
@@ -1149,7 +1162,7 @@ export default function App() {
       
       <main className="pt-6 pb-20">
         {view === 'admin' ? (
-          <AdminPanel setView={setView} orders={allOrders} setAllOrders={setAllOrders} />
+          <AdminPanel setView={setView} orders={allOrders} setAllOrders={setAllOrders} user={user} />
         ) : view === 'checkout' ? (
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
              <div className="flex justify-center mb-8">
@@ -1195,6 +1208,7 @@ export default function App() {
                         setCart={setCart}
                         setCheckoutStep={setCheckoutStep}
                         paypalData={paypalData}
+                        user={user}
                      />
                  ) : (
                     <PaymentProofStep 
@@ -1202,7 +1216,8 @@ export default function App() {
                         cart={cart} cartTotal={cartTotal}
                         allOrders={allOrders} setAllOrders={setAllOrders} setLastOrder={setLastOrder}
                         setCart={setCart} setCheckoutStep={setCheckoutStep}
-                        paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} 
+                        paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs}
+                        user={user}
                     />
                  )
              )}

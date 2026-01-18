@@ -37,7 +37,6 @@ const globalAppId = typeof __app_id !== 'undefined' ? __app_id : 'tecnobyte-59f7
 const appId = globalAppId; 
 
 // --- URL DEL SERVIDOR ---
-// ⚠️ Asegúrate de que esta sea la URL de tu servidor Vercel activo
 const VERCEL_API_URL = "https://api-paypal-secure.vercel.app"; 
 
 // --- DATA & CONFIGURATION ---
@@ -305,7 +304,7 @@ const AdminPanel = ({ setView, orders, setAllOrders, user }) => {
   const handleStatusChange = async (orderId, newStatus) => {
     if (!user) return;
     const orderToUpdate = orders.find(o => o.id === orderId);
-    // FIX: Using PUBLIC path so admin can update any order
+    // USING PUBLIC PATH SO ADMIN CAN UPDATE ANY ORDER
     if (orderToUpdate && orderToUpdate.firestoreId) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', orderToUpdate.firestoreId), { status: newStatus });
     }
@@ -762,6 +761,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
       
       try {
         // SAVING TO PUBLIC DATA SO ADMIN CAN SEE IT
+        // NOTE: We don't use orderBy here, just addDoc
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), newOrder);
         
         setLastOrder(newOrder);
@@ -769,7 +769,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
         setCheckoutStep(3); 
       } catch (err) {
         console.error("Save Error:", err);
-        // Even if save fails (rare on public), let them see success screen locally
+        // Even if save fails (rare on public if no query sort), let them see success screen locally
         setLastOrder(newOrder);
         setCart([]);
         setCheckoutStep(3);
@@ -1160,11 +1160,19 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    // FIX: Using PUBLIC path so admin can see all orders
+    // FIX: USING PUBLIC PATH SO ADMIN CAN SEE ALL ORDERS
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+    
+    // CRITICAL FIX: REMOVEDorderBy/where to prevent index/permission errors
+    // Sorting must be done in JS
     const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const ordersData = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-        ordersData.sort((a, b) => { if (a.date > b.date) return -1; if (a.date < b.date) return 1; return 0; });
+        ordersData.sort((a, b) => { 
+            // Sort by date descending (newest first)
+            const dateA = new Date(a.date || a.createdAt || 0);
+            const dateB = new Date(b.date || b.createdAt || 0);
+            return dateB - dateA;
+        });
         setAllOrders(ordersData);
     }, (error) => console.error("Error fetching orders:", error));
     return () => unsubscribeSnapshot();
@@ -1209,7 +1217,6 @@ export default function App() {
       const sanitizedCart = cart.map(({ icon, ...item }) => item);
       
       // Only try to save to DB if we have a real user (uid not starting with offline_)
-      // This prevents the permission error from blocking the UI
       if (!currentUser.uid.startsWith("offline_user_")) {
           // SAVING TO PUBLIC DATA
           const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {

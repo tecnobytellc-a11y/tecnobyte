@@ -305,9 +305,9 @@ const AdminPanel = ({ setView, orders, setAllOrders, user }) => {
   const handleStatusChange = async (orderId, newStatus) => {
     if (!user) return;
     const orderToUpdate = orders.find(o => o.id === orderId);
-    // FIX: Using secure path 'users/{uid}/orders'
+    // FIX: Using PUBLIC path so admin can update any order
     if (orderToUpdate && orderToUpdate.firestoreId) {
-        await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'orders', orderToUpdate.firestoreId), { status: newStatus });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', orderToUpdate.firestoreId), { status: newStatus });
     }
   };
 
@@ -761,18 +761,15 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
       };
       
       try {
-        // Try to save to Firestore if we have a real user (uid doesn't start with temp)
-        if (!currentUser.uid.startsWith("temp_guest_")) {
-            await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), newOrder);
-        } else {
-            console.warn("Using temporary guest ID. Order not saved to permanent DB.");
-        }
+        // SAVING TO PUBLIC DATA SO ADMIN CAN SEE IT
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), newOrder);
+        
         setLastOrder(newOrder);
         setCart([]); 
         setCheckoutStep(3); 
       } catch (err) {
         console.error("Save Error:", err);
-        // Even if save fails, let them see success screen locally
+        // Even if save fails (rare on public), let them see success screen locally
         setLastOrder(newOrder);
         setCart([]);
         setCheckoutStep(3);
@@ -940,9 +937,8 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
         };
         
         try {
-          if (!currentUser.uid.startsWith("temp_guest_")) {
-              await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), automatedOrder);
-          }
+          // SAVING TO PUBLIC DATA
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), automatedOrder);
           setLastOrder(automatedOrder);
           setCart([]);
           setCheckoutStep(3);
@@ -1164,8 +1160,8 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    // FIX: Using secure path 'users/{uid}/orders' instead of 'public/data/orders' to fix permission errors
-    const q = collection(db, 'artifacts', appId, 'users', user.uid, 'orders');
+    // FIX: Using PUBLIC path so admin can see all orders
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
     const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const ordersData = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
         ordersData.sort((a, b) => { if (a.date > b.date) return -1; if (a.date < b.date) return 1; return 0; });
@@ -1215,7 +1211,8 @@ export default function App() {
       // Only try to save to DB if we have a real user (uid not starting with offline_)
       // This prevents the permission error from blocking the UI
       if (!currentUser.uid.startsWith("offline_user_")) {
-          const orderRef = await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), {
+          // SAVING TO PUBLIC DATA
+          const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
             userId: currentUser.uid, 
             items: sanitizedCart.map(i => i.title).join(', '), 
             rawItems: sanitizedCart, 

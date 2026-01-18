@@ -746,9 +746,20 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
           fullData: sanitizedFullData
       };
       
-      // FIX: Using secure path 'users/{uid}/orders'
-      const currentUser = auth.currentUser || user;
-      if (!currentUser) { alert("Error: No identificado"); return; }
+      // FIX: Secure User Check & Auto-reconnect
+      let currentUser = auth.currentUser || user;
+      
+      if (!currentUser) {
+          try {
+              // Try silent reconnection
+              const result = await signInAnonymously(auth);
+              currentUser = result.user;
+          } catch(e) {
+              console.error("Re-auth failed:", e);
+              alert("Error: No identificado (Error de sesión). Por favor recarga la página e intenta de nuevo."); 
+              return; 
+          }
+      }
       
       await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), newOrder);
       setLastOrder(newOrder);
@@ -903,9 +914,19 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
             }
         };
         
-        // FIX: Using secure path 'users/{uid}/orders'
-        const currentUser = auth.currentUser || user;
-        if (!currentUser) { alert("Error Auth"); return; }
+        // FIX: Secure User Check & Auto-reconnect
+        let currentUser = auth.currentUser || user;
+        if (!currentUser) { 
+             try {
+                // Try silent reconnection
+                const result = await signInAnonymously(auth);
+                currentUser = result.user;
+             } catch(e) {
+                console.error("Re-auth failed:", e);
+                alert("Error Auth (Error de sesión). Recarga la página."); 
+                return; 
+             }
+        }
 
         await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), automatedOrder);
         setLastOrder(automatedOrder);

@@ -8,10 +8,10 @@ import {
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle
 } from 'lucide-react';
 
-// --- FIREBASE IMPORTS (NECESARIO PARA QUE EL ADMIN VEA DATOS REALES) ---
+// --- FIREBASE IMPORTS ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, query } from "firebase/firestore";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc } from "firebase/firestore";
 
 // --- FIREBASE INIT ---
 const getFirebaseConfig = () => {
@@ -37,6 +37,7 @@ const globalAppId = typeof __app_id !== 'undefined' ? __app_id : 'tecnobyte-59f7
 const appId = globalAppId; 
 
 // --- URL DEL SERVIDOR ---
+// ⚠️ Asegúrate de que esta sea la URL de tu servidor Vercel activo
 const VERCEL_API_URL = "https://api-paypal-secure.vercel.app"; 
 
 // --- DATA & CONFIGURATION ---
@@ -287,7 +288,7 @@ const Hero = ({ exchangeRate }) => {
   );
 };
 
-const AdminPanel = ({ setView, orders, setAllOrders, user }) => {
+const AdminPanel = ({ setView, orders, setAllOrders }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -302,9 +303,7 @@ const AdminPanel = ({ setView, orders, setAllOrders, user }) => {
   };
 
   const handleStatusChange = async (orderId, newStatus) => {
-    if (!user) return;
     const orderToUpdate = orders.find(o => o.id === orderId);
-    // USING PUBLIC PATH SO ADMIN CAN UPDATE ANY ORDER
     if (orderToUpdate && orderToUpdate.firestoreId) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', orderToUpdate.firestoreId), { status: newStatus });
     }
@@ -520,7 +519,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
 
 // --- PAYMENT & API LOGIC ---
 
-const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders, ensureAuth }) => {
+const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders }) => {
     const [status, setStatus] = useState('idle'); 
     const [invoiceId, setInvoiceId] = useState('');
     const [approveLink, setApproveLink] = useState('');
@@ -720,25 +719,11 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) 
   </div>
 );
 
-const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders, setAllOrders, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, ensureAuth }) => {
+const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders, setAllOrders, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate }) => {
   const fileInputRef = useRef(null);
   const idDocRef = useRef(null); 
 
   const executeOrderCreation = async (manualProofData) => {
-      // 1. Ensure Auth with explicit helper before anything else
-      let currentUser;
-      try {
-        currentUser = await ensureAuth();
-      } catch (e) {
-        console.warn("Auth warning:", e);
-        // Fallback: Proceed locally if possible
-      }
-      
-      // If still no user, use a fallback local ID so we don't crash
-      if (!currentUser) {
-          currentUser = { uid: "temp_guest_" + Date.now() };
-      }
-
       const sanitizedFullData = {
           ...manualProofData,
           screenshot: manualProofData.screenshot ? { name: manualProofData.screenshot.name, data: await convertToBase64(manualProofData.screenshot) } : null,
@@ -758,28 +743,17 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
           paymentMethod: paymentMethod,
           fullData: sanitizedFullData
       };
-      
-      try {
-        // SAVING TO PUBLIC DATA SO ADMIN CAN SEE IT
-        // NOTE: We don't use orderBy here, just addDoc
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), newOrder);
-        
-        setLastOrder(newOrder);
-        setCart([]); 
-        setCheckoutStep(3); 
-      } catch (err) {
-        console.error("Save Error:", err);
-        // Even if save fails (rare on public if no query sort), let them see success screen locally
-        setLastOrder(newOrder);
-        setCart([]);
-        setCheckoutStep(3);
-      }
+
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), newOrder);
+      setLastOrder(newOrder);
+      setCart([]); 
+      setCheckoutStep(3); 
   };
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     if(!proofData.screenshot || !proofData.refNumber) { alert("Comprobante obligatorio."); return; }
-    try { await executeOrderCreation(proofData); } catch (error) { console.error(error); alert("Error inesperado: " + error.message); }
+    try { await executeOrderCreation(proofData); } catch (error) { console.error(error); alert("Error guardando pedido."); }
   };
 
   return (
@@ -889,24 +863,11 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
   );
 };
 
-const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCart, setCheckoutStep, paypalData, ensureAuth }) => {
+const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCart, setCheckoutStep, paypalData }) => {
     const exchangeItem = cart.find(item => item.type === 'usdt');
     const isExchange = !!exchangeItem;
 
     const handleAutomatedComplete = async (invoiceId, binanceTxId) => {
-        // 1. Ensure Auth
-        let currentUser;
-        try {
-          currentUser = await ensureAuth();
-        } catch (e) {
-          console.warn("Auth warning:", e);
-        }
-        
-        // Use fallback if auth completely failed
-        if (!currentUser) {
-            currentUser = { uid: "temp_guest_" + Date.now() };
-        }
-
         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
         
         let idDocData = null;
@@ -936,18 +897,9 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
             }
         };
         
-        try {
-          // SAVING TO PUBLIC DATA
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), automatedOrder);
-          setLastOrder(automatedOrder);
-          setCart([]);
-          setCheckoutStep(3);
-        } catch(err) {
-          console.error("Save Error:", err);
-          setLastOrder(automatedOrder);
-          setCart([]);
-          setCheckoutStep(3);
-        }
+        setLastOrder(automatedOrder);
+        setCart([]);
+        setCheckoutStep(3);
     };
 
     return (
@@ -969,7 +921,6 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
                 exchangeData={exchangeItem ? exchangeItem.exchangeData : null}
                 paypalData={paypalData}
                 allOrders={allOrders}
-                ensureAuth={ensureAuth}
             />
         </div>
     );
@@ -1096,83 +1047,30 @@ export default function App() {
     };
   }, []);
 
-  // --- ROBUST AUTH INIT ---
-  // Ensure we check for token OR fallback immediately
+  // Authentication Logic Fixed
   useEffect(() => {
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
-          // If no custom token, we check if there's already a user, if not, sign in anon
-          if (!auth.currentUser) {
-             await signInAnonymously(auth);
-          }
+          await signInAnonymously(auth);
         }
       } catch (err) {
-        console.error("Auth Init Error:", err);
+        console.error("Error Auth:", err);
       }
     };
     initAuth();
-    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
-        setUser(u);
-    });
+    const unsubscribeAuth = onAuthStateChanged(auth, setUser);
     return () => unsubscribeAuth();
   }, []);
 
-  // --- HELPER: ENSURE AUTHENTICATED ---
-  // Returns a promise that resolves to a User object, or throws
-  const ensureAuth = async () => {
-      // 1. First Check: User already exists in SDK
-      if (auth.currentUser) return auth.currentUser;
-      // 2. Second Check: User already exists in state
-      if (user) return user;
-      
-      console.log("User disconnected. Attempting aggressive reconnection...");
-      
-      // 3. Aggressive Retry Strategy
-      try {
-          const result = await signInAnonymously(auth);
-          setUser(result.user); 
-          return result.user;
-      } catch (error) {
-          console.warn("Auth attempt 1 failed. Retrying in 500ms...");
-          try {
-             await new Promise(r => setTimeout(r, 500));
-             const result2 = await signInAnonymously(auth);
-             setUser(result2.user);
-             return result2.user;
-          } catch(e2) {
-             console.warn("Auth attempt 2 failed. Retrying in 1s...");
-             try {
-                await new Promise(r => setTimeout(r, 1000));
-                const result3 = await signInAnonymously(auth);
-                setUser(result3.user);
-                return result3.user;
-             } catch(e3) {
-                 // Final fallback attempt: Check local state one last time
-                 if (user) return user;
-                 throw e3;
-             }
-          }
-      }
-  };
-
   useEffect(() => {
     if (!user) return;
-    // FIX: USING PUBLIC PATH SO ADMIN CAN SEE ALL ORDERS
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
-    
-    // CRITICAL FIX: REMOVEDorderBy/where to prevent index/permission errors
-    // Sorting must be done in JS
     const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const ordersData = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-        ordersData.sort((a, b) => { 
-            // Sort by date descending (newest first)
-            const dateA = new Date(a.date || a.createdAt || 0);
-            const dateB = new Date(b.date || b.createdAt || 0);
-            return dateB - dateA;
-        });
+        ordersData.sort((a, b) => { if (a.date > b.date) return -1; if (a.date < b.date) return 1; return 0; });
         setAllOrders(ordersData);
     }, (error) => console.error("Error fetching orders:", error));
     return () => unsubscribeSnapshot();
@@ -1201,46 +1099,44 @@ export default function App() {
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
 
   const handleCheckoutStart = async () => {
-    setIsProcessing(true); 
+    let currentUser = auth.currentUser;
+    if (!currentUser) currentUser = user;
 
-    // 1. Ensure Auth with "invincible" check
-    let currentUser;
-    try {
-      currentUser = await ensureAuth();
-    } catch (e) {
-      console.warn("Final auth check failed. Proceeding in offline mode.");
-      // Fallback: create a temporary session just for UI
-      currentUser = { uid: "offline_user_" + Date.now() };
+    if (!currentUser) {
+        try {
+            const result = await signInAnonymously(auth);
+            currentUser = result.user;
+        } catch (error) {
+            console.warn("Auth Error (Using Guest Fallback):", error);
+            currentUser = { uid: "guest_" + Math.random().toString(36).substr(2, 9) };
+        }
     }
+    
+    setIsProcessing(true); 
     
     try {
       const sanitizedCart = cart.map(({ icon, ...item }) => item);
-      
-      // Only try to save to DB if we have a real user (uid not starting with offline_)
-      if (!currentUser.uid.startsWith("offline_user_")) {
-          // SAVING TO PUBLIC DATA
-          const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
-            userId: currentUser.uid, 
-            items: sanitizedCart.map(i => i.title).join(', '), 
-            rawItems: sanitizedCart, 
-            total: cartTotal,
-            status: 'pending',
-            createdAt: new Date().toISOString()
-          });
-          setOrderId(orderRef.id);
-      } else {
-          setOrderId("TEMP-" + Date.now());
-      }
-      
+      const orderRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
+        userId: currentUser.uid, 
+        items: sanitizedCart.map(i => i.title).join(', '), 
+        rawItems: sanitizedCart, 
+        total: cartTotal,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
+      setOrderId(orderRef.id);
       setCheckoutStep(0);
       setView('checkout'); 
       setIsCartOpen(false); 
     } catch (err) {
       console.error("Error creating order:", err);
-      // Even if saving fails, WE MUST LET THE USER PROCEED
-      setCheckoutStep(0);
-      setView('checkout');
-      setIsCartOpen(false);
+      if (currentUser.uid.startsWith("guest_")) {
+          setCheckoutStep(0);
+          setView('checkout');
+          setIsCartOpen(false);
+      } else {
+          alert("Error de conexión. Intenta de nuevo.");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -1253,7 +1149,7 @@ export default function App() {
       
       <main className="pt-6 pb-20">
         {view === 'admin' ? (
-          <AdminPanel setView={setView} orders={allOrders} setAllOrders={setAllOrders} user={user} />
+          <AdminPanel setView={setView} orders={allOrders} setAllOrders={setAllOrders} />
         ) : view === 'checkout' ? (
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
              <div className="flex justify-center mb-8">
@@ -1299,8 +1195,6 @@ export default function App() {
                         setCart={setCart}
                         setCheckoutStep={setCheckoutStep}
                         paypalData={paypalData}
-                        user={user}
-                        ensureAuth={ensureAuth}
                      />
                  ) : (
                     <PaymentProofStep 
@@ -1308,9 +1202,7 @@ export default function App() {
                         cart={cart} cartTotal={cartTotal}
                         allOrders={allOrders} setAllOrders={setAllOrders} setLastOrder={setLastOrder}
                         setCart={setCart} setCheckoutStep={setCheckoutStep}
-                        paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs}
-                        user={user}
-                        ensureAuth={ensureAuth}
+                        paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} 
                     />
                  )
              )}

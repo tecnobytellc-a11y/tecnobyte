@@ -96,14 +96,14 @@ const CONTACT_INFO = {
     phone: "0412-1327092"
   },
   transfer_bs: {
-    bank: "Venezolano de Crédito",
+    bank: "Banco Venezolano de Crédito [0104]",
     account: "01040019860190162931",
-    id: "V-04139374"
+    id: "04.139.374"
   },
   transfer_usd: {
     bank: "FACEBANK International",
     account: "56110272112",
-    routing: "021502189 (ABA)"
+    routing: "021502189 [ABA]"
   },
   facebank: {
     account: "56110272112"
@@ -355,7 +355,7 @@ const AdminPanel = ({ setView, orders, setAllOrders }) => {
             </thead>
             <tbody className="divide-y divide-gray-800">
               {orders.map(order => (
-                <tr key={order.id} className="hover:bg-gray-800/50">
+                <tr key={order.firestoreId || order.id} className="hover:bg-gray-800/50">
                   <td className="p-4 font-mono text-sm text-gray-400">{order.id}</td>
                   <td className="p-4 font-medium text-white">{order.user}</td>
                   <td className="p-4 text-sm text-gray-300 max-w-xs truncate">
@@ -391,11 +391,23 @@ const AdminPanel = ({ setView, orders, setAllOrders }) => {
                          </div>
                     )}
                     <p><strong>Ref:</strong> {selectedOrder.fullData?.refNumber || 'Automático'}</p>
+                    
+                    {/* VISUALIZACIÓN DE IMÁGENES */}
                     {selectedOrder.fullData?.screenshot && (
-                        <p className="text-green-400">Comprobante Adjunto (Ver en BD)</p>
+                        <div className="mt-4">
+                            <p className="text-green-400 text-xs mb-2 font-bold">Comprobante de Pago:</p>
+                            <img src={selectedOrder.fullData.screenshot.data} alt="Comprobante" className="w-full rounded-lg border border-gray-700 max-h-64 object-contain bg-black/50" />
+                        </div>
+                    )}
+                    
+                    {selectedOrder.fullData?.idDoc && (
+                        <div className="mt-4">
+                            <p className="text-green-400 text-xs mb-2 font-bold">Documento de Identidad:</p>
+                            <img src={selectedOrder.fullData.idDoc.data} alt="ID" className="w-full rounded-lg border border-gray-700 max-h-64 object-contain bg-black/50" />
+                        </div>
                     )}
                 </div>
-                <button onClick={() => setSelectedOrder(null)} className="mt-6 w-full bg-gray-700 py-2 rounded">Cerrar</button>
+                <button onClick={() => setSelectedOrder(null)} className="mt-6 w-full bg-gray-700 py-2 rounded text-white font-bold hover:bg-gray-600">Cerrar</button>
             </div>
         </div>
       )}
@@ -748,13 +760,72 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
       <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 h-fit">
         <h3 className="text-xl font-bold text-white mb-4">Datos para Transferir</h3>
-        {paymentMethod === 'binance' && <div className="space-y-4"><p className="text-yellow-500 font-bold">Binance Pay ID</p><p className="text-white font-mono">{CONTACT_INFO.binance_email}</p></div>}
-        {paymentMethod === 'pagomovil' && <div className="space-y-4"><p className="text-blue-400 font-bold">Pago Móvil</p><p className="text-white">{CONTACT_INFO.pagomovil.phone} - {CONTACT_INFO.pagomovil.id}</p></div>}
-        {paymentMethod === 'transfer_bs' && <div className="space-y-4"><p className="text-green-400 font-bold">Transferencia Bs</p><p className="text-white">{CONTACT_INFO.transfer_bs.account}</p></div>}
-        {paymentMethod === 'transfer_usd' && <div className="space-y-4"><p className="text-green-600 font-bold">Transferencia USD</p><p className="text-white">{CONTACT_INFO.transfer_usd.account}</p></div>}
-        {paymentMethod === 'facebank' && <div className="space-y-4"><p className="text-blue-600 font-bold">FACEBANK</p><p className="text-white">{CONTACT_INFO.facebank.account}</p></div>}
-        {paymentMethod === 'pipolpay' && <div className="space-y-4"><p className="text-orange-400 font-bold">PipolPay</p><p className="text-white">{CONTACT_INFO.pipolpay.email}</p></div>}
+        {paymentMethod === 'binance' && (
+            <div className="space-y-4">
+                <p className="text-yellow-500 font-bold">Binance Pay</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Email:</span> {CONTACT_INFO.binance_email}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'pagomovil' && (
+            <div className="space-y-4">
+                <p className="text-blue-400 font-bold">Pago Móvil</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {CONTACT_INFO.pagomovil.bank}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Phone:</span> {CONTACT_INFO.pagomovil.phone}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">ID:</span> {CONTACT_INFO.pagomovil.id}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'transfer_bs' && (
+            <div className="space-y-4">
+                <p className="text-green-400 font-bold">Transferencia Bs</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {CONTACT_INFO.transfer_bs.bank}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {CONTACT_INFO.transfer_bs.account}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">ID:</span> {CONTACT_INFO.transfer_bs.id}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'transfer_usd' && (
+            <div className="space-y-4">
+                <p className="text-green-600 font-bold">Transferencia USD</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {CONTACT_INFO.transfer_usd.bank}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {CONTACT_INFO.transfer_usd.account}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Routing No:</span> {CONTACT_INFO.transfer_usd.routing}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'facebank' && (
+            <div className="space-y-4">
+                <p className="text-blue-600 font-bold">FACEBANK</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> FACEBANK International</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {CONTACT_INFO.facebank.account}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'pipolpay' && (
+            <div className="space-y-4">
+                <p className="text-orange-400 font-bold">PipolPay</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Email:</span> {CONTACT_INFO.pipolpay.email}</p>
+                </div>
+            </div>
+        )}
         <p className="text-white font-bold text-xl mt-4">Total: ${cartTotal.toFixed(2)}</p>
+        
+        {/* --- CÁLCULO AUTOMÁTICO EN BOLÍVARES --- */}
+        {(paymentMethod === 'pagomovil' || paymentMethod === 'transfer_bs') && (
+             <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-600">
+                 <p className="text-gray-400 text-xs mb-1 uppercase tracking-wider">Monto en Bolívares (Tasa: {exchangeRate.toFixed(2)})</p>
+                 <p className="text-cyan-400 font-bold font-mono text-3xl">
+                     Bs {(cartTotal * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                 </p>
+             </div>
+        )}
       </div>
 
       <div className="bg-gray-900 p-8 rounded-2xl border border-indigo-500/30">
@@ -798,6 +869,15 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
 
     const handleAutomatedComplete = async (invoiceId, binanceTxId) => {
         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
+        
+        let idDocData = null;
+        if (paypalData.idDoc) {
+             idDocData = { 
+                 name: paypalData.idDoc.name, 
+                 data: await convertToBase64(paypalData.idDoc) 
+             };
+        }
+
         const automatedOrder = {
             id: `ORD-${String(allOrders.length + 1).padStart(3, '0')}`,
             user: `${paypalData.firstName} ${paypalData.lastName}`, 
@@ -812,7 +892,8 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
                 phone: paypalData.phone,
                 refNumber: invoiceId, 
                 binanceTxId: binanceTxId, 
-                exchangeData: exchangeItem ? exchangeItem.exchangeData : null
+                exchangeData: exchangeItem ? exchangeItem.exchangeData : null,
+                idDoc: idDocData
             }
         };
         
@@ -846,6 +927,8 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
 };
 
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep }) => {
+  const idDocRef = useRef(null);
+  
   const handleSubmit = (e) => {
     e.preventDefault();
     if(!paypalData.email || !paypalData.firstName) { alert("Completa los campos básicos."); return; }
@@ -865,6 +948,13 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep }) => {
         </div>
         <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
         
+        <div className="border-2 border-dashed border-gray-700 rounded-lg p-4 text-center cursor-pointer mt-4" onClick={() => idDocRef.current.click()}>
+           <input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={(e) => setPaypalData({...paypalData, idDoc: e.target.files[0]})} />
+           <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
+           <p className="text-gray-300 text-sm">Foto Documento Identidad (Opcional)</p>
+           {paypalData.idDoc && <p className="text-green-400 text-xs mt-1">Adjunto: {paypalData.idDoc.name}</p>}
+        </div>
+
         <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2">
             Continuar a Pasarela Segura <ArrowRight size={20} />
         </button>
@@ -1064,10 +1154,25 @@ export default function App() {
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
              <div className="flex justify-center mb-8">
                <div className="flex items-center gap-4">
-                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>1</div>
+                 {/* PASO 1 INTERACTIVO */}
+                 <div 
+                    onClick={() => {
+                        if (checkoutStep > 0 && checkoutStep < 3) { // No permitir si ya terminó (3) o si ya está en el 1
+                            setCheckoutStep(0);
+                            setPaymentMethod(null); // Reseteamos para que elija de nuevo
+                        }
+                    }}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}
+                 >
+                    1
+                 </div>
+                 
                  <div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div>
+                 
                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div>
+                 
                  <div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div>
+                 
                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div>
                </div>
              </div>

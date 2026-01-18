@@ -521,7 +521,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
 
 // --- PAYMENT & API LOGIC ---
 
-const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders }) => {
+const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders, ensureAuth }) => {
     const [status, setStatus] = useState('idle'); 
     const [invoiceId, setInvoiceId] = useState('');
     const [approveLink, setApproveLink] = useState('');
@@ -721,11 +721,23 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) 
   </div>
 );
 
-const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders, setAllOrders, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, user }) => {
+const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders, setAllOrders, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, ensureAuth }) => {
   const fileInputRef = useRef(null);
   const idDocRef = useRef(null); 
 
   const executeOrderCreation = async (manualProofData) => {
+      // 1. Ensure Auth with explicit helper before anything else
+      let currentUser;
+      try {
+        currentUser = await ensureAuth();
+      } catch (e) {
+        console.error("Critical Auth Fail:", e);
+        // Fallback: If we can't auth, we can't save to the secure path. 
+        // We will try one last desperate attempt or just return.
+        alert("Error de conexión seguro. Intenta de nuevo.");
+        return;
+      }
+      
       const sanitizedFullData = {
           ...manualProofData,
           screenshot: manualProofData.screenshot ? { name: manualProofData.screenshot.name, data: await convertToBase64(manualProofData.screenshot) } : null,
@@ -746,31 +758,21 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
           fullData: sanitizedFullData
       };
       
-      // FIX: Secure User Check & Auto-reconnect
-      let currentUser = auth.currentUser || user;
-      
-      if (!currentUser) {
-          try {
-              // Try silent reconnection
-              const result = await signInAnonymously(auth);
-              currentUser = result.user;
-          } catch(e) {
-              console.error("Re-auth failed:", e);
-              alert("Error: No identificado (Error de sesión). Por favor recarga la página e intenta de nuevo."); 
-              return; 
-          }
+      try {
+        await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), newOrder);
+        setLastOrder(newOrder);
+        setCart([]); 
+        setCheckoutStep(3); 
+      } catch (err) {
+        console.error("Save Error:", err);
+        alert("Error guardando el pedido. Verifique su conexión.");
       }
-      
-      await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), newOrder);
-      setLastOrder(newOrder);
-      setCart([]); 
-      setCheckoutStep(3); 
   };
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     if(!proofData.screenshot || !proofData.refNumber) { alert("Comprobante obligatorio."); return; }
-    try { await executeOrderCreation(proofData); } catch (error) { console.error(error); alert("Error guardando pedido: " + error.message); }
+    try { await executeOrderCreation(proofData); } catch (error) { console.error(error); alert("Error inesperado: " + error.message); }
   };
 
   return (
@@ -880,11 +882,21 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, allOrders,
   );
 };
 
-const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCart, setCheckoutStep, paypalData, user }) => {
+const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCart, setCheckoutStep, paypalData, ensureAuth }) => {
     const exchangeItem = cart.find(item => item.type === 'usdt');
     const isExchange = !!exchangeItem;
 
     const handleAutomatedComplete = async (invoiceId, binanceTxId) => {
+        // 1. Ensure Auth
+        let currentUser;
+        try {
+          currentUser = await ensureAuth();
+        } catch (e) {
+          console.error("Critical Auth Fail:", e);
+          alert("Error de conexión seguro. Intenta de nuevo.");
+          return;
+        }
+
         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
         
         let idDocData = null;
@@ -914,24 +926,15 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
             }
         };
         
-        // FIX: Secure User Check & Auto-reconnect
-        let currentUser = auth.currentUser || user;
-        if (!currentUser) { 
-             try {
-                // Try silent reconnection
-                const result = await signInAnonymously(auth);
-                currentUser = result.user;
-             } catch(e) {
-                console.error("Re-auth failed:", e);
-                alert("Error Auth (Error de sesión). Recarga la página."); 
-                return; 
-             }
+        try {
+          await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), automatedOrder);
+          setLastOrder(automatedOrder);
+          setCart([]);
+          setCheckoutStep(3);
+        } catch(err) {
+          console.error("Save Error:", err);
+          alert("Error guardando el pedido. Verifique su conexión.");
         }
-
-        await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'orders'), automatedOrder);
-        setLastOrder(automatedOrder);
-        setCart([]);
-        setCheckoutStep(3);
     };
 
     return (
@@ -953,6 +956,7 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, allOrders, setLastOrder, setCar
                 exchangeData={exchangeItem ? exchangeItem.exchangeData : null}
                 paypalData={paypalData}
                 allOrders={allOrders}
+                ensureAuth={ensureAuth}
             />
         </div>
     );
@@ -1079,23 +1083,48 @@ export default function App() {
     };
   }, []);
 
-  // Authentication Logic Fixed
+  // --- ROBUST AUTH INIT ---
+  // Ensure we check for token OR fallback immediately
   useEffect(() => {
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
-          await signInAnonymously(auth);
+          // If no custom token, we check if there's already a user, if not, sign in anon
+          if (!auth.currentUser) {
+             await signInAnonymously(auth);
+          }
         }
       } catch (err) {
-        console.error("Error Auth:", err);
+        console.error("Auth Init Error:", err);
       }
     };
     initAuth();
-    const unsubscribeAuth = onAuthStateChanged(auth, setUser);
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
+        setUser(u);
+    });
     return () => unsubscribeAuth();
   }, []);
+
+  // --- HELPER: ENSURE AUTHENTICATED ---
+  // Returns a promise that resolves to a User object, or throws
+  const ensureAuth = async () => {
+      if (auth.currentUser) return auth.currentUser;
+      
+      console.log("User disconnected. Attempting reconnection...");
+      try {
+          // Attempt simple anonymous sign in
+          const result = await signInAnonymously(auth);
+          setUser(result.user); // Sync state immediately
+          return result.user;
+      } catch (error) {
+          console.error("Reconnection failed:", error);
+          // Last resort: check if state 'user' exists even if auth.currentUser is lagging
+          if (user) return user;
+          throw error;
+      }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -1132,17 +1161,14 @@ export default function App() {
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
 
   const handleCheckoutStart = async () => {
-    let currentUser = auth.currentUser;
-    if (!currentUser) currentUser = user;
-
-    if (!currentUser) {
-        try {
-            const result = await signInAnonymously(auth);
-            currentUser = result.user;
-        } catch (error) {
-            console.warn("Auth Error (Using Guest Fallback):", error);
-            currentUser = { uid: "guest_" + Math.random().toString(36).substr(2, 9) };
-        }
+    // 1. Ensure Auth
+    let currentUser;
+    try {
+      currentUser = await ensureAuth();
+    } catch (e) {
+      console.error("Checkout Auth Fail:", e);
+      alert("Error iniciando sesión segura. Recargue la página.");
+      return;
     }
     
     setIsProcessing(true); 
@@ -1164,13 +1190,8 @@ export default function App() {
       setIsCartOpen(false); 
     } catch (err) {
       console.error("Error creating order:", err);
-      if (currentUser.uid.startsWith("guest_")) {
-          setCheckoutStep(0);
-          setView('checkout');
-          setIsCartOpen(false);
-      } else {
-          alert("Error de conexión (Permisos). Intenta de nuevo.");
-      }
+      // Fallback only if totally blocked, but usually ensureAuth handles it
+      alert("Error de conexión (Permisos). Intenta de nuevo.");
     } finally {
       setIsProcessing(false);
     }
@@ -1230,6 +1251,7 @@ export default function App() {
                         setCheckoutStep={setCheckoutStep}
                         paypalData={paypalData}
                         user={user}
+                        ensureAuth={ensureAuth}
                      />
                  ) : (
                     <PaymentProofStep 
@@ -1239,6 +1261,7 @@ export default function App() {
                         setCart={setCart} setCheckoutStep={setCheckoutStep}
                         paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs}
                         user={user}
+                        ensureAuth={ensureAuth}
                     />
                  )
              )}

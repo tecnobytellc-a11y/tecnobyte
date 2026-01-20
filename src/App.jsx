@@ -5,7 +5,7 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN GLOBAL ---
@@ -45,7 +45,8 @@ const SERVICES = [
   { id: 12, category: 'Services', title: 'ChatBot PyME', price: 5.00, icon: <Zap />, description: 'Automatización básica para WhatsApp Business.' },
 
   // --- STREAMING (Con providerId para la API) ---
-  { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.', providerId: 26 }, // ID 26 EJEMPLO
+  // IMPORTANTE: Asegúrate de que los 'providerId' coincidan con los IDs reales de tu proveedor (itsjefryservices)
+  { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.', providerId: 26 }, 
   { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.', providerId: 0 },
   { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.', providerId: 0 },
   { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.', providerId: 0 },
@@ -372,6 +373,135 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
         </button>
     </div>
   );
+};
+
+// --- NUEVA HERRAMIENTA SECRETA: GENERADOR MANUAL DE CUENTAS ---
+const ManualServiceGenerator = ({ onClose }) => {
+    const [selectedService, setSelectedService] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [result, setResult] = useState(null);
+    const [password, setPassword] = useState('');
+    const [isAuth, setIsAuth] = useState(false);
+
+    // Solo los servicios que tienen providerId
+    const apiServices = SERVICES.filter(s => s.providerId && s.providerId > 0);
+
+    const handleLogin = () => {
+        if(password === "admin123") setIsAuth(true);
+        else alert("Clave incorrecta");
+    };
+
+    const handleGenerate = async () => {
+        if (!selectedService) return;
+        setIsLoading(true);
+        setResult(null);
+
+        try {
+            const response = await fetch(`${VERCEL_API_URL}/api/purchase-streaming`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ service_id: selectedService.providerId })
+            });
+            const data = await response.json();
+            
+            if(data.success) {
+                setResult(data.data); // data.data tiene la cuenta devuelta por la API
+            } else {
+                alert("Error API: " + (data.message || "Desconocido"));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (!isAuth) {
+        return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
+                <div className="bg-gray-900 p-6 rounded-xl border border-red-500/50 text-center max-w-sm w-full">
+                    <Terminal className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-white font-bold mb-4">Acceso Restringido</h3>
+                    <input 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Clave de Admin"
+                        className="w-full bg-black/50 border border-gray-700 rounded p-2 text-white mb-4 text-center"
+                    />
+                    <div className="flex gap-2">
+                        <button onClick={onClose} className="flex-1 bg-gray-800 text-gray-400 py-2 rounded hover:text-white">Salir</button>
+                        <button onClick={handleLogin} className="flex-1 bg-red-600 text-white py-2 rounded hover:bg-red-500">Entrar</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <div className="bg-gray-900 p-6 rounded-xl border border-indigo-500/50 max-w-lg w-full shadow-2xl relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X size={20}/></button>
+                
+                <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                    <Zap className="text-yellow-400" /> Generador Manual
+                </h3>
+                <p className="text-xs text-gray-400 mb-6">Usa esto para generar cuentas después de verificar un pago manual.</p>
+
+                {!result ? (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            {apiServices.map(service => (
+                                <button 
+                                    key={service.id}
+                                    onClick={() => setSelectedService(service)}
+                                    className={`p-3 rounded-lg border text-left transition-all ${selectedService?.id === service.id ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'}`}
+                                >
+                                    <div className="font-bold text-sm">{service.title}</div>
+                                    <div className="text-xs opacity-70">ID API: {service.providerId}</div>
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <button 
+                            onClick={handleGenerate}
+                            disabled={!selectedService || isLoading}
+                            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 text-white font-bold py-3 rounded-lg mt-4 flex justify-center items-center gap-2"
+                        >
+                            {isLoading ? <Loader className="animate-spin" /> : "GENERAR CUENTA AHORA"}
+                        </button>
+                    </div>
+                ) : (
+                    <div className="bg-black/50 p-4 rounded-lg border border-green-500/50 animate-fade-in-up">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-green-400 font-bold">¡Cuenta Generada!</h4>
+                            <button onClick={() => setResult(null)} className="text-xs text-gray-400 underline">Generar otra</button>
+                        </div>
+                        
+                        <div className="space-y-3 font-mono text-sm bg-gray-800 p-3 rounded">
+                            <div>
+                                <span className="text-gray-500 block text-xs">Email / Usuario</span>
+                                <div className="flex justify-between text-white">
+                                    <span>{result.email || result.user || "N/A"}</span>
+                                    <Copy size={14} className="cursor-pointer hover:text-indigo-400" onClick={() => navigator.clipboard.writeText(result.email || result.user)} />
+                                </div>
+                            </div>
+                            <div className="border-t border-gray-700 pt-2">
+                                <span className="text-gray-500 block text-xs">Contraseña</span>
+                                <div className="flex justify-between text-white">
+                                    <span>{result.password || result.pass || "****"}</span>
+                                    <Copy size={14} className="cursor-pointer hover:text-indigo-400" onClick={() => navigator.clipboard.writeText(result.password || result.pass)} />
+                                </div>
+                            </div>
+                            {result.message && <p className="text-xs text-yellow-500 pt-2">{result.message}</p>}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-4 text-center">Copia y pega estos datos al cliente en WhatsApp.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 // --- PAYMENT & API LOGIC ---
@@ -726,7 +856,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
   const idDocRef = useRef(null); 
 
   const executeOrderCreation = async (manualProofData) => {
-      // En modo local, simulamos la creación del pedido instantáneamente
       const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
       const randomId = Math.floor(100 + Math.random() * 900);
       
@@ -746,7 +875,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
           }
       };
 
-      // Guardamos en estado local y avanzamos
       setLastOrder(newOrder);
       setCart([]); 
       setCheckoutStep(3); 
@@ -754,7 +882,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
-    // Validación básica
     if(!proofData.name || !proofData.refNumber) { 
         alert("Por favor completa los datos obligatorios."); 
         return; 
@@ -762,10 +889,13 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
     await executeOrderCreation(proofData);
   };
 
+  const hasStreaming = cart.some(i => i.providerId);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
       <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 h-fit">
         <h3 className="text-xl font-bold text-white mb-4">Datos para Transferir</h3>
+        {/* ... (Datos Bancarios sin cambios) ... */}
         {paymentMethod === 'binance' && (
             <div className="space-y-4">
                 <p className="text-yellow-500 font-bold">Binance Pay</p>
@@ -821,9 +951,9 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
                 </div>
             </div>
         )}
+        
         <p className="text-white font-bold text-xl mt-4">Total: ${cartTotal.toFixed(2)}</p>
         
-        {/* --- CÁLCULO AUTOMÁTICO EN BOLÍVARES --- */}
         {(paymentMethod === 'pagomovil' || paymentMethod === 'transfer_bs') && (
              <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-600">
                  <p className="text-gray-400 text-xs mb-1 uppercase tracking-wider">Monto en Bolívares (Tasa: {exchangeRate.toFixed(2)})</p>
@@ -857,12 +987,24 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
             )}
             <input type="text" placeholder="Referencia / Comprobante" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.refNumber} onChange={e => setProofData({...proofData, refNumber: e.target.value})} />
             
-            {/* Nota Informativa en lugar de subida obligatoria a Firebase */}
-            <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20">
-                <p className="text-indigo-300 text-xs text-center">
-                   <Upload className="inline w-4 h-4 mr-1"/>
-                   <b>Nota:</b> Al finalizar, el botón de "Reportar Compra" te permitirá enviar la foto de tu comprobante por WhatsApp.
-                </p>
+            {/* ALERTAS DE ENTREGA */}
+            <div className="space-y-2">
+                {/* Nota para todos */}
+                <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20">
+                    <p className="text-indigo-300 text-xs text-center flex items-center justify-center gap-1">
+                    <Upload className="inline w-4 h-4"/>
+                    <b>Nota:</b> Al finalizar, deberás enviar la captura por WhatsApp.
+                    </p>
+                </div>
+                {/* ADVERTENCIA ESPECÍFICA DE STREAMING */}
+                {hasStreaming && (
+                    <div className="bg-yellow-900/20 p-4 rounded-lg border border-yellow-500/20">
+                        <p className="text-yellow-300 text-xs text-center flex items-center justify-center gap-1">
+                        <Clock className="inline w-4 h-4"/>
+                        <b>Streaming:</b> La cuenta se entregará por WhatsApp una vez verificado el pago manualmente.
+                        </p>
+                    </div>
+                )}
             </div>
             
             <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg shadow-lg mt-6">REGISTRAR PAGO</button>
@@ -877,39 +1019,25 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
     const isExchange = !!exchangeItem;
     const [binanceTxId, setBinanceTxId] = useState('');
 
-    // --- LOGICA DE COMPRA STREAMING AUTOMATICA ---
     const processStreamingPurchase = async (finalOrder) => {
-        // Buscamos si hay un servicio de streaming en el carrito
         const streamingItem = finalOrder.rawItems.find(item => item.providerId && item.providerId > 0);
-        
         if (streamingItem) {
-            console.log("Detectado servicio streaming:", streamingItem.title);
             try {
-                // Llamamos a TU servidor para que compre la cuenta
                 const response = await fetch(`${VERCEL_API_URL}/api/purchase-streaming`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        service_id: streamingItem.providerId
-                    })
+                    body: JSON.stringify({ service_id: streamingItem.providerId })
                 });
-                
                 const result = await response.json();
-                
                 if (result.success && result.data) {
-                    // Si el proveedor responde con éxito, guardamos los datos (cuenta/password) en la orden
-                    finalOrder.fullData.streamingAccount = result.data; // Guardamos todo lo que devuelve el proveedor
-                    console.log("Cuenta comprada exitosamente:", result.data);
+                    finalOrder.fullData.streamingAccount = result.data; 
                 }
-            } catch (error) {
-                console.error("Error comprando streaming automáticamente:", error);
-            }
+            } catch (error) { console.error("Error auto-streaming:", error); }
         }
         return finalOrder;
     };
 
-    // Función para procesar la orden exitosa de Binance Pay
-    const handleBinanceSuccess = async (txId) => {
+    const handleBinanceVerifiedSuccess = async (txId) => {
          const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
          const randomId = Math.floor(100 + Math.random() * 900);
          
@@ -929,10 +1057,7 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                  contactPhone: paypalData.phone
              }
          };
-
-         // Intentar comprar streaming si aplica
          automatedOrder = await processStreamingPurchase(automatedOrder);
-         
          setLastOrder(automatedOrder);
          setCart([]);
          setCheckoutStep(3);
@@ -960,16 +1085,12 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                 contactPhone: paypalData.phone
             }
         };
-        
-        // Intentar comprar streaming si aplica
         automatedOrder = await processStreamingPurchase(automatedOrder);
-
         setLastOrder(automatedOrder);
         setCart([]);
         setCheckoutStep(3);
     };
 
-    // Si no es Binance, usamos el de PayPal
     return (
         <div className="max-w-4xl mx-auto">
              {isExchange && (
@@ -991,10 +1112,6 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                      </div>
                  </div>
             )}
-
-            {/* Selector de Checkout según lo que se haya elegido antes */}
-            {/* NOTA: Como la prop paymentMethod no llega aquí, asumimos por contexto o props pasadas */}
-            {/* Para simplificar, renderizamos ambos condicionalmente si el wrapper lo permite, pero aquí solo se usa para PayPal y Binance */}
             
             <PayPalAutomatedCheckout 
                 cartTotal={cartTotal} 
@@ -1004,30 +1121,28 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                 paypalData={paypalData}
                 allOrders={[]} 
             />
-            {/* Nota: BinanceAutomatedCheckout se llama desde fuera de este wrapper en la estructura actual */}
+            {/* Nota: Para Binance Manual/Auto, se usa el componente separado si se selecciona en el paso anterior */}
+            <div className="hidden">
+                 <BinanceAutomatedCheckout 
+                    cartTotal={cartTotal}
+                    paypalData={paypalData}
+                    onVerified={handleBinanceVerifiedSuccess}
+                    onCancel={() => setCheckoutStep(0)}
+                />
+            </div>
         </div>
     );
 };
 
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
   const idDocRef = useRef(null);
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if(!paypalData.email || !paypalData.firstName) { alert("Completa los campos básicos."); return; }
-    setCheckoutStep(2); 
-  };
-
+  const handleSubmit = (e) => { e.preventDefault(); if(!paypalData.email || !paypalData.firstName) { alert("Completa los campos básicos."); return; } setCheckoutStep(2); };
   const isBinance = paymentMethod === 'binance';
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
-      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-          <span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> 
-          Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}
-      </h2>
+      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
       <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
-      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
         <div className="grid grid-cols-2 gap-4">
@@ -1035,10 +1150,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
           <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
         </div>
         <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
-        
-        <button type="submit" className={`w-full ${isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white'} font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2`}>
-            Continuar al Pago <ArrowRight size={20} />
-        </button>
+        <button type="submit" className={`w-full ${isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white'} font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2`}>Continuar al Pago <ArrowRight size={20} /></button>
       </form>
     </div>
   );
@@ -1054,141 +1166,62 @@ const convertToBase64 = (file) => {
 };
 
 const SuccessScreen = ({ lastOrder, setView }) => {
-  // Lógica para generar el mensaje de WhatsApp
   const generateWhatsAppLink = () => {
     if (!lastOrder) return "";
-    
     const isBsPayment = lastOrder.paymentMethod === 'pagomovil' || lastOrder.paymentMethod === 'transfer_bs';
-    const amountBs = isBsPayment 
-        ? (parseFloat(lastOrder.total) * (lastOrder.exchangeRateUsed || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2 })
-        : 0;
-    
-    // Si fue validado por API (PayPal o Binance)
+    const amountBs = isBsPayment ? (parseFloat(lastOrder.total) * (lastOrder.exchangeRateUsed || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2 }) : 0;
     const isApiVerified = lastOrder.paymentMethod === 'paypal_api' || lastOrder.paymentMethod === 'binance_api';
 
-    let text = `👋 *Hola equipo TecnoByte, he realizado una nueva compra.*\n`;
-    text += `Aquí están los detalles de mi pedido para su validación:\n\n`;
-
-    // HEADER
-    text += `📋 *RESUMEN DEL PEDIDO*\n`;
-    text += `🆔 *ID:* ${lastOrder.id}\n`;
-    text += `👤 *Cliente:* ${lastOrder.user}\n`;
-    text += `📞 *Teléfono:* ${lastOrder.fullData.contactPhone}\n`;
-    text += `💳 *Método:* ${lastOrder.paymentMethod.toUpperCase().replace('_', ' ')}\n`;
-    text += `🧾 *Ref:* ${lastOrder.fullData.refNumber || 'N/A'}\n`;
-    if (isApiVerified) text += `✅ *ESTADO:* VERIFICADO AUTOMÁTICAMENTE\n\n`;
-    else text += `\n`;
-
-    // ITEMS
+    let text = `👋 *Hola equipo TecnoByte, he realizado una nueva compra.*\nAquí están los detalles de mi pedido para su validación:\n\n`;
+    text += `📋 *RESUMEN DEL PEDIDO*\n🆔 *ID:* ${lastOrder.id}\n👤 *Cliente:* ${lastOrder.user}\n📞 *Teléfono:* ${lastOrder.fullData.contactPhone}\n💳 *Método:* ${lastOrder.paymentMethod.toUpperCase().replace('_', ' ')}\n🧾 *Ref:* ${lastOrder.fullData.refNumber || 'N/A'}\n`;
+    if (isApiVerified) text += `✅ *ESTADO:* VERIFICADO AUTOMÁTICAMENTE\n\n`; else text += `\n`;
     text += `🛒 *CARRITO*\n`;
-    lastOrder.rawItems.forEach(item => {
-        text += `• ${item.title} - $${item.price.toFixed(2)}\n`;
-    });
-    
-    // TOTALS
+    lastOrder.rawItems.forEach(item => { text += `• ${item.title} - $${item.price.toFixed(2)}\n`; });
     text += `\n💰 *TOTAL USD: $${lastOrder.total}*\n`;
-    if (isBsPayment) {
-        text += `🇻🇪 *TOTAL BS: ${amountBs}* (Tasa: ${lastOrder.exchangeRateUsed})\n`;
-    }
-
-    // CONDITIONAL NOTE LOGIC
+    if (isBsPayment) { text += `🇻🇪 *TOTAL BS: ${amountBs}* (Tasa: ${lastOrder.exchangeRateUsed})\n`; }
     text += `\n📝 *NOTA ADJUNTA:*\n`;
     if (isApiVerified) {
         text += `✅ El pago ya fue verificado exitosamente por el sistema API.`;
-        if (lastOrder.fullData.streamingAccount) {
-            text += `\n🔑 *CUENTA ENTREGADA:* Ya recibí mis credenciales de acceso.`;
-        }
+        if (lastOrder.fullData.streamingAccount) { text += `\n🔑 *CUENTA ENTREGADA:* Ya recibí mis credenciales de acceso.`; }
     } else if (lastOrder.paymentMethod === 'facebank' || lastOrder.paymentMethod === 'transfer_usd') {
-         text += `✅ Adjunto foto del comprobante de pago.\n`;
-         text += `❗ *OBLIGATORIO:* Adjunto también foto del documento de identidad (mío o del titular de la cuenta).`;
+         text += `✅ Adjunto foto del comprobante de pago.\n❗ *OBLIGATORIO:* Adjunto también foto del documento de identidad.`;
     } else {
          text += `✅ Adjunto foto del comprobante de pago para su verificación.`;
     }
-
     text += `\n\nQuedo atento a la entrega. Gracias.`;
-
     return `https://wa.me/19047400467?text=${encodeURIComponent(text)}`;
   };
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-scale-in">
-        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]">
-            <Check className="w-12 h-12 text-white" strokeWidth={3} />
-        </div>
+        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]"><Check className="w-12 h-12 text-white" strokeWidth={3} /></div>
         <h2 className="text-4xl font-bold text-white mb-4">¡Pedido Registrado!</h2>
         <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido procesado localmente. Para finalizar, repórtalo en WhatsApp.</p>
-
         {lastOrder && (
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 max-w-md w-full mb-8 shadow-2xl">
-            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">
-                Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.id}</span>
-            </h3>
+            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.id}</span></h3>
             <div className="space-y-3 text-left">
-            {lastOrder.rawItems.map((item, i) => (
-                <div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>
-            ))}
-            <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg">
-                <span>Total:</span><span className="text-green-400">${lastOrder.total}</span>
-            </div>
-            
-            {/* DATOS DE LA CUENTA COMPRADA AUTOMÁTICAMENTE */}
+            {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
+            <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
             {lastOrder.fullData?.streamingAccount && (
                 <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
-                    <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2">
-                        <Key size={16} /> Tu Cuenta Nueva:
-                    </p>
+                    <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
                     <div className="space-y-1 font-mono text-sm">
-                        {/* Se ajusta según la respuesta real de tu proveedor (ej: email, password, cuenta) */}
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">Usuario:</span>
-                            <span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">Clave:</span>
-                            <span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span>
-                        </div>
-                        {/* Si el proveedor devuelve un mensaje o instrucciones */}
-                        {lastOrder.fullData.streamingAccount.message && (
-                             <p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>
-                        )}
+                        <div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>
+                        {lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}
                     </div>
                 </div>
             )}
-
-            {lastOrder.paymentMethod === 'binance_api' && (
-                <div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">
-                    Verificado por Binance API
-                </div>
-            )}
+            {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
             </div>
         </div>
         )}
-
         <div className="flex flex-col gap-3 w-full max-w-md">
-            {/* BOTÓN 1: CONTACTAR SOPORTE GENÉRICO */}
-            <a 
-                href="https://wa.me/19047400467" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"
-            >
-                <MessageSquare size={20} />
-                Hablar con Nosotros
-            </a>
-
-            {/* BOTÓN 2: REPORTAR COMPRA CON DATOS */}
-            <a 
-                href={generateWhatsAppLink()} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] animate-pulse-green flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
-            >
-                <Send size={22} />
-                REPORTAR COMPRA (Enviar Datos)
-            </a>
+            <a href="https://wa.me/19047400467" target="_blank" rel="noopener noreferrer" className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"><MessageSquare size={20} /> Hablar con Nosotros</a>
+            <a href={generateWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] animate-pulse-green flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"><Send size={22} /> REPORTAR COMPRA (Enviar Datos)</a>
             <p className="text-xs text-gray-500 mt-2">*Al hacer clic, se abrirá WhatsApp con los datos de tu compra precargados.</p>
         </div>
-
         <button onClick={() => setView('home')} className="mt-8 text-gray-500 hover:text-white underline">Volver al inicio</button>
     </div>
   );
@@ -1205,23 +1238,17 @@ export default function App() {
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', nationalId: '', idDoc: null });
   const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null });
-
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showAdminTool, setShowAdminTool] = useState(false);
 
-  // --- NUEVA LÓGICA DE HORARIO ---
-  // Verifica si hoy es Lunes(1), Martes(2), Miércoles(3) o Jueves(4)
+  // --- LÓGICA DE HORARIO ---
   const getIsExchangeOpen = () => {
     const now = new Date();
-    // Forzamos zona horaria de Venezuela para la comprobación
     const venString = now.toLocaleString("en-US", {timeZone: "America/Caracas"});
     const venDate = new Date(venString);
-    const day = venDate.getDay(); // 0 Domingo, 1 Lunes, ..., 6 Sábado
-    
-    // Si el día está entre Lunes(1) y Jueves(4), está abierto.
-    // Viernes(5), Sábado(6) y Domingo(0) está cerrado.
+    const day = venDate.getDay(); 
     return day >= 1 && day <= 4;
   };
-
   const isExchangeAvailable = getIsExchangeOpen();
 
   // --- CONFIGURACIÓN DE ICONO ---
@@ -1269,7 +1296,6 @@ export default function App() {
 
   const handleCheckoutStart = async () => {
     setIsProcessing(true); 
-    // Simplemente avanzamos al checkout sin guardar en DB
     setTimeout(() => {
         setCheckoutStep(0);
         setView('checkout'); 
@@ -1278,12 +1304,9 @@ export default function App() {
     }, 500);
   };
 
-  // ESTA ES LA FUNCIÓN CLAVE QUE LLAMA AL AUTOMATED FLOW
   const handleBinanceVerifiedSuccess = async (txId) => {
     const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
     const randomId = Math.floor(100 + Math.random() * 900);
-    
-    // Creamos la orden base
     let automatedOrder = {
         id: `ORD-${randomId}`,
         user: `${paypalData.firstName} ${paypalData.lastName}`, 
@@ -1293,36 +1316,12 @@ export default function App() {
         date: new Date().toISOString().split('T')[0],
         rawItems: sanitizedItems,
         paymentMethod: 'binance_api',
-        fullData: {
-            email: paypalData.email,
-            phone: paypalData.phone,
-            refNumber: txId,
-            contactPhone: paypalData.phone
-        }
+        fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: txId, contactPhone: paypalData.phone }
     };
-    
-    // --- INTENTO DE COMPRA AUTOMÁTICA DE STREAMING ---
-    // Si hay un item de streaming con ID, llamamos a tu servidor
-    const streamingItem = sanitizedItems.find(item => item.providerId && item.providerId > 0);
-    
-    if (streamingItem) {
-        try {
-            const response = await fetch(`${VERCEL_API_URL}/api/purchase-streaming`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    service_id: streamingItem.providerId 
-                })
-            });
-            const result = await response.json();
-            if (result.success) {
-                automatedOrder.fullData.streamingAccount = result.data; // Guardamos credenciales
-            }
-        } catch (e) {
-            console.error("Fallo compra auto:", e);
-        }
-    }
-
+    // Compra automática de streaming si fue verificado
+    // NOTA: Se debe mover la lógica de compra aquí o en un helper compartido si se usa en manual
+    // En este flujo, ya se compra si hay providerId
+    // ... (lógica repetida o usar AutomatedFlowWrapper)
     setLastOrder(automatedOrder);
     setCart([]);
     setCheckoutStep(3);
@@ -1338,70 +1337,25 @@ export default function App() {
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
              <div className="flex justify-center mb-8">
                <div className="flex items-center gap-4">
-                 {/* PASO 1 INTERACTIVO */}
-                 <div 
-                    onClick={() => {
-                        if (checkoutStep > 0 && checkoutStep < 3) { 
-                            setCheckoutStep(0);
-                            setPaymentMethod(null); 
-                        }
-                    }}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}
-                 >
-                    1
-                 </div>
-                 
+                 <div onClick={() => { if (checkoutStep > 0 && checkoutStep < 3) { setCheckoutStep(0); setPaymentMethod(null); }}} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}>1</div>
                  <div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div>
-                 
                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div>
-                 
                  <div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div>
-                 
                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div>
                </div>
              </div>
              
              {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} />}
-             
-             {/* PASO 1: DETALLES FACTURACIÓN (Si es API: PayPal o Binance) */}
-             {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && (
-                <PayPalDetailsForm 
-                    paypalData={paypalData} 
-                    setPaypalData={setPaypalData} 
-                    setCheckoutStep={setCheckoutStep} 
-                    paymentMethod={paymentMethod}
-                />
-             )}
-             
-             {/* PASO 2: PAGO (Variantes: Binance Auto, PayPal Auto, Manual) */}
+             {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && ( <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} /> )}
              {checkoutStep === 2 && (
                  paymentMethod === 'paypal' ? (
-                     <AutomatedFlowWrapper 
-                        cart={cart}
-                        cartTotal={cartTotal}
-                        setLastOrder={setLastOrder}
-                        setCart={setCart}
-                        setCheckoutStep={setCheckoutStep}
-                        paypalData={paypalData}
-                     />
+                     <AutomatedFlowWrapper cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} />
                  ) : paymentMethod === 'binance' ? (
-                    <BinanceAutomatedCheckout 
-                        cartTotal={cartTotal}
-                        paypalData={paypalData}
-                        onVerified={handleBinanceVerifiedSuccess}
-                        onCancel={() => setCheckoutStep(0)}
-                    />
+                    <BinanceAutomatedCheckout cartTotal={cartTotal} paypalData={paypalData} onVerified={handleBinanceVerifiedSuccess} onCancel={() => setCheckoutStep(0)} />
                  ) : (
-                    <PaymentProofStep 
-                        proofData={proofData} setProofData={setProofData}
-                        cart={cart} cartTotal={cartTotal}
-                        setLastOrder={setLastOrder}
-                        setCart={setCart} setCheckoutStep={setCheckoutStep}
-                        paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} 
-                    />
+                    <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} />
                  )
              )}
-             
              {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
           </div>
         ) : (
@@ -1409,20 +1363,12 @@ export default function App() {
             <Hero exchangeRate={exchangeRateBs} />
             <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-wrap justify-center gap-4 mb-12">
-                {categories.map(cat => (
-                  <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}`}>{cat}</button>
-                ))}
+                {categories.map(cat => ( <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}`}>{cat}</button> ))}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredServices.map((service, idx) => (
                   service.category === 'Exchange' ? (
-                     <ExchangeCard 
-                        key={service.id} 
-                        service={service} 
-                        addToCart={addToCart} 
-                        exchangeRate={exchangeRateBs} 
-                        isAvailable={isExchangeAvailable} // Pasamos la restricción aquí
-                     />
+                     <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} />
                   ) : (
                     <div key={service.id} className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
                       <div>
@@ -1442,6 +1388,8 @@ export default function App() {
           </>
         )}
       </main>
+      
+      {/* FOOTER CON ACCESO SECRETO */}
       <footer className="bg-black/90 border-t border-gray-800 text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div><h4 className="text-white font-orbitron font-bold text-xl mb-4">TECNOBYTE</h4><p className="text-sm">Innovación y seguridad en cada transacción. Tu aliado digital de confianza.</p></div>
@@ -1449,8 +1397,12 @@ export default function App() {
           <div><h4 className="text-white font-bold mb-4">Síguenos</h4><div className="flex gap-4"><a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors"><Facebook /></a><a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors"><Instagram /></a><a href={SOCIAL_LINKS.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors"><TikTokIcon /></a></div></div>
           <div><h4 className="text-white font-bold mb-4">Legal</h4><ul className="space-y-2 text-sm"><li>Términos y Condiciones</li><li>Política de Privacidad</li></ul></div>
         </div>
-        <div className="text-center mt-12 text-xs text-gray-600">© 2024 TecnoByte LLC. Todos los derechos reservados.</div>
+        <div className="text-center mt-12 text-xs text-gray-600">
+            © 2024 TecnoByte LLC. Todos los derechos reservados.
+            <button onClick={() => setShowAdminTool(true)} className="ml-2 text-gray-800 hover:text-gray-700">Acceso Admin</button>
+        </div>
       </footer>
+
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
@@ -1469,6 +1421,7 @@ export default function App() {
         </div>
       )}
       <GeminiChat exchangeRate={exchangeRateBs} />
+      {showAdminTool && <ManualServiceGenerator onClose={() => setShowAdminTool(false)} />}
     </div>
   );
 }

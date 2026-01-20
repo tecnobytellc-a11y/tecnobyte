@@ -5,11 +5,10 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN GLOBAL ---
-// Asegúrate de que esta URL sea la de tu proyecto Vercel (ej: https://tu-proyecto.vercel.app)
 const VERCEL_API_URL = "https://api-paypal-secure.vercel.app"; 
 
 // --- DATA & CONFIGURATION ---
@@ -45,13 +44,14 @@ const SERVICES = [
   { id: 11, category: 'Gift Cards', title: 'Amazon Gift Card $10', price: 11.00, icon: <CreditCard />, description: 'Código canjeable Región USA.' },
   { id: 12, category: 'Services', title: 'ChatBot PyME', price: 5.00, icon: <Zap />, description: 'Automatización básica para WhatsApp Business.' },
 
-  { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.' },
-  { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.' },
-  { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.' },
-  { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.' },
-  { id: 17, category: 'Streaming', title: 'Crunchyroll Mega Fan', price: 1.50, icon: <Tv />, description: 'Anime sin anuncios y modo offline.' },
-  { id: 18, category: 'Streaming', title: 'YouTube Premium', price: 3.50, icon: <Tv />, description: 'Videos sin publicidad, segundo plano y Music.' },
-  { id: 19, category: 'Streaming', title: 'Spotify Premium (3 Meses)', price: 7.00, icon: <Music />, description: 'Música sin interrupciones, cuenta individual.' },
+  // --- STREAMING (Con providerId para la API) ---
+  { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.', providerId: 26 }, // ID 26 EJEMPLO
+  { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.', providerId: 0 },
+  { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.', providerId: 0 },
+  { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.', providerId: 0 },
+  { id: 17, category: 'Streaming', title: 'Crunchyroll Mega Fan', price: 1.50, icon: <Tv />, description: 'Anime sin anuncios y modo offline.', providerId: 0 },
+  { id: 18, category: 'Streaming', title: 'YouTube Premium', price: 3.50, icon: <Tv />, description: 'Videos sin publicidad, segundo plano y Music.', providerId: 0 },
+  { id: 19, category: 'Streaming', title: 'Spotify Premium (3 Meses)', price: 7.00, icon: <Music />, description: 'Música sin interrupciones, cuenta individual.', providerId: 0 },
 ];
 
 const CONTACT_INFO = {
@@ -62,7 +62,7 @@ const CONTACT_INFO = {
   tiktok: "@tecnobyte.llc",
   facebook: "TecnoByte",
   binance_email: "tecnobytellc@gmail.com",
-  binance_pay_id: "567492312", // ID de ejemplo para Binance Pay
+  binance_pay_id: "567492312", 
   pagomovil: {
     bank: "Banco Venezolano de Crédito [0104]",
     id: "04.139.374",
@@ -251,7 +251,7 @@ const Hero = ({ exchangeRate }) => {
 
 // --- CALCULADORA & EXCHANGE AVANZADO ---
 
-const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
+const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
   const [amountSend, setAmountSend] = useState('');
   const [receiveAddress, setReceiveAddress] = useState('');
   
@@ -294,7 +294,18 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
   };
 
   return (
-    <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 transition-all duration-300 shadow-lg flex flex-col h-full">
+    <div className={`bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 transition-all duration-300 shadow-lg flex flex-col h-full relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale' : 'hover:border-indigo-500'}`}>
+        {/* BLOQUEO DE FIN DE SEMANA */}
+        {!isAvailable && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px]">
+                <div className="bg-gray-900 border border-red-500/50 p-4 rounded-xl text-center shadow-2xl">
+                    <Clock className="w-10 h-10 text-red-500 mx-auto mb-2" />
+                    <h3 className="text-white font-bold text-lg">CERRADO</h3>
+                    <p className="text-gray-400 text-xs mt-1 max-w-[200px]">Disponible solo de<br/>Lunes a Jueves</p>
+                </div>
+            </div>
+        )}
+
         <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center text-indigo-400">{service.icon}</div>
             <div>
@@ -313,7 +324,14 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
                 <label className="text-xs text-gray-400 block mb-1">Envías (PayPal USD)</label>
                 <div className="flex items-center gap-2">
                     <span className="text-green-500 font-bold">$</span>
-                    <input type="number" value={amountSend} onChange={(e) => setAmountSend(e.target.value)} placeholder="100.00" className="bg-transparent w-full text-white font-mono focus:outline-none" />
+                    <input 
+                        type="number" 
+                        value={amountSend} 
+                        onChange={(e) => setAmountSend(e.target.value)} 
+                        placeholder="100.00" 
+                        className="bg-transparent w-full text-white font-mono focus:outline-none" 
+                        disabled={!isAvailable}
+                    />
                 </div>
             </div>
 
@@ -332,6 +350,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
                         onChange={(e) => setReceiveAddress(e.target.value)}
                         placeholder="Ej: 0x123... (Tu dirección de depósito Binance)"
                         className="w-full bg-black/30 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-yellow-500 focus:outline-none font-mono"
+                        disabled={!isAvailable}
                     />
                     <p className="text-[9px] text-gray-400 mt-1">*Si usas tu dirección de Binance, el envío es interno y gratuito.</p>
                 </div>
@@ -344,8 +363,12 @@ const ExchangeCard = ({ service, addToCart, exchangeRate }) => {
             </div>
         </div>
 
-        <button onClick={handleAdd} className="w-full py-2 bg-indigo-600 rounded-lg text-white font-bold hover:bg-indigo-500 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled={!amountSend || parseFloat(amountSend) <= 0}>
-            Añadir al Carrito
+        <button 
+            onClick={handleAdd} 
+            className="w-full py-2 bg-indigo-600 rounded-lg text-white font-bold hover:bg-indigo-500 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" 
+            disabled={!amountSend || parseFloat(amountSend) <= 0 || !isAvailable}
+        >
+            {isAvailable ? "Añadir al Carrito" : "No Disponible"}
         </button>
     </div>
   );
@@ -854,12 +877,43 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
     const isExchange = !!exchangeItem;
     const [binanceTxId, setBinanceTxId] = useState('');
 
+    // --- LOGICA DE COMPRA STREAMING AUTOMATICA ---
+    const processStreamingPurchase = async (finalOrder) => {
+        // Buscamos si hay un servicio de streaming en el carrito
+        const streamingItem = finalOrder.rawItems.find(item => item.providerId && item.providerId > 0);
+        
+        if (streamingItem) {
+            console.log("Detectado servicio streaming:", streamingItem.title);
+            try {
+                // Llamamos a TU servidor para que compre la cuenta
+                const response = await fetch(`${VERCEL_API_URL}/api/purchase-streaming`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        service_id: streamingItem.providerId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    // Si el proveedor responde con éxito, guardamos los datos (cuenta/password) en la orden
+                    finalOrder.fullData.streamingAccount = result.data; // Guardamos todo lo que devuelve el proveedor
+                    console.log("Cuenta comprada exitosamente:", result.data);
+                }
+            } catch (error) {
+                console.error("Error comprando streaming automáticamente:", error);
+            }
+        }
+        return finalOrder;
+    };
+
     // Función para procesar la orden exitosa de Binance Pay
-    const handleBinanceSuccess = (txId) => {
+    const handleBinanceSuccess = async (txId) => {
          const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
          const randomId = Math.floor(100 + Math.random() * 900);
          
-         const automatedOrder = {
+         let automatedOrder = {
              id: `ORD-${randomId}`,
              user: `${paypalData.firstName} ${paypalData.lastName}`, 
              items: cart.map(i => i.title).join(', '),
@@ -875,6 +929,9 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                  contactPhone: paypalData.phone
              }
          };
+
+         // Intentar comprar streaming si aplica
+         automatedOrder = await processStreamingPurchase(automatedOrder);
          
          setLastOrder(automatedOrder);
          setCart([]);
@@ -885,7 +942,7 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
         const randomId = Math.floor(100 + Math.random() * 900);
 
-        const automatedOrder = {
+        let automatedOrder = {
             id: `ORD-${randomId}`,
             user: `${paypalData.firstName} ${paypalData.lastName}`, 
             items: cart.map(i => i.title).join(', '),
@@ -904,6 +961,9 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
             }
         };
         
+        // Intentar comprar streaming si aplica
+        automatedOrder = await processStreamingPurchase(automatedOrder);
+
         setLastOrder(automatedOrder);
         setCart([]);
         setCheckoutStep(3);
@@ -923,6 +983,19 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                  </div>
              )}
             
+            {paypalData && !isExchange && cart.some(i => i.providerId) && (
+                 <div className="bg-purple-900/20 border border-purple-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
+                     <Zap className="text-purple-400 flex-shrink-0" />
+                     <div className="text-sm text-purple-200">
+                         <strong>Entrega Inmediata:</strong> Al verificar tu pago automáticamente, el sistema generará y te entregará tu cuenta de streaming al instante.
+                     </div>
+                 </div>
+            )}
+
+            {/* Selector de Checkout según lo que se haya elegido antes */}
+            {/* NOTA: Como la prop paymentMethod no llega aquí, asumimos por contexto o props pasadas */}
+            {/* Para simplificar, renderizamos ambos condicionalmente si el wrapper lo permite, pero aquí solo se usa para PayPal y Binance */}
+            
             <PayPalAutomatedCheckout 
                 cartTotal={cartTotal} 
                 onPaymentComplete={handlePayPalComplete}
@@ -931,6 +1004,7 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                 paypalData={paypalData}
                 allOrders={[]} 
             />
+            {/* Nota: BinanceAutomatedCheckout se llama desde fuera de este wrapper en la estructura actual */}
         </div>
     );
 };
@@ -1021,6 +1095,9 @@ const SuccessScreen = ({ lastOrder, setView }) => {
     text += `\n📝 *NOTA ADJUNTA:*\n`;
     if (isApiVerified) {
         text += `✅ El pago ya fue verificado exitosamente por el sistema API.`;
+        if (lastOrder.fullData.streamingAccount) {
+            text += `\n🔑 *CUENTA ENTREGADA:* Ya recibí mis credenciales de acceso.`;
+        }
     } else if (lastOrder.paymentMethod === 'facebank' || lastOrder.paymentMethod === 'transfer_usd') {
          text += `✅ Adjunto foto del comprobante de pago.\n`;
          text += `❗ *OBLIGATORIO:* Adjunto también foto del documento de identidad (mío o del titular de la cuenta).`;
@@ -1053,6 +1130,31 @@ const SuccessScreen = ({ lastOrder, setView }) => {
             <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg">
                 <span>Total:</span><span className="text-green-400">${lastOrder.total}</span>
             </div>
+            
+            {/* DATOS DE LA CUENTA COMPRADA AUTOMÁTICAMENTE */}
+            {lastOrder.fullData?.streamingAccount && (
+                <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
+                    <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2">
+                        <Key size={16} /> Tu Cuenta Nueva:
+                    </p>
+                    <div className="space-y-1 font-mono text-sm">
+                        {/* Se ajusta según la respuesta real de tu proveedor (ej: email, password, cuenta) */}
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Usuario:</span>
+                            <span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Clave:</span>
+                            <span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span>
+                        </div>
+                        {/* Si el proveedor devuelve un mensaje o instrucciones */}
+                        {lastOrder.fullData.streamingAccount.message && (
+                             <p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {lastOrder.paymentMethod === 'binance_api' && (
                 <div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">
                     Verificado por Binance API
@@ -1105,6 +1207,22 @@ export default function App() {
   const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null });
 
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // --- NUEVA LÓGICA DE HORARIO ---
+  // Verifica si hoy es Lunes(1), Martes(2), Miércoles(3) o Jueves(4)
+  const getIsExchangeOpen = () => {
+    const now = new Date();
+    // Forzamos zona horaria de Venezuela para la comprobación
+    const venString = now.toLocaleString("en-US", {timeZone: "America/Caracas"});
+    const venDate = new Date(venString);
+    const day = venDate.getDay(); // 0 Domingo, 1 Lunes, ..., 6 Sábado
+    
+    // Si el día está entre Lunes(1) y Jueves(4), está abierto.
+    // Viernes(5), Sábado(6) y Domingo(0) está cerrado.
+    return day >= 1 && day <= 4;
+  };
+
+  const isExchangeAvailable = getIsExchangeOpen();
 
   // --- CONFIGURACIÓN DE ICONO ---
   useEffect(() => {
@@ -1160,11 +1278,13 @@ export default function App() {
     }, 500);
   };
 
-  const handleBinanceVerifiedSuccess = (txId) => {
+  // ESTA ES LA FUNCIÓN CLAVE QUE LLAMA AL AUTOMATED FLOW
+  const handleBinanceVerifiedSuccess = async (txId) => {
     const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
     const randomId = Math.floor(100 + Math.random() * 900);
     
-    const automatedOrder = {
+    // Creamos la orden base
+    let automatedOrder = {
         id: `ORD-${randomId}`,
         user: `${paypalData.firstName} ${paypalData.lastName}`, 
         items: cart.map(i => i.title).join(', '),
@@ -1181,6 +1301,28 @@ export default function App() {
         }
     };
     
+    // --- INTENTO DE COMPRA AUTOMÁTICA DE STREAMING ---
+    // Si hay un item de streaming con ID, llamamos a tu servidor
+    const streamingItem = sanitizedItems.find(item => item.providerId && item.providerId > 0);
+    
+    if (streamingItem) {
+        try {
+            const response = await fetch(`${VERCEL_API_URL}/api/purchase-streaming`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    service_id: streamingItem.providerId 
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                automatedOrder.fullData.streamingAccount = result.data; // Guardamos credenciales
+            }
+        } catch (e) {
+            console.error("Fallo compra auto:", e);
+        }
+    }
+
     setLastOrder(automatedOrder);
     setCart([]);
     setCheckoutStep(3);
@@ -1274,7 +1416,13 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredServices.map((service, idx) => (
                   service.category === 'Exchange' ? (
-                     <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} />
+                     <ExchangeCard 
+                        key={service.id} 
+                        service={service} 
+                        addToCart={addToCart} 
+                        exchangeRate={exchangeRateBs} 
+                        isAvailable={isExchangeAvailable} // Pasamos la restricción aquí
+                     />
                   ) : (
                     <div key={service.id} className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
                       <div>

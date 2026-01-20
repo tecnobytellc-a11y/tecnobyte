@@ -5,7 +5,7 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN GLOBAL ---
@@ -45,14 +45,15 @@ const SERVICES = [
   { id: 12, category: 'Services', title: 'ChatBot PyME', price: 5.00, icon: <Zap />, description: 'Automatización básica para WhatsApp Business.' },
 
   // --- STREAMING (Con providerId para la API) ---
-  // IMPORTANTE: Asegúrate de que los 'providerId' coincidan con los IDs reales de tu proveedor (itsjefryservices)
+  // IMPORTANTE: He puesto IDs ficticios (27, 28, etc.) para que aparezcan en el panel.
+  // DEBES CAMBIARLOS por los IDs reales de tu proveedor (ItsJefryServices)
   { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.', providerId: 26 }, 
-  { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.', providerId: 0 },
-  { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.', providerId: 0 },
-  { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.', providerId: 0 },
-  { id: 17, category: 'Streaming', title: 'Crunchyroll Mega Fan', price: 1.50, icon: <Tv />, description: 'Anime sin anuncios y modo offline.', providerId: 0 },
-  { id: 18, category: 'Streaming', title: 'YouTube Premium', price: 3.50, icon: <Tv />, description: 'Videos sin publicidad, segundo plano y Music.', providerId: 0 },
-  { id: 19, category: 'Streaming', title: 'Spotify Premium (3 Meses)', price: 7.00, icon: <Music />, description: 'Música sin interrupciones, cuenta individual.', providerId: 0 },
+  { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.', providerId: 27 },
+  { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.', providerId: 28 },
+  { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.', providerId: 29 },
+  { id: 17, category: 'Streaming', title: 'Crunchyroll Mega Fan', price: 1.50, icon: <Tv />, description: 'Anime sin anuncios y modo offline.', providerId: 30 },
+  { id: 18, category: 'Streaming', title: 'YouTube Premium', price: 3.50, icon: <Tv />, description: 'Videos sin publicidad, segundo plano y Music.', providerId: 31 },
+  { id: 19, category: 'Streaming', title: 'Spotify Premium (3 Meses)', price: 7.00, icon: <Music />, description: 'Música sin interrupciones, cuenta individual.', providerId: 32 },
 ];
 
 const CONTACT_INFO = {
@@ -382,6 +383,9 @@ const ManualServiceGenerator = ({ onClose }) => {
     const [result, setResult] = useState(null);
     const [password, setPassword] = useState('');
     const [isAuth, setIsAuth] = useState(false);
+    const [providerServices, setProviderServices] = useState(null);
+    const [subscriptions, setSubscriptions] = useState(null);
+    const [viewMode, setViewMode] = useState('generate'); // 'generate', 'list', 'history'
 
     // Solo los servicios que tienen providerId
     const apiServices = SERVICES.filter(s => s.providerId && s.providerId > 0);
@@ -389,6 +393,42 @@ const ManualServiceGenerator = ({ onClose }) => {
     const handleLogin = () => {
         if(password === "admin123") setIsAuth(true);
         else alert("Clave incorrecta");
+    };
+
+    const handleFetchProviderServices = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${VERCEL_API_URL}/api/list-provider-services`);
+            const data = await response.json();
+            if (data.success) {
+                setProviderServices(data.services); // Asume que devuelve un array de servicios
+            } else {
+                alert("Error consultando catálogo: " + data.message);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de conexión");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleFetchSubscriptions = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${VERCEL_API_URL}/api/list-subscriptions`);
+            const data = await response.json();
+            if (data.success) {
+                setSubscriptions(data.subscriptions);
+            } else {
+                alert("Error consultando historial: " + data.message);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de conexión");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleGenerate = async () => {
@@ -441,17 +481,111 @@ const ManualServiceGenerator = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-            <div className="bg-gray-900 p-6 rounded-xl border border-indigo-500/50 max-w-lg w-full shadow-2xl relative">
+            <div className="bg-gray-900 p-6 rounded-xl border border-indigo-500/50 max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X size={20}/></button>
                 
-                <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
-                    <Zap className="text-yellow-400" /> Generador Manual
-                </h3>
-                <p className="text-xs text-gray-400 mb-6">Usa esto para generar cuentas después de verificar un pago manual.</p>
+                <div className="flex flex-col md:flex-row md:justify-between items-center mb-6 gap-4">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Zap className="text-yellow-400" /> Admin Tools
+                    </h3>
+                    <div className="flex gap-2 bg-gray-800 p-1 rounded-lg w-full md:w-auto overflow-x-auto">
+                        <button 
+                            onClick={() => setViewMode('generate')}
+                            className={`px-3 py-1 rounded text-xs whitespace-nowrap ${viewMode === 'generate' ? 'bg-indigo-600 text-white' : 'text-gray-400'}`}
+                        >
+                            Generador
+                        </button>
+                        <button 
+                            onClick={() => { setViewMode('list'); handleFetchProviderServices(); }}
+                            className={`px-3 py-1 rounded text-xs whitespace-nowrap ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-gray-400'}`}
+                        >
+                            Ver IDs Catálogo
+                        </button>
+                        <button 
+                            onClick={() => { setViewMode('history'); handleFetchSubscriptions(); }}
+                            className={`px-3 py-1 rounded text-xs whitespace-nowrap ${viewMode === 'history' ? 'bg-indigo-600 text-white' : 'text-gray-400'}`}
+                        >
+                            📜 Historial Ventas
+                        </button>
+                    </div>
+                </div>
 
-                {!result ? (
+                {viewMode === 'list' && (
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
+                        <p className="text-xs text-gray-400">Lista de servicios disponibles en el proveedor. Usa estos IDs en tu código.</p>
+                        {isLoading ? (
+                            <div className="text-center py-8"><Loader className="animate-spin mx-auto text-indigo-500"/></div>
+                        ) : providerServices ? (
+                            <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                                {(Array.isArray(providerServices) ? providerServices : []).map((s, idx) => (
+                                    <div key={idx} className="flex justify-between items-center bg-black/40 p-2 rounded border border-gray-700 text-xs">
+                                        <span className="text-white font-bold">{s.name || s.service_name || "Servicio"}</span>
+                                        <span className="text-yellow-400 font-mono bg-yellow-900/20 px-2 py-1 rounded">ID: {s.id || s.service_id}</span>
+                                    </div>
+                                ))}
+                                {(!Array.isArray(providerServices) || providerServices.length === 0) && (
+                                    <p className="text-center text-gray-500 text-xs">No se encontraron servicios o formato desconocido.</p>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-center text-red-400 text-xs">Error cargando lista.</p>
+                        )}
+                    </div>
+                )}
+
+                {viewMode === 'history' && (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <p className="text-xs text-gray-400">Cuentas vendidas y su estado.</p>
+                            {subscriptions && <span className="text-xs bg-indigo-900 px-2 py-1 rounded text-indigo-200">Total: {subscriptions.length}</span>}
+                        </div>
+                        
+                        {isLoading ? (
+                            <div className="text-center py-8"><Loader className="animate-spin mx-auto text-indigo-500"/></div>
+                        ) : subscriptions ? (
+                            <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                                {subscriptions.map((sub, idx) => (
+                                    <div key={idx} className="bg-gray-800 p-3 rounded-lg border border-gray-700 text-xs flex flex-col gap-2">
+                                        <div className="flex justify-between items-center border-b border-gray-700 pb-2">
+                                            <span className="text-white font-bold">{sub.service_name || "Servicio Desconocido"}</span>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] ${!sub.reported ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
+                                                {!sub.reported ? 'ACTIVA' : 'REPORTADA'}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-gray-400">
+                                            <div>
+                                                <span className="block text-[10px] uppercase">Email</span>
+                                                <span className="text-white select-all">{sub.email}</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-[10px] uppercase">Password</span>
+                                                <span className="text-white select-all">{sub.password}</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-[10px] uppercase">Vencimiento</span>
+                                                <span className="text-white">{sub.expiration_date || "N/A"}</span>
+                                            </div>
+                                            {sub.pin && (
+                                                <div>
+                                                    <span className="block text-[10px] uppercase">PIN/Perfil</span>
+                                                    <span className="text-yellow-400">{sub.pin}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                                {subscriptions.length === 0 && <p className="text-center text-gray-500">No hay ventas registradas.</p>}
+                            </div>
+                        ) : (
+                            <p className="text-center text-red-400 text-xs">Error o sin datos.</p>
+                        )}
+                    </div>
+                )}
+
+                {viewMode === 'generate' && !result && (
+                    <div className="space-y-4">
+                        <p className="text-xs text-gray-400 mb-2">Selecciona un servicio para comprar una cuenta ahora mismo.</p>
+                        <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto custom-scrollbar">
                             {apiServices.map(service => (
                                 <button 
                                     key={service.id}
@@ -472,7 +606,9 @@ const ManualServiceGenerator = ({ onClose }) => {
                             {isLoading ? <Loader className="animate-spin" /> : "GENERAR CUENTA AHORA"}
                         </button>
                     </div>
-                ) : (
+                )}
+
+                {viewMode === 'generate' && result && (
                     <div className="bg-black/50 p-4 rounded-lg border border-green-500/50 animate-fade-in-up">
                         <div className="flex justify-between items-center mb-4">
                             <h4 className="text-green-400 font-bold">¡Cuenta Generada!</h4>

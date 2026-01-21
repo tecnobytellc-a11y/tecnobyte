@@ -15,7 +15,7 @@ const VERCEL_API_URL = "https://api-paypal-secure.vercel.app";
 
 const API_CONFIG = {
     binance: {
-        apiKey: "CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 
+        apiKey: "TU_API_KEY_AQUI", 
     }
 };
 

@@ -15,7 +15,7 @@ const VERCEL_API_URL = "https://api-paypal-secure.vercel.app";
 
 const API_CONFIG = {
     binance: {
-        apiKey: "TU_API_KEY_AQUI", 
+        apiKey: "CpoLTBClPNJTW9vTIbfZlarGyzD6emsboQkbZ28iLZEVaWjgiQeJhGRuAJWVCLwy", 
     }
 };
 
@@ -28,9 +28,7 @@ const RATE_API_CONFIG = {
 const INITIAL_RATE_BS = 570.00;
 const apiKey = ""; 
 
-// --- LISTA DE SERVICIOS (AQUÍ ES DONDE PONES LOS IDs) ---
 const SERVICES = [
-  // Servicios Manuales (Sin providerId o providerId: 0)
   { id: 1, category: 'Virtual Numbers', title: 'WhatsApp Number', price: 2.05, icon: <MessageSquare />, description: 'Número virtual privado para verificación de WhatsApp.' },
   { id: 2, category: 'Virtual Numbers', title: 'Telegram Number', price: 1.85, icon: <MessageSquare />, description: 'Verificación segura para Telegram.' },
   { id: 3, category: 'Virtual Numbers', title: 'PayPal/Banks Number', price: 1.30, icon: <CreditCard />, description: 'Para recibir SMS de bancos y PayPal.' },
@@ -46,15 +44,16 @@ const SERVICES = [
   { id: 11, category: 'Gift Cards', title: 'Amazon Gift Card $10', price: 11.00, icon: <CreditCard />, description: 'Código canjeable Región USA.' },
   { id: 12, category: 'Services', title: 'ChatBot PyME', price: 5.00, icon: <Zap />, description: 'Automatización básica para WhatsApp Business.' },
 
-  // --- STREAMING AUTOMATIZADO ---
-  // ⚠️ TAREA: Reemplaza los números en 'providerId' con los que viste en tu panel Admin.
-  { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.', providerId: 26 }, // <-- Pon aquí el ID real de Netflix
-  { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.', providerId: 25 }, // <-- Pon aquí el ID real de Prime
-  { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.', providerId: 9 }, // <-- Pon aquí el ID real de Max
-  { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.', providerId: 11 }, // <-- Pon aquí el ID real de Disney
-  { id: 17, category: 'Streaming', title: 'Crunchyroll Mega Fan', price: 1.50, icon: <Tv />, description: 'Anime sin anuncios y modo offline.', providerId: 13 }, // <-- Pon aquí el ID real de Crunchyroll
-  { id: 18, category: 'Streaming', title: 'YouTube Premium', price: 3.50, icon: <Tv />, description: 'Videos sin publicidad, segundo plano y Music.', providerId: 23 }, // <-- Pon aquí el ID real de YouTube
-  { id: 19, category: 'Streaming', title: 'Spotify Premium (3 Meses)', price: 7.00, icon: <Music />, description: 'Música sin interrupciones, cuenta individual.', providerId: 24 }, // <-- Pon aquí el ID real de Spotify
+  // --- STREAMING (Con providerId para la API) ---
+  // IMPORTANTE: He puesto IDs ficticios (27, 28, etc.) para que aparezcan en el panel.
+  // DEBES CAMBIARLOS por los IDs reales de tu proveedor (ItsJefryServices)
+  { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.', providerId: 26 }, 
+  { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.', providerId: 27 },
+  { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.', providerId: 28 },
+  { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.', providerId: 29 },
+  { id: 17, category: 'Streaming', title: 'Crunchyroll Mega Fan', price: 1.50, icon: <Tv />, description: 'Anime sin anuncios y modo offline.', providerId: 30 },
+  { id: 18, category: 'Streaming', title: 'YouTube Premium', price: 3.50, icon: <Tv />, description: 'Videos sin publicidad, segundo plano y Music.', providerId: 31 },
+  { id: 19, category: 'Streaming', title: 'Spotify Premium (3 Meses)', price: 7.00, icon: <Music />, description: 'Música sin interrupciones, cuenta individual.', providerId: 32 },
 ];
 
 const CONTACT_INFO = {
@@ -65,7 +64,7 @@ const CONTACT_INFO = {
   tiktok: "@tecnobyte.llc",
   facebook: "TecnoByte",
   binance_email: "tecnobytellc@gmail.com",
-  binance_pay_id: "567492312", 
+  binance_pay_id: "840993741", 
   pagomovil: {
     bank: "Banco Venezolano de Crédito [0104]",
     id: "04.139.374",

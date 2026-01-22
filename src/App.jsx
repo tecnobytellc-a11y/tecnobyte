@@ -62,7 +62,7 @@ const CONTACT_INFO = {
   tiktok: "@tecnobyte.llc",
   facebook: "TecnoByte",
   binance_email: "tecnobytellc@gmail.com",
-  binance_pay_id: "840993741", // ID ACTUALIZADO
+  binance_pay_id: "840993741", 
   pagomovil: {
     bank: "Banco Venezolano de Crédito [0104]",
     id: "04.139.374",
@@ -640,43 +640,10 @@ const ManualServiceGenerator = ({ onClose }) => {
 
 // --- PAYMENT & API LOGIC ---
 
-// --- NUEVO COMPONENTE: BINANCE AUTOMATED CHECKOUT ---
+// --- COMPONENTE BINANCE CORREGIDO: SOLO MANUAL ---
 const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData }) => {
-    const [mode, setMode] = useState('auto'); // 'auto' | 'manual'
     const [transactionId, setTransactionId] = useState('');
     const [status, setStatus] = useState('idle'); 
-    const [qrData, setQrData] = useState(null);
-
-    // Efecto para generar QR automático al entrar en modo auto
-    useEffect(() => {
-        const createOrder = async () => {
-            if (mode !== 'auto' || qrData) return;
-            setStatus('creating_order');
-            try {
-                const response = await fetch(`${VERCEL_API_URL}/api/create-binance-order`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        amount: cartTotal,
-                        goodsName: "Compra TecnoByte" 
-                    })
-                });
-                const res = await response.json();
-                if (res.success) {
-                    setQrData(res.data);
-                    setTransactionId(res.merchantTradeNo); // Usamos nuestro ID interno para verificar
-                    setStatus('awaiting_payment');
-                } else {
-                    alert("Error creando QR: " + res.message);
-                    setMode('manual'); // Fallback a manual si falla el API
-                }
-            } catch (e) {
-                console.error(e);
-                setMode('manual');
-            }
-        };
-        createOrder();
-    }, [mode, cartTotal]);
 
     const handleVerify = async () => {
         if (!transactionId) { alert("ID inválido"); return; }
@@ -699,12 +666,12 @@ const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData 
                 setTimeout(() => onVerified(transactionId), 2000);
             } else {
                 alert(result.message);
-                setStatus(mode === 'auto' ? 'awaiting_payment' : 'idle');
+                setStatus('idle');
             }
         } catch (error) {
             console.error(error);
             alert("Error de conexión");
-            setStatus(mode === 'auto' ? 'awaiting_payment' : 'idle');
+            setStatus('idle');
         }
     };
 
@@ -718,10 +685,7 @@ const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData 
                     <div className="w-10 h-10 bg-[#FCD535] rounded-full flex items-center justify-center text-black font-bold text-xl"><Zap size={24} fill="currentColor" /></div>
                     <div>
                         <h3 className="text-white font-bold text-lg">Binance Pay</h3>
-                        <div className="flex gap-2 mt-1">
-                            <button onClick={() => setMode('auto')} className={`text-[10px] px-2 py-0.5 rounded border ${mode==='auto' ? 'bg-yellow-500 text-black border-yellow-500' : 'border-gray-600 text-gray-400'}`}>QR Automático</button>
-                            <button onClick={() => setMode('manual')} className={`text-[10px] px-2 py-0.5 rounded border ${mode==='manual' ? 'bg-yellow-500 text-black border-yellow-500' : 'border-gray-600 text-gray-400'}`}>Envío Manual</button>
-                        </div>
+                        <p className="text-xs text-gray-400">Verificación Automática</p>
                     </div>
                 </div>
              </div>
@@ -733,62 +697,35 @@ const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData 
                  </div>
              ) : (
                 <div className="space-y-6 relative z-10">
-                    
-                    {/* MODO AUTO: QR */}
-                    {mode === 'auto' && (
-                        <div className="text-center space-y-4">
-                            {status === 'creating_order' ? (
-                                <div className="py-10"><Loader className="animate-spin mx-auto text-yellow-500" /> <p className="text-xs text-gray-400 mt-2">Generando QR único...</p></div>
-                            ) : qrData ? (
-                                <>
-                                    <div className="bg-white p-4 rounded-xl inline-block">
-                                        <img src={qrData.qrcodeUrl} alt="QR Binance" className="w-48 h-48" />
-                                    </div>
-                                    <p className="text-xs text-gray-400">Escanea con tu App de Binance</p>
-                                    <div className="flex justify-center gap-2">
-                                        <a href={qrData.universalUrl} target="_blank" rel="noopener noreferrer" className="bg-[#FCD535] text-black px-4 py-2 rounded font-bold text-sm">Abrir App Binance</a>
-                                    </div>
-                                    <button onClick={handleVerify} className="w-full bg-gray-800 border border-yellow-500 text-yellow-500 font-bold py-3 rounded-lg flex justify-center gap-2 mt-4 hover:bg-gray-700">
-                                        {status === 'verifying' ? <Loader className="animate-spin" /> : "Ya pagué, verificar"}
-                                    </button>
-                                </>
-                            ) : <p className="text-red-400">Error cargando QR</p>}
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-dashed border-gray-700 text-center">
+                        <p className="text-gray-400 text-xs mb-2">Envía exactamente:</p>
+                        <p className="text-4xl font-mono font-bold text-[#FCD535] mb-2">${cartTotal.toFixed(2)}</p>
+                        <div className="flex justify-center gap-2 mb-2">
+                            <div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><Mail size={12} className="text-yellow-500"/> {CONTACT_INFO.binance_email}</div>
                         </div>
-                    )}
+                        <div className="flex justify-center gap-2">
+                            <div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><QrCode size={12} className="text-yellow-500"/> Pay ID: {CONTACT_INFO.binance_pay_id}</div>
+                        </div>
+                    </div>
 
-                    {/* MODO MANUAL */}
-                    {mode === 'manual' && (
-                        <>
-                            <div className="bg-gray-800/50 p-4 rounded-lg border border-dashed border-gray-700 text-center">
-                                <p className="text-gray-400 text-xs mb-2">Envía exactamente:</p>
-                                <p className="text-4xl font-mono font-bold text-[#FCD535] mb-2">${cartTotal.toFixed(2)}</p>
-                                <div className="flex justify-center gap-2 mb-2">
-                                    <div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><Mail size={12} className="text-yellow-500"/> {CONTACT_INFO.binance_email}</div>
-                                </div>
-                                <div className="flex justify-center gap-2">
-                                    <div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><QrCode size={12} className="text-yellow-500"/> Pay ID: {CONTACT_INFO.binance_pay_id}</div>
-                                </div>
-                            </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-white">Order ID / ID de Transacción</label>
+                        <input 
+                            type="text" 
+                            value={transactionId}
+                            onChange={(e) => setTransactionId(e.target.value.replace(/[^0-9]/g, ''))}
+                            placeholder="Pega aquí el ID (Ej: 423516...)"
+                            className="w-full bg-black/50 border border-gray-600 rounded-lg py-3 px-4 text-white font-mono focus:border-[#FCD535] outline-none"
+                        />
+                         <p className="text-[10px] text-gray-500">El ID que te da Binance tras el pago (18+ dígitos)</p>
+                    </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-white">Order ID / ID de Transacción</label>
-                                <input 
-                                    type="text" 
-                                    value={transactionId}
-                                    onChange={(e) => setTransactionId(e.target.value.replace(/[^0-9]/g, ''))}
-                                    placeholder="Ej: 423516789..."
-                                    className="w-full bg-black/50 border border-gray-600 rounded-lg py-3 px-4 text-white font-mono focus:border-[#FCD535] outline-none"
-                                />
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={onCancel} className="px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800">Cancelar</button>
-                                <button onClick={handleVerify} disabled={status === 'verifying' || !transactionId} className="flex-1 bg-[#FCD535] hover:bg-[#E5C02C] text-black font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2">
-                                    {status === 'verifying' ? <><Loader className="animate-spin" size={20} /> Verificando...</> : "Verificar Pago"}
-                                </button>
-                            </div>
-                        </>
-                    )}
+                    <div className="flex gap-3 pt-2">
+                        <button onClick={onCancel} className="px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800">Cancelar</button>
+                        <button onClick={handleVerify} disabled={status === 'verifying' || !transactionId} className="flex-1 bg-[#FCD535] hover:bg-[#E5C02C] text-black font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2">
+                            {status === 'verifying' ? <><Loader className="animate-spin" size={20} /> Verificando...</> : "Ya pagué, Verificar"}
+                        </button>
+                    </div>
                 </div>
              )}
         </div>
@@ -1467,6 +1404,20 @@ export default function App() {
     // NOTA: Se debe mover la lógica de compra aquí o en un helper compartido si se usa en manual
     // En este flujo, ya se compra si hay providerId
     // ... (lógica repetida o usar AutomatedFlowWrapper)
+    const streamingItem = sanitizedItems.find(item => item.providerId && item.providerId > 0);
+    if (streamingItem) {
+        try {
+            const response = await fetch(`${VERCEL_API_URL}/api/purchase-streaming`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ service_id: streamingItem.providerId })
+            });
+            const result = await response.json();
+            if (result.success && result.data) {
+                automatedOrder.fullData.streamingAccount = result.data; 
+            }
+        } catch (e) { console.error("Error auto-streaming:", e); }
+    }
     setLastOrder(automatedOrder);
     setCart([]);
     setCheckoutStep(3);

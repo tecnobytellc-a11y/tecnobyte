@@ -5,7 +5,7 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, FileCheck, Download, EyeOff, ExternalLink
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -55,7 +55,7 @@ const API_CONFIG = {
 const RATE_API_CONFIG = {
     url: "https://api-secure-server.vercel.app/api/get-tasa", 
     key: "TU_API_KEY_AQUI", 
-    intervalMinutes: 1 
+    intervalMinutes: 0.1 
 };
 
 const INITIAL_RATE_BS = 570.00;
@@ -149,28 +149,38 @@ const globalStyles = `
 
 const TikTokIcon = () => ( <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg> );
 
-// --- HELPER FUNCTION: SAVE ORDER TO FIREBASE ---
+// --- HELPER FUNCTIONS ---
+const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+};
+
 const saveOrderToFirestore = async (order) => {
   try {
-    // Si no hay usuario logueado, iniciamos sesión anónima primero para tener permisos
     if (!auth.currentUser) {
        await signInAnonymously(auth);
     }
     
-    // Guardamos en la colección 'orders' dentro de la ruta pública
     const ordersRef = collection(db, 'artifacts', firebaseConfig.projectId, 'public', 'data', 'orders');
     
-    // Serializar objetos complejos (como FileList o archivos) si los hay, o subir URLs
-    // Aquí simplificamos guardando metadatos básicos de archivos, no el binario
+    // GUARDADO INTELIGENTE: Asegurar persistencia de imágenes base64
     const sanitizedOrder = {
         ...order,
         date: order.date || new Date().toISOString(),
         createdAt: serverTimestamp(),
-        // Limpiamos fullData de objetos File para evitar errores de Firestore
         fullData: {
             ...order.fullData,
-            idDoc: order.fullData?.idDoc ? { name: order.fullData.idDoc.name } : null,
-            screenshot: order.fullData?.screenshot ? { name: order.fullData.screenshot.name } : null
+            // Guardamos el string base64 si existe
+            screenshot: typeof order.fullData?.screenshot === 'string' ? order.fullData.screenshot : (order.fullData?.screenshot?.name ? { name: order.fullData.screenshot.name } : null),
+            idDoc: typeof order.fullData?.idDoc === 'string' ? order.fullData.idDoc : (order.fullData?.idDoc?.name ? { name: order.fullData.idDoc.name } : null),
+            
+            // Metadatos extra
+            screenshotName: order.fullData?.screenshotName || (order.fullData?.screenshot?.name),
+            idDocName: order.fullData?.idDocName || (order.fullData?.idDoc?.name)
         }
     };
 
@@ -179,49 +189,49 @@ const saveOrderToFirestore = async (order) => {
     return true;
   } catch (error) {
     console.error("Error guardando orden en Firestore:", error);
+    // Manejo de error por tamaño (Firestore limita docs a 1MB)
+    if (error.code === 'resource-exhausted' || error.message.includes('exceeds')) {
+        alert("Error: Las imágenes son muy pesadas para la base de datos (Límite total excedido). Se guardará la orden sin imágenes.");
+        const fallbackOrder = { ...order, fullData: { ...order.fullData, screenshot: null, idDoc: null, note: "IMAGENES EXCEDIERON TAMAÑO (>1MB TOTAL)" } };
+        try {
+            await addDoc(ordersRef, fallbackOrder);
+            return true;
+        } catch(e) { return false; }
+    }
     return false;
   }
 };
 
 // --- ADMIN PANEL COMPONENT (INTEGRATED) ---
-const AdminPanel = ({ setView }) => {
-  // Estado de Autenticación del Admin
+const AdminPanel = ({ setView, onOpenManualTool }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminUser, setAdminUser] = useState('');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
 
-  // Estado de Datos (Órdenes)
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   
   const ORDER_STATUSES = ["PENDIENTE POR ENTREGAR", "CANCELADO", "ENTREGADO", "COMPLETADO", "FACTURADO", "EN DISPUTA", "REEMBOLSADO"];
 
-  // --- 1. VERIFICAR SESIÓN ACTUAL ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && !user.isAnonymous) { // Asumimos que si no es anónimo, es el admin (o login real)
+      if (user && !user.isAnonymous) { 
         setAdminUser(user.email);
         setIsAuthenticated(true);
-        // Mantenemos loading en true para que al entrar al dashboard cargue los datos
       } else {
         setIsAuthenticated(false);
-        setLoading(false); // <--- SOLUCIÓN: Desactiva el spinner si no estás logueado
+        setLoading(false); 
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // --- 2. ESCUCHAR CAMBIOS EN LA COLECCIÓN DE ÓRDENES ---
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    // Ruta de la colección: artifacts/{projectId}/public/data/orders
     const ordersCollectionRef = collection(db, 'artifacts', firebaseConfig.projectId, 'public', 'data', 'orders');
-    
-    // Query ordenado por fecha de creación (si existe) o fecha
-    const q = query(ordersCollectionRef); // Podríamos añadir orderBy('createdAt', 'desc') pero requiere índice compuesto a veces
+    const q = query(ordersCollectionRef); 
     
     const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const ordersData = snapshot.docs.map(doc => ({
@@ -229,7 +239,6 @@ const AdminPanel = ({ setView }) => {
             firestoreId: doc.id
         }));
         
-        // Ordenamiento manual para evitar errores de índices faltantes al inicio
         ordersData.sort((a, b) => {
             const dateA = new Date(a.createdAt ? a.createdAt.toDate() : (a.date || 0));
             const dateB = new Date(b.createdAt ? b.createdAt.toDate() : (b.date || 0));
@@ -246,22 +255,16 @@ const AdminPanel = ({ setView }) => {
     return () => unsubscribeSnapshot();
   }, [isAuthenticated]);
 
-  // --- 3. LÓGICA DE LOGIN CON FIREBASE AUTH ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     setLoading(true);
-
     try {
       await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
-      // El onAuthStateChanged se encargará de setear isAuthenticated
     } catch (error) {
       console.error("Login error:", error);
       let msg = "Error de autenticación.";
       if (error.code === 'auth/invalid-email') msg = "Email inválido.";
-      if (error.code === 'auth/user-not-found') msg = "Usuario no encontrado.";
-      if (error.code === 'auth/wrong-password') msg = "Contraseña incorrecta.";
-      if (error.code === 'auth/invalid-credential') msg = "Credenciales inválidas.";
       setLoginError(msg);
       setLoading(false);
     }
@@ -270,11 +273,9 @@ const AdminPanel = ({ setView }) => {
   const handleLogout = async () => {
     await signOut(auth);
     setLoginForm({ email: '', password: '' });
-    // Volver a anónimo para que la tienda siga funcionando si es necesario
     await signInAnonymously(auth);
   };
 
-  // --- 4. ACTUALIZAR ESTADO ---
   const handleStatusChange = async (orderId, newStatus) => {
     try {
         const orderToUpdate = orders.find(o => o.id === orderId);
@@ -288,7 +289,6 @@ const AdminPanel = ({ setView }) => {
     }
   };
 
-  // Cálculos
   const totalSales = orders.reduce((acc, order) => acc + parseFloat(order.total || 0), 0).toFixed(2);
   const pendingOrdersCount = orders.filter(o => o.status && (o.status.includes('PENDIENTE') || o.status === 'Pendiente')).length;
   const uniqueCustomers = new Set(orders.map(o => o.user)).size;
@@ -354,7 +354,6 @@ const AdminPanel = ({ setView }) => {
 
   return (
     <div className="min-h-screen bg-[#0f111a] text-gray-100 p-4 md:p-8 font-sans">
-      {/* Header Dashboard */}
       <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-4 animate-fade-in-up">
         <div>
             <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-indigo-500">
@@ -368,12 +367,20 @@ const AdminPanel = ({ setView }) => {
                 <User size={14} className="text-indigo-400"/>
                 {adminUser}
             </div>
+            
+            <button 
+                onClick={onOpenManualTool} 
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                title="Herramienta de Generación Manual"
+            >
+                <Zap size={14} /> Generación Streaming Manual
+            </button>
+
             <button onClick={handleLogout} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors" title="Cerrar Sesión"><LogOut size={18} /></button>
             <button onClick={() => setView('home')} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition-colors ml-2" title="Ir a Tienda"><ShoppingCart size={18} /></button>
         </div>
       </div>
       
-      {/* Stats Cards */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-fade-in-up">
         <div className="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/50 backdrop-blur hover:border-indigo-500/30 transition-colors">
           <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2"><ShoppingCart size={14} /> Ventas Totales</h3>
@@ -389,7 +396,6 @@ const AdminPanel = ({ setView }) => {
         </div>
       </div>
 
-      {/* Tabla Principal */}
       <div className="max-w-7xl mx-auto bg-gray-800/40 rounded-2xl overflow-hidden border border-gray-700/50 shadow-xl animate-fade-in-up">
         <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
             <h3 className="font-bold text-white flex items-center gap-2"><Filter size={18}/> Registro de Órdenes</h3>
@@ -410,6 +416,7 @@ const AdminPanel = ({ setView }) => {
                     <th className="p-4 border-b border-gray-700">Cliente</th>
                     <th className="p-4 border-b border-gray-700">Items</th>
                     <th className="p-4 border-b border-gray-700">Monto</th>
+                    <th className="p-4 border-b border-gray-700">Adjuntos</th>
                     <th className="p-4 border-b border-gray-700">Estado</th>
                     <th className="p-4 border-b border-gray-700 text-center">Acción</th>
                   </tr>
@@ -426,6 +433,61 @@ const AdminPanel = ({ setView }) => {
                       </td>
                       <td className="p-4 text-gray-400 max-w-xs truncate" title={order.items}>{order.items}</td>
                       <td className="p-4 font-bold text-emerald-400 font-mono">${order.total}</td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-2">
+                           {/* Botones para Ver y Descargar Comprobante de Pago */}
+                           {order.fullData?.screenshot && typeof order.fullData.screenshot === 'string' && (
+                               <div className="flex items-center gap-2 bg-gray-900/50 p-1.5 rounded border border-gray-700 w-fit">
+                                   <span className="text-[9px] uppercase font-bold text-gray-500 w-8">Pago</span>
+                                   <a 
+                                     href={order.fullData.screenshot} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer" 
+                                     className="text-indigo-400 hover:text-white bg-indigo-500/10 p-1 rounded hover:bg-indigo-600 transition-colors" 
+                                     title="Ver Comprobante"
+                                   >
+                                     <Eye size={14}/>
+                                   </a>
+                                   <a 
+                                     href={order.fullData.screenshot} 
+                                     download={`pago-${order.id}.png`} 
+                                     className="text-green-400 hover:text-white bg-green-500/10 p-1 rounded hover:bg-green-600 transition-colors" 
+                                     title="Descargar Comprobante"
+                                   >
+                                     <Download size={14}/>
+                                   </a>
+                               </div>
+                           )}
+                           
+                           {/* Botones para Ver y Descargar Documento de Identidad */}
+                           {order.fullData?.idDoc && typeof order.fullData.idDoc === 'string' && (
+                               <div className="flex items-center gap-2 bg-gray-900/50 p-1.5 rounded border border-gray-700 w-fit">
+                                   <span className="text-[9px] uppercase font-bold text-gray-500 w-8">Doc ID</span>
+                                   <a 
+                                     href={order.fullData.idDoc} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer" 
+                                     className="text-indigo-400 hover:text-white bg-indigo-500/10 p-1 rounded hover:bg-indigo-600 transition-colors" 
+                                     title="Ver Documento"
+                                   >
+                                     <Eye size={14}/>
+                                   </a>
+                                   <a 
+                                     href={order.fullData.idDoc} 
+                                     download={`id-${order.id}.png`} 
+                                     className="text-green-400 hover:text-white bg-green-500/10 p-1 rounded hover:bg-green-600 transition-colors" 
+                                     title="Descargar Documento"
+                                   >
+                                     <Download size={14}/>
+                                   </a>
+                               </div>
+                           )}
+                           
+                           {!order.fullData?.screenshot && !order.fullData?.idDoc && (
+                               <span className="text-gray-600 text-xs italic opacity-50">Sin archivos</span>
+                           )}
+                        </div>
+                      </td>
                       <td className="p-4">
                         <select 
                             value={order.status} 
@@ -450,7 +512,7 @@ const AdminPanel = ({ setView }) => {
         </div>
       </div>
 
-      {/* MODAL DETALLES */}
+      {/* MODAL DETALLES CON VISOR DE IMÁGENES */}
       {selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setSelectedOrder(null)}></div>
@@ -460,6 +522,7 @@ const AdminPanel = ({ setView }) => {
               <button onClick={() => setSelectedOrder(null)}><X className="text-gray-400 hover:text-white" size={20} /></button>
             </div>
             <div className="p-6 space-y-6">
+              {/* Información General */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700/50"><p className="text-gray-500 text-xs uppercase font-bold mb-1">Cliente</p><p className="text-white font-bold">{selectedOrder.user}</p></div>
                 <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700/50"><p className="text-gray-500 text-xs uppercase font-bold mb-1">Total</p><p className="text-emerald-400 font-bold text-xl">${selectedOrder.total}</p></div>
@@ -469,11 +532,76 @@ const AdminPanel = ({ setView }) => {
               
               {selectedOrder.fullData && (
                 <div className="bg-gray-800/30 rounded-xl p-5 border border-gray-700/50">
-                   <h4 className="text-indigo-400 font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider"><User size={16}/> Datos Personales</h4>
+                   <h4 className="text-indigo-400 font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider"><User size={16}/> Datos Personales Completos</h4>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div><span className="text-gray-500 text-xs block">Nombres</span><span className="text-white">{selectedOrder.fullData.name || 'N/A'}</span></div>
+                      <div><span className="text-gray-500 text-xs block">Apellidos</span><span className="text-white">{selectedOrder.fullData.lastName || 'N/A'}</span></div>
+                      
                       <div><span className="text-gray-500 text-xs block">Teléfono</span><span className="text-white font-mono">{selectedOrder.fullData.contactPhone || selectedOrder.fullData.phone || 'N/A'}</span></div>
                       <div><span className="text-gray-500 text-xs block">ID / Cédula</span><span className="text-white font-mono">{selectedOrder.fullData.idNumber || selectedOrder.fullData.nationalId || 'N/A'}</span></div>
-                      <div className="col-span-2"><span className="text-gray-500 text-xs block">Referencia Pago</span><span className="text-yellow-400 font-mono font-bold">{selectedOrder.fullData.refNumber || 'N/A'}</span></div>
+                      
+                      <div className="col-span-2 border-t border-gray-700 pt-3 mt-1">
+                          <span className="text-gray-500 text-xs block font-bold mb-1">Datos de Pago</span>
+                      </div>
+                      <div className="col-span-2 md:col-span-1"><span className="text-gray-500 text-xs block">Cuenta Emisora (Email/Tlf)</span><span className="text-white font-mono">{selectedOrder.fullData.issuerAccount || 'N/A'}</span></div>
+                      <div className="col-span-2 md:col-span-1"><span className="text-gray-500 text-xs block">Referencia Pago</span><span className="text-yellow-400 font-mono font-bold">{selectedOrder.fullData.refNumber || 'N/A'}</span></div>
+                      
+                      {/* --- SECCIÓN VISOR DE IMÁGENES --- */}
+                      <div className="col-span-2 space-y-4 mt-4 pt-4 border-t border-gray-700">
+                        <h5 className="text-white font-bold text-xs uppercase tracking-wider mb-2">Archivos Adjuntos</h5>
+                        
+                        {/* Comprobante de Pago */}
+                        {selectedOrder.fullData.screenshot && (
+                            <div className="bg-black/30 p-4 rounded-lg border border-gray-700">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+                                    <span className="text-gray-400 text-xs font-bold uppercase flex items-center gap-2"><ImageIcon size={14}/> Comprobante de Pago</span>
+                                    {typeof selectedOrder.fullData.screenshot === 'string' && (
+                                        <div className="flex gap-2">
+                                            <a href={selectedOrder.fullData.screenshot} target="_blank" rel="noopener noreferrer" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded flex items-center gap-1 transition-colors"><Eye size={12}/> Ver Imagen</a>
+                                            <a href={selectedOrder.fullData.screenshot} download={`comprobante-${selectedOrder.id}.png`} className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1.5 rounded flex items-center gap-1 transition-colors"><Download size={12}/> Descargar</a>
+                                        </div>
+                                    )}
+                                </div>
+                                {typeof selectedOrder.fullData.screenshot === 'string' ? (
+                                    <div className="relative group overflow-hidden rounded-lg border border-gray-800 bg-black/50">
+                                        <img src={selectedOrder.fullData.screenshot} alt="Comprobante" className="w-full h-auto max-h-80 object-contain mx-auto" />
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-red-400 bg-red-900/10 p-2 rounded">
+                                        Imagen no disponible en vista previa (Formato antiguo o error de carga). 
+                                        <br/>Nombre: {selectedOrder.fullData.screenshot.name || selectedOrder.fullData.screenshotName}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Documento de Identidad */}
+                        {selectedOrder.fullData.idDoc && (
+                            <div className="bg-black/30 p-4 rounded-lg border border-gray-700">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+                                    <span className="text-gray-400 text-xs font-bold uppercase flex items-center gap-2"><ShieldCheck size={14}/> Documento de Identidad</span>
+                                    {typeof selectedOrder.fullData.idDoc === 'string' && (
+                                        <div className="flex gap-2">
+                                            <a href={selectedOrder.fullData.idDoc} target="_blank" rel="noopener noreferrer" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded flex items-center gap-1 transition-colors"><Eye size={12}/> Ver Imagen</a>
+                                            <a href={selectedOrder.fullData.idDoc} download={`id-doc-${selectedOrder.id}.png`} className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1.5 rounded flex items-center gap-1 transition-colors"><Download size={12}/> Descargar</a>
+                                        </div>
+                                    )}
+                                </div>
+                                {typeof selectedOrder.fullData.idDoc === 'string' ? (
+                                    <div className="relative group overflow-hidden rounded-lg border border-gray-800 bg-black/50">
+                                        <img src={selectedOrder.fullData.idDoc} alt="Documento ID" className="w-full h-auto max-h-80 object-contain mx-auto" />
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-red-400 bg-red-900/10 p-2 rounded">
+                                        Imagen no disponible en vista previa.
+                                        <br/>Nombre: {selectedOrder.fullData.idDoc.name || selectedOrder.fullData.idDocName}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                      </div>
+                      {/* --- FIN SECCIÓN IMÁGENES --- */}
+
                       {selectedOrder.paymentMethod === 'paypal' && <div className="col-span-2"><span className="text-gray-500 text-xs block">Email PayPal</span><span className="text-white">{selectedOrder.fullData.paypalEmail}</span></div>}
                    </div>
                 </div>
@@ -618,7 +746,7 @@ const Hero = ({ exchangeRate }) => {
       <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
         <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-900/30 border border-indigo-500/30 backdrop-blur-md animate-fade-in-up">
             <RefreshCw size={14} className="text-green-400 animate-spin" />
-            <span className="text-sm font-mono text-green-400 font-bold">Tasa Actual: {exchangeRate.toFixed(2)} Bs | {venTime} (VET)</span>
+            <span className="text-sm font-mono text-green-400 font-bold">Tasa Actual: {exchangeRate.toFixed(2)} Bs/USD | {venTime} (VET)</span>
         </div>
         <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-white mb-6 font-orbitron drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">EL FUTURO <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">DIGITAL</span></h1>
         <p className="mt-4 text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">Soluciones digitales inmediatas. Números virtuales, recargas de juegos y exchange automatizado al alcance de un clic.</p>
@@ -639,7 +767,6 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
   const calculateReceive = (amount) => {
     if (!amount || isNaN(amount)) return 0;
     const numAmount = parseFloat(amount);
-    // Updated commission: 13.60% + $0.47
     const fee = (numAmount * 0.136) + 0.47; 
     const net = numAmount - fee;
     return net > 0 ? net : 0;
@@ -676,7 +803,6 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
 
   return (
     <div className={`bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 transition-all duration-300 shadow-lg flex flex-col h-full relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale' : 'hover:border-indigo-500'}`}>
-        {/* BLOQUEO DE FIN DE SEMANA */}
         {!isAvailable && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px]">
                 <div className="bg-gray-900 border border-red-500/50 p-4 rounded-xl text-center shadow-2xl">
@@ -696,7 +822,6 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
         </div>
         
         <div className="flex-1 space-y-3 mb-4">
-            {/* Aviso de comisión */}
             <div className="bg-indigo-500/10 border border-indigo-500/50 rounded py-1 px-2 mb-2 text-center">
               <p className="text-[10px] font-bold text-indigo-200 tracking-wide">COMISION DE PAYPAL INCLUIDA</p>
             </div>
@@ -718,7 +843,6 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
 
             <div className="flex justify-center text-gray-500"><ChevronDown size={16} /></div>
 
-            {/* INPUT DE DESTINO PARA USDT */}
             {service.type === 'usdt' && (
                 <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700 space-y-2">
                     <label className="text-xs text-yellow-500 font-bold block">¿Dónde recibes?</label>
@@ -764,9 +888,8 @@ const ManualServiceGenerator = ({ onClose }) => {
     const [isAuth, setIsAuth] = useState(false);
     const [providerServices, setProviderServices] = useState(null);
     const [subscriptions, setSubscriptions] = useState(null);
-    const [viewMode, setViewMode] = useState('generate'); // 'generate', 'list', 'history'
+    const [viewMode, setViewMode] = useState('generate'); 
 
-    // Solo los servicios que tienen providerId
     const apiServices = SERVICES.filter(s => s.providerId && s.providerId > 0);
 
     const handleLogin = () => {
@@ -780,7 +903,7 @@ const ManualServiceGenerator = ({ onClose }) => {
             const response = await fetch(`${VERCEL_API_URL}/api/list-provider-services`);
             const data = await response.json();
             if (data.success) {
-                setProviderServices(data.services); // Asume que devuelve un array de servicios
+                setProviderServices(data.services); 
             } else {
                 alert("Error consultando catálogo: " + data.message);
             }
@@ -824,7 +947,7 @@ const ManualServiceGenerator = ({ onClose }) => {
             const data = await response.json();
             
             if(data.success) {
-                setResult(data.data); // data.data tiene la cuenta devuelta por la API
+                setResult(data.data); 
             } else {
                 alert("Error API: " + (data.message || "Desconocido"));
             }
@@ -1021,7 +1144,6 @@ const ManualServiceGenerator = ({ onClose }) => {
 
 // --- PAYMENT & API LOGIC ---
 
-// --- COMPONENTE BINANCE CORREGIDO: SOLO MANUAL ---
 const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData }) => {
     const [transactionId, setTransactionId] = useState('');
     const [status, setStatus] = useState('idle'); 
@@ -1060,7 +1182,6 @@ const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData 
         <div className="bg-gray-900 border border-yellow-500/30 rounded-xl p-6 max-w-lg mx-auto animate-fade-in-up relative overflow-hidden">
              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
              
-             {/* Header */}
              <div className="flex justify-between items-start mb-6 relative z-10 border-b border-gray-800 pb-4">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-[#FCD535] rounded-full flex items-center justify-center text-black font-bold text-xl"><Zap size={24} fill="currentColor" /></div>
@@ -1280,43 +1401,11 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
     );
 };
 
-const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) => (
-  <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
-    <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group">
-         <div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div>
-        <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3">
-        <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span>
-      </button>
-      
-      <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div>
-        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span>
-      </button>
-
-      <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-blue-700/20 rounded-full flex items-center justify-center text-blue-600"><Building2 /></div><span className="font-bold text-white">FACEBANK</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('pipolpay'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-orange-400 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-500"><Send /></div><span className="font-bold text-white">PipolPay</span>
-      </button>
-    </div>
-    <div className="mt-4 flex justify-center"><button onClick={() => setView('home')} className="text-gray-500 hover:text-white">Cancelar</button></div>
-  </div>
-);
-
 const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate }) => {
   const fileInputRef = useRef(null);
-  const idDocRef = useRef(null); 
+  const idDocRef = useRef(null);
+  const screenshotInputRef = useRef(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const executeOrderCreation = async (manualProofData) => {
       const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
@@ -1338,7 +1427,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
           }
       };
 
-      // GUARDAR EN FIRESTORE
       await saveOrderToFirestore(newOrder);
 
       setLastOrder(newOrder);
@@ -1346,13 +1434,76 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
       setCheckoutStep(3); 
   };
 
+  const requiresExtraValidation = ['facebank', 'pipolpay', 'transfer_usd'].includes(paymentMethod);
+  
+  const isFormValid = 
+      proofData.name && 
+      proofData.lastName && 
+      proofData.idNumber && 
+      proofData.phone && 
+      proofData.refNumber && 
+      proofData.screenshot && 
+      (!requiresExtraValidation || (proofData.issuerAccount && proofData.idDoc));
+
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
-    if(!proofData.name || !proofData.refNumber) { 
-        alert("Por favor completa los datos obligatorios."); 
-        return; 
+    if(!isFormValid) { alert("Completa todos los campos."); return; }
+    
+    setIsSubmitting(true);
+
+    // CONVERTIR IMÁGENES A BASE64 PARA GUARDARLAS EN FIRESTORE
+    let screenshotBase64 = proofData.screenshot;
+    let idDocBase64 = proofData.idDoc;
+
+    try {
+        if (proofData.screenshot && typeof proofData.screenshot !== 'string') {
+            screenshotBase64 = await convertToBase64(proofData.screenshot);
+        }
+        if (proofData.idDoc && typeof proofData.idDoc !== 'string') {
+            idDocBase64 = await convertToBase64(proofData.idDoc);
+        }
+    } catch (err) {
+        console.error("Error convirtiendo imagen", err);
+        alert("Error procesando imagen. Intenta con una más liviana.");
+        setIsSubmitting(false);
+        return;
     }
-    await executeOrderCreation(proofData);
+
+    const finalData = {
+        ...proofData,
+        screenshot: screenshotBase64,
+        idDoc: idDocBase64,
+        // Guardamos los nombres originales también para referencia
+        screenshotName: proofData.screenshot?.name,
+        idDocName: proofData.idDoc?.name
+    };
+
+    await executeOrderCreation(finalData);
+    setIsSubmitting(false);
+  };
+
+  const handleScreenshotChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 1024 * 1024) { // 1MB LIMIT
+            alert("El archivo supera el límite de 1MB para optimizar la base de datos. Por favor comprímelo.");
+            e.target.value = ""; 
+            return;
+        }
+        setProofData({ ...proofData, screenshot: file });
+    }
+  };
+
+  const handleIdDocChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 1024 * 1024) { // 1MB LIMIT
+            alert("El documento es demasiado pesado (Máx 1MB). Por favor comprímelo.");
+            e.target.value = "";
+            return;
+        }
+        setProofData({ ...proofData, idDoc: file });
+    }
   };
 
   const hasStreaming = cart.some(i => i.providerId);
@@ -1361,7 +1512,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
       <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 h-fit">
         <h3 className="text-xl font-bold text-white mb-4">Datos para Transferir</h3>
-        {/* ... (Datos Bancarios sin cambios) ... */}
         {paymentMethod === 'binance' && (
             <div className="space-y-4">
                 <p className="text-yellow-500 font-bold">Binance Pay</p>
@@ -1441,28 +1591,72 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
               <input type="text" placeholder="Cédula/ID" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.idNumber} onChange={e => setProofData({...proofData, idNumber: e.target.value})} />
               <input type="tel" placeholder="Teléfono" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.phone} onChange={e => setProofData({...proofData, phone: e.target.value})} />
             </div>
-            {(paymentMethod === 'facebank' || paymentMethod === 'pipolpay') && (
+            {requiresExtraValidation && (
                <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20 space-y-4">
-                  <input type="text" placeholder="Cuenta Emisora" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.issuerAccount || ''} onChange={e => setProofData({...proofData, issuerAccount: e.target.value})} />
-                  <div className="border-2 border-dashed border-gray-700 rounded-lg p-4 text-center cursor-pointer" onClick={() => idDocRef.current.click()}>
-                    <input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={(e) => setProofData({...proofData, idDoc: e.target.files[0]})} />
-                    <p className="text-gray-300 text-xs">Foto Documento Identidad</p>
-                    {proofData.idDoc && <p className="text-green-400 text-xs mt-1">Adjunto: {proofData.idDoc.name}</p>}
+                  <p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1"><ShieldCheck size={14}/> Verificación de Titular</p>
+                  <input type="text" placeholder="Cuenta Emisora (Email o Número)" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.issuerAccount || ''} onChange={e => setProofData({...proofData, issuerAccount: e.target.value})} />
+                  <div 
+                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${proofData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500'}`}
+                    onClick={() => idDocRef.current.click()}
+                  >
+                    <input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleIdDocChange} />
+                    {proofData.idDoc ? (
+                        <div className="flex flex-col items-center">
+                            <FileCheck className="text-green-400 mb-1" size={24}/>
+                            <p className="text-green-400 text-xs font-bold">Documento Cargado</p>
+                            <p className="text-gray-500 text-[10px]">{proofData.idDoc.name}</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <ImageIcon className="text-gray-500 mb-1" size={24}/>
+                            <p className="text-gray-300 text-xs">Foto Documento Identidad</p>
+                            <p className="text-[10px] text-red-400 mt-1 font-bold">REQUERIDO (Máx 1MB)</p>
+                        </div>
+                    )}
                   </div>
                </div>
             )}
             <input type="text" placeholder="Referencia / Comprobante" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.refNumber} onChange={e => setProofData({...proofData, refNumber: e.target.value})} />
             
-            {/* ALERTAS DE ENTREGA */}
             <div className="space-y-2">
-                {/* Nota para todos */}
-                <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20">
-                    <p className="text-indigo-300 text-xs text-center flex items-center justify-center gap-1">
-                    <Upload className="inline w-4 h-4"/>
-                    <b>Nota:</b> Al finalizar, deberás enviar la captura por WhatsApp.
-                    </p>
+                <div 
+                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofData.screenshot ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} 
+                    onClick={() => screenshotInputRef.current.click()}
+                >
+                    <input 
+                        type="file" 
+                        ref={screenshotInputRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleScreenshotChange} 
+                    />
+                    {proofData.screenshot ? (
+                        <div className="flex flex-col items-center text-green-400">
+                            <Check size={32} className="mb-2" />
+                            <p className="font-bold text-sm">Comprobante Cargado</p>
+                            <p className="text-xs opacity-70 mb-2">{proofData.screenshot.name}</p>
+                            <button 
+                                type="button" 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setProofData({...proofData, screenshot: null});
+                                    if(screenshotInputRef.current) screenshotInputRef.current.value = "";
+                                }} 
+                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
+                            >
+                                Cambiar imagen
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center text-gray-400">
+                            <ImageIcon size={32} className="mb-2 opacity-50" />
+                            <p className="font-bold text-sm text-white">Subir Comprobante de Pago</p>
+                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar imagen (Máx 1MB)</p>
+                            <p className="text-[10px] text-red-400 mt-2 font-bold uppercase tracking-wider border border-red-500/30 px-2 py-0.5 rounded">Requerido</p>
+                        </div>
+                    )}
                 </div>
-                {/* ADVERTENCIA ESPECÍFICA DE STREAMING */}
+
                 {hasStreaming && (
                     <div className="bg-yellow-900/20 p-4 rounded-lg border border-yellow-500/20">
                         <p className="text-yellow-300 text-xs text-center flex items-center justify-center gap-1">
@@ -1473,17 +1667,199 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
                 )}
             </div>
             
-            <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg shadow-lg mt-6">REGISTRAR PAGO</button>
+            <button 
+                type="submit" 
+                disabled={!isFormValid || isSubmitting}
+                className={`w-full font-bold py-4 rounded-lg shadow-lg mt-6 transition-all flex items-center justify-center gap-2 ${
+                    isFormValid && !isSubmitting
+                    ? 'bg-green-600 hover:bg-green-700 text-white transform hover:scale-[1.02]' 
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'
+                }`}
+            >
+                {isSubmitting ? <Loader className="animate-spin" /> : (isFormValid ? "REGISTRAR PAGO" : "COMPLETA EL FORMULARIO")}
+            </button>
          </form>
       </div>
     </div>
   );
 };
 
+const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
+  const idDocRef = useRef(null);
+  const isBinance = paymentMethod === 'binance';
+  
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 500 * 1024) { // 500KB limit
+            alert("El documento es demasiado pesado (Máx 500KB). Por favor comprímelo.");
+            e.target.value = "";
+            return;
+        }
+        setPaypalData({ ...paypalData, idDoc: file });
+    }
+  };
+
+  const handleSubmit = (e) => { 
+      e.preventDefault(); 
+      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { 
+          alert("Por favor completa todos los campos de texto."); 
+          return; 
+      } 
+      if (!isBinance && !paypalData.idDoc) {
+          alert("Debes cargar la foto de tu documento de identidad para continuar.");
+          return;
+      }
+      // Si hay imagen y no es Binance, la convertimos en PaymentProofStep o aquí si es necesario
+      // Como PayPalDetailsForm es paso intermedio para la API, realmente solo guardamos en estado
+      // La conversión ocurrirá cuando se guarde en Firestore en handlePayPalComplete
+      
+      setCheckoutStep(2); 
+  };
+  
+  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc);
+
+  return (
+    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
+      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
+      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
+          <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
+        </div>
+        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
+        
+        {!isBinance && (
+            <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
+                <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
+                <div 
+                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} 
+                    onClick={() => idDocRef.current.click()}
+                >
+                    <input 
+                        type="file" 
+                        ref={idDocRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleFileChange} 
+                    />
+                    {paypalData.idDoc ? (
+                        <div className="flex flex-col items-center text-green-400">
+                            <FileCheck size={32} className="mb-2" />
+                            <p className="font-bold text-sm">Documento Cargado</p>
+                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p>
+                            <button 
+                                type="button" 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPaypalData({...paypalData, idDoc: null});
+                                    if(idDocRef.current) idDocRef.current.value = "";
+                                }} 
+                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
+                            >
+                                Cambiar archivo
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center text-gray-400">
+                            <ImageIcon size={32} className="mb-2 opacity-50" />
+                            <p className="font-bold text-sm text-white">Subir Foto Documento ID</p>
+                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 500KB)</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        <button 
+            type="submit" 
+            disabled={!isFormValid}
+            className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all
+                ${isFormValid 
+                    ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') 
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'
+                }`}
+        >
+            Continuar al Pago <ArrowRight size={20} />
+        </button>
+      </form>
+    </div>
+  );
+};
+
+const SuccessScreen = ({ lastOrder, setView }) => {
+  return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-scale-in">
+        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]"><Check className="w-12 h-12 text-white" strokeWidth={3} /></div>
+        <h2 className="text-4xl font-bold text-white mb-4">¡Gracias por tu Compra!</h2>
+        <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido recibido correctamente. Tu producto o servicio será entregado pronto vía WhatsApp al número proporcionado.</p>
+        {lastOrder && (
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 max-w-md w-full mb-8 shadow-2xl">
+            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.id}</span></h3>
+            <div className="space-y-3 text-left">
+            {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
+            <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
+            {lastOrder.fullData?.streamingAccount && (
+                <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
+                    <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
+                    <div className="space-y-1 font-mono text-sm">
+                        <div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>
+                        {lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}
+                    </div>
+                </div>
+            )}
+            {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
+            </div>
+        </div>
+        )}
+        <div className="flex flex-col gap-3 w-full max-w-md">
+            <a href="https://wa.me/19047400467" target="_blank" rel="noopener noreferrer" className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"><MessageSquare size={20} /> Hablar con Nosotros</a>
+        </div>
+        <button onClick={() => setView('home')} className="mt-8 text-gray-500 hover:text-white underline">Volver al inicio</button>
+    </div>
+  );
+};
+
+const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) => (
+  <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
+    <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group">
+         <div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div>
+        <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span>
+      </button>
+      <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3">
+        <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span>
+      </button>
+      
+      <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div>
+        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span>
+      </button>
+
+      <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3">
+         <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span>
+      </button>
+      <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3">
+         <div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span>
+      </button>
+      <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3">
+         <div className="w-12 h-12 bg-blue-700/20 rounded-full flex items-center justify-center text-blue-600"><Building2 /></div><span className="font-bold text-white">FACEBANK</span>
+      </button>
+      <button onClick={() => { setPaymentMethod('pipolpay'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-orange-400 flex flex-col items-center gap-3">
+         <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-500"><Send /></div><span className="font-bold text-white">PipolPay</span>
+      </button>
+    </div>
+    <div className="mt-4 flex justify-center"><button onClick={() => setView('home')} className="text-gray-500 hover:text-white">Cancelar</button></div>
+  </div>
+);
+
 const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paypalData }) => {
     const exchangeItem = cart.find(item => item.type === 'usdt');
     const isExchange = !!exchangeItem;
-    const [binanceTxId, setBinanceTxId] = useState('');
 
     const processStreamingPurchase = async (finalOrder) => {
         const streamingItem = finalOrder.rawItems.find(item => item.providerId && item.providerId > 0);
@@ -1524,8 +1900,6 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
              }
          };
          automatedOrder = await processStreamingPurchase(automatedOrder);
-
-         // GUARDAR EN FIRESTORE
          await saveOrderToFirestore(automatedOrder);
 
          setLastOrder(automatedOrder);
@@ -1536,6 +1910,12 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
     const handlePayPalComplete = async (invoiceId, bTxId) => {
         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
         const randomId = Math.floor(100 + Math.random() * 900);
+        
+        // Convertir ID Doc si existe en PayPal Data para guardar (caso raro en flujo auto, pero posible)
+        let idDocBase64 = null;
+        if (paypalData.idDoc && typeof paypalData.idDoc !== 'string') {
+             try { idDocBase64 = await convertToBase64(paypalData.idDoc); } catch(e){}
+        }
 
         let automatedOrder = {
             id: `ORD-${randomId}`,
@@ -1552,12 +1932,11 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                 refNumber: invoiceId, 
                 binanceTxId: bTxId, 
                 exchangeData: exchangeItem ? exchangeItem.exchangeData : null,
-                contactPhone: paypalData.phone
+                contactPhone: paypalData.phone,
+                idDoc: idDocBase64 // Guardamos la imagen si se subió
             }
         };
         automatedOrder = await processStreamingPurchase(automatedOrder);
-
-        // GUARDAR EN FIRESTORE
         await saveOrderToFirestore(automatedOrder);
 
         setLastOrder(automatedOrder);
@@ -1595,7 +1974,6 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                 paypalData={paypalData}
                 allOrders={[]} 
             />
-            {/* Nota: Para Binance Manual/Auto, se usa el componente separado si se selecciona en el paso anterior */}
             <div className="hidden">
                  <BinanceAutomatedCheckout 
                     cartTotal={cartTotal}
@@ -1606,99 +1984,6 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
             </div>
         </div>
     );
-};
-
-const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
-  const idDocRef = useRef(null);
-  const handleSubmit = (e) => { e.preventDefault(); if(!paypalData.email || !paypalData.firstName) { alert("Completa los campos básicos."); return; } setCheckoutStep(2); };
-  const isBinance = paymentMethod === 'binance';
-
-  return (
-    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
-      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
-      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
-          <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
-        </div>
-        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
-        <button type="submit" className={`w-full ${isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white'} font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2`}>Continuar al Pago <ArrowRight size={20} /></button>
-      </form>
-    </div>
-  );
-};
-
-const convertToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-};
-
-const SuccessScreen = ({ lastOrder, setView }) => {
-  const generateWhatsAppLink = () => {
-    if (!lastOrder) return "";
-    const isBsPayment = lastOrder.paymentMethod === 'pagomovil' || lastOrder.paymentMethod === 'transfer_bs';
-    const amountBs = isBsPayment ? (parseFloat(lastOrder.total) * (lastOrder.exchangeRateUsed || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2 }) : 0;
-    const isApiVerified = lastOrder.paymentMethod === 'paypal_api' || lastOrder.paymentMethod === 'binance_api';
-
-    let text = `👋 *Hola equipo TecnoByte, he realizado una nueva compra.*\nAquí están los detalles de mi pedido para su validación:\n\n`;
-    text += `📋 *RESUMEN DEL PEDIDO*\n🆔 *ID:* ${lastOrder.id}\n👤 *Cliente:* ${lastOrder.user}\n📞 *Teléfono:* ${lastOrder.fullData.contactPhone}\n💳 *Método:* ${lastOrder.paymentMethod.toUpperCase().replace('_', ' ')}\n🧾 *Ref:* ${lastOrder.fullData.refNumber || 'N/A'}\n`;
-    if (isApiVerified) text += `✅ *ESTADO:* VERIFICADO AUTOMÁTICAMENTE\n\n`; else text += `\n`;
-    text += `🛒 *CARRITO*\n`;
-    lastOrder.rawItems.forEach(item => { text += `• ${item.title} - $${item.price.toFixed(2)}\n`; });
-    text += `\n💰 *TOTAL USD: $${lastOrder.total}*\n`;
-    if (isBsPayment) { text += `🇻🇪 *TOTAL BS: ${amountBs}* (Tasa: ${lastOrder.exchangeRateUsed})\n`; }
-    text += `\n📝 *NOTA ADJUNTA:*\n`;
-    if (isApiVerified) {
-        text += `✅ El pago ya fue verificado exitosamente por el sistema API.`;
-        if (lastOrder.fullData.streamingAccount) { text += `\n🔑 *CUENTA ENTREGADA:* Ya recibí mis credenciales de acceso.`; }
-    } else if (lastOrder.paymentMethod === 'facebank' || lastOrder.paymentMethod === 'transfer_usd') {
-         text += `✅ Adjunto foto del comprobante de pago.\n❗ *OBLIGATORIO:* Adjunto también foto del documento de identidad.`;
-    } else {
-         text += `✅ Adjunto foto del comprobante de pago para su verificación.`;
-    }
-    text += `\n\nQuedo atento a la entrega. Gracias.`;
-    return `https://wa.me/19047400467?text=${encodeURIComponent(text)}`;
-  };
-
-  return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-scale-in">
-        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]"><Check className="w-12 h-12 text-white" strokeWidth={3} /></div>
-        <h2 className="text-4xl font-bold text-white mb-4">¡Pedido Registrado!</h2>
-        <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido procesado localmente y guardado en la nube. Para finalizar, repórtalo en WhatsApp.</p>
-        {lastOrder && (
-        <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 max-w-md w-full mb-8 shadow-2xl">
-            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.id}</span></h3>
-            <div className="space-y-3 text-left">
-            {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
-            <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
-            {lastOrder.fullData?.streamingAccount && (
-                <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
-                    <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
-                    <div className="space-y-1 font-mono text-sm">
-                        <div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>
-                        {lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}
-                    </div>
-                </div>
-            )}
-            {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
-            </div>
-        </div>
-        )}
-        <div className="flex flex-col gap-3 w-full max-w-md">
-            <a href="https://wa.me/19047400467" target="_blank" rel="noopener noreferrer" className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"><MessageSquare size={20} /> Hablar con Nosotros</a>
-            <a href={generateWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] animate-pulse-green flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"><Send size={22} /> REPORTAR COMPRA (Enviar Datos)</a>
-            <p className="text-xs text-gray-500 mt-2">*Al hacer clic, se abrirá WhatsApp con los datos de tu compra precargados.</p>
-        </div>
-        <button onClick={() => setView('home')} className="mt-8 text-gray-500 hover:text-white underline">Volver al inicio</button>
-    </div>
-  );
 };
 
 export default function App() {
@@ -1715,7 +2000,6 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAdminTool, setShowAdminTool] = useState(false);
 
-  // --- LÓGICA DE HORARIO ---
   const getIsExchangeOpen = () => {
     const now = new Date();
     const venString = now.toLocaleString("en-US", {timeZone: "America/Caracas"});
@@ -1725,7 +2009,6 @@ export default function App() {
   };
   const isExchangeAvailable = getIsExchangeOpen();
 
-  // --- CONFIGURACIÓN DE ICONO ---
   useEffect(() => {
     document.title = "TecnoByte | Soluciones Digitales";
     let link = document.querySelector("link[rel~='icon']");
@@ -1778,53 +2061,12 @@ export default function App() {
     }, 500);
   };
 
-  const handleBinanceVerifiedSuccess = async (txId) => {
-    const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
-    const randomId = Math.floor(100 + Math.random() * 900);
-    let automatedOrder = {
-        id: `ORD-${randomId}`,
-        user: `${paypalData.firstName} ${paypalData.lastName}`, 
-        items: cart.map(i => i.title).join(', '),
-        total: cartTotal.toFixed(2),
-        status: 'FACTURADO (Binance Verified)',
-        date: new Date().toISOString().split('T')[0],
-        rawItems: sanitizedItems,
-        paymentMethod: 'binance_api',
-        fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: txId, contactPhone: paypalData.phone }
-    };
-    
-    // Auto streaming logic...
-    const streamingItem = sanitizedItems.find(item => item.providerId && item.providerId > 0);
-    if (streamingItem) {
-        try {
-            const response = await fetch(`${VERCEL_API_URL}/api/purchase-streaming`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ service_id: streamingItem.providerId })
-            });
-            const result = await response.json();
-            if (result.success && result.data) {
-                automatedOrder.fullData.streamingAccount = result.data; 
-            }
-        } catch (e) { console.error("Error auto-streaming:", e); }
-    }
-
-    // GUARDAR EN FIRESTORE
-    await saveOrderToFirestore(automatedOrder);
-
-    setLastOrder(automatedOrder);
-    setCart([]);
-    setCheckoutStep(3);
-  };
-
   return (
     <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans">
       <style>{globalStyles}</style>
       
-      {/* VISTA DEL PANEL ADMINISTRATIVO */}
-      {view === 'admin' && <AdminPanel setView={setView} />}
+      {view === 'admin' && <AdminPanel setView={setView} onOpenManualTool={() => setShowAdminTool(true)} />}
 
-      {/* VISTA NORMAL DE LA TIENDA */}
       {view !== 'admin' && (
       <>
         <Navbar cartCount={cart.length} onOpenCart={() => setIsCartOpen(true)} setView={setView} />
@@ -1848,7 +2090,7 @@ export default function App() {
                     paymentMethod === 'paypal' ? (
                         <AutomatedFlowWrapper cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} />
                     ) : paymentMethod === 'binance' ? (
-                        <BinanceAutomatedCheckout cartTotal={cartTotal} paypalData={paypalData} onVerified={handleBinanceVerifiedSuccess} onCancel={() => setCheckoutStep(0)} />
+                        <BinanceAutomatedCheckout cartTotal={cartTotal} paypalData={paypalData} onVerified={() => {}} onCancel={() => setCheckoutStep(0)} />
                     ) : (
                         <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} />
                     )
@@ -1886,7 +2128,6 @@ export default function App() {
             )}
         </main>
         
-        {/* FOOTER CON ACCESO SECRETO */}
         <footer className="bg-black/90 border-t border-gray-800 text-gray-400 py-12">
             <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
             <div><h4 className="text-white font-orbitron font-bold text-xl mb-4">TECNOBYTE</h4><p className="text-sm">Innovación y seguridad en cada transacción. Tu aliado digital de confianza.</p></div>
@@ -1918,9 +2159,11 @@ export default function App() {
             </div>
         )}
         <GeminiChat exchangeRate={exchangeRateBs} />
-        {showAdminTool && <ManualServiceGenerator onClose={() => setShowAdminTool(false)} />}
       </>
       )}
+
+      {/* MOVIMOS ESTE COMPONENTE AL FINAL PARA QUE SEA VISIBLE SIEMPRE, INCLUSO EN EL ADMIN PANEL */}
+      {showAdminTool && <ManualServiceGenerator onClose={() => setShowAdminTool(false)} />}
     </div>
   );
 }

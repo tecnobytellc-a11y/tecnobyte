@@ -204,8 +204,10 @@ const AdminPanel = ({ setView }) => {
       if (user && !user.isAnonymous) { // Asumimos que si no es anónimo, es el admin (o login real)
         setAdminUser(user.email);
         setIsAuthenticated(true);
+        // Mantenemos loading en true para que al entrar al dashboard cargue los datos
       } else {
         setIsAuthenticated(false);
+        setLoading(false); // <--- SOLUCIÓN: Desactiva el spinner si no estás logueado
       }
     });
     return () => unsubscribe();

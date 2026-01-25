@@ -15,7 +15,7 @@ const SERVER_URL = "https://api-paypal-secure.vercel.app";
 // --- DATA & CONFIGURATION ---
 
 const RATE_API_CONFIG = {
-    // API CriptoYa
+    // ✅ URL CORRECTA DE TU SERVIDOR
     url: "https://api-secure-server.vercel.app/api/get-tasa", 
     intervalMinutes: 0.1 
 };
@@ -115,7 +115,6 @@ const convertToBase64 = (file) => {
 // --- FUNCIÓN DE CONEXIÓN CON TU SERVIDOR ---
 const submitOrderToPrivateServer = async (order) => {
   try {
-    // Usamos el endpoint '/api/save-order' que configuramos en tu server.js
     const response = await fetch(`${SERVER_URL}/api/save-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -603,8 +602,12 @@ export default function App() {
             const response = await fetch(RATE_API_CONFIG.url);
             const data = await response.json();
             // Lógica simple para extraer tasa (depende de la API)
-            if(data.rates && data.rates.VES) setExchangeRateBs(data.rates.VES);
-        } catch (error) {}
+            // Se usa una verificación genérica para asegurar que capturamos el valor correcto
+            const rate = data.rate || data.price || data.tasa || data.value || (data.rates && data.rates.VES) || data.VES;
+            if (rate) setExchangeRateBs(parseFloat(rate));
+        } catch (error) {
+            console.error("Error fetching rate:", error);
+        }
     };
     fetchRate();
   }, []);

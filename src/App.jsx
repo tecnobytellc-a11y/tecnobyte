@@ -2,20 +2,19 @@ import './styles.css';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingCart, Gamepad2, CreditCard, MessageSquare, 
-  Smartphone, Check, Upload, X, Lock, 
-  Zap, Trash2, RefreshCw,
-  Facebook, Instagram, Mail, Phone, ShieldCheck, ChevronDown, Landmark, Building2, Send, Tv, Music,
-  Loader, ArrowRight, AlertTriangle, Clock, Key, Image as ImageIcon, FileCheck, QrCode
+  Smartphone, User, Check, Upload, X, Lock, 
+  Globe, Zap, Trash2, Eye, RefreshCw,
+  Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, FileCheck, Download, EyeOff, ExternalLink
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DEL SERVIDOR ---
-// ✅ CONECTADO A TU SERVIDOR VERCEL
-const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
+// ✅ Conectado a tu servidor privado
+const SERVER_URL = "https://api-paypal-secure.vercel.app";
 
-// --- DATA & CONFIGURATION ---
+// --- DATOS Y CONFIGURACIÓN ---
 
 const RATE_API_CONFIG = {
-    // ✅ URL CORRECTA DE TU SERVIDOR
     url: "https://api-secure-server.vercel.app/api/get-tasa", 
     intervalMinutes: 0.1 
 };
@@ -27,7 +26,6 @@ const SERVICES = [
   { id: 2, category: 'Virtual Numbers', title: 'Telegram Number', price: 1.85, icon: <MessageSquare />, description: 'Verificación segura para Telegram.' },
   { id: 3, category: 'Virtual Numbers', title: 'PayPal/Banks Number', price: 1.30, icon: <CreditCard />, description: 'Para recibir SMS de bancos y PayPal.' },
   
-  // Exchange Items
   { id: 4, category: 'Exchange', title: 'Cambio PayPal a USDT', price: 0, icon: <RefreshCw />, description: 'Recibe USDT netos (Binance Pay/BEP20).', type: 'usdt' },
   { id: 5, category: 'Exchange', title: 'Cambio PayPal a Bs', price: 0, icon: <RefreshCw />, description: 'Recibe Bolívares en tu banco nacional.', type: 'bs' },
   
@@ -82,11 +80,9 @@ const SOCIAL_LINKS = {
 
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
-
   .font-orbitron { font-family: 'Orbitron', sans-serif; }
   .font-sans { font-family: 'Inter', sans-serif; }
   ::selection { background-color: #6366f1; color: white; }
-
   @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
   .animate-float { animation: float 4s ease-in-out infinite; }
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -95,14 +91,13 @@ const globalStyles = `
   .animate-scale-in { animation: scaleIn 0.4s ease-out forwards; }
   @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
   .animate-pulse-green { animation: pulse-green 2s infinite; }
-  
   .custom-scrollbar::-webkit-scrollbar { width: 8px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
 `;
 
-// --- HELPER FUNCTIONS ---
+const TikTokIcon = () => ( <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg> );
+
 const convertToBase64 = (file) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -112,30 +107,42 @@ const convertToBase64 = (file) => {
     });
 };
 
-// --- FUNCIÓN DE CONEXIÓN CON TU SERVIDOR ---
+// --- FUNCIÓN DE CONEXIÓN AL SERVIDOR PRIVADO ---
 const submitOrderToPrivateServer = async (order) => {
   try {
+    const sanitizedOrder = {
+        ...order,
+        date: order.date || new Date().toISOString(),
+        fullData: {
+            ...order.fullData,
+            screenshot: typeof order.fullData?.screenshot === 'string' ? order.fullData.screenshot : null,
+            idDoc: typeof order.fullData?.idDoc === 'string' ? order.fullData.idDoc : null,
+            screenshotName: order.fullData?.screenshot?.name,
+            idDocName: order.fullData?.idDoc?.name
+        }
+    };
+
     const response = await fetch(`${SERVER_URL}/api/save-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(order)
+        body: JSON.stringify(sanitizedOrder)
     });
 
     const data = await response.json();
     if (data.success) {
-        console.log("✅ Orden guardada en el servidor exitosamente:", data.id);
+        console.log("✅ Orden guardada:", data.id);
         return true;
     } else {
         throw new Error(data.message || "Error del servidor privado");
     }
   } catch (error) {
     console.error("❌ Error enviando orden:", error);
-    alert(`NO SE PUDO PROCESAR LA ORDEN:\nHubo un problema de conexión con el servidor.\n\nIntenta de nuevo o contacta a soporte.`);
+    alert(`NO SE PUDO PROCESAR LA ORDEN:\nHubo un problema de conexión con el servidor.\n\nIntenta de nuevo.`);
     return false;
   }
 };
 
-// --- COMPONENTS UI ---
+// --- COMPONENTES VISUALES ---
 
 const Navbar = ({ cartCount, onOpenCart, setView }) => (
   <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
@@ -183,8 +190,6 @@ const Hero = ({ exchangeRate }) => {
     </div>
   );
 };
-
-// --- CALCULADORA & EXCHANGE ---
 
 const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
   const [amountSend, setAmountSend] = useState('');
@@ -305,6 +310,259 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
   );
 };
 
+// --- PAYMENT & API LOGIC ---
+
+const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData }) => {
+    const [transactionId, setTransactionId] = useState('');
+    const [status, setStatus] = useState('idle'); 
+
+    const handleVerify = async () => {
+        if (!transactionId) { alert("ID inválido"); return; }
+        setStatus('verifying');
+
+        try {
+            const response = await fetch(`${SERVER_URL}/api/verify-binance-pay`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    orderId: transactionId,
+                    amount: cartTotal.toFixed(2)
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setStatus('success');
+                setTimeout(() => onVerified(transactionId), 2000);
+            } else {
+                alert(result.message);
+                setStatus('idle');
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión");
+            setStatus('idle');
+        }
+    };
+
+    return (
+        <div className="bg-gray-900 border border-yellow-500/30 rounded-xl p-6 max-w-lg mx-auto animate-fade-in-up relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+             
+             <div className="flex justify-between items-start mb-6 relative z-10 border-b border-gray-800 pb-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#FCD535] rounded-full flex items-center justify-center text-black font-bold text-xl"><Zap size={24} fill="currentColor" /></div>
+                    <div>
+                        <h3 className="text-white font-bold text-lg">Binance Pay</h3>
+                        <p className="text-xs text-gray-400">Verificación Automática</p>
+                    </div>
+                </div>
+             </div>
+
+             {status === 'success' ? (
+                 <div className="text-center py-10 animate-scale-in">
+                     <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(34,197,94,0.6)]"><Check className="w-10 h-10 text-white" strokeWidth={4} /></div>
+                     <h4 className="text-2xl font-bold text-white">¡Pago Verificado!</h4>
+                 </div>
+             ) : (
+                <div className="space-y-6 relative z-10">
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-dashed border-gray-700 text-center">
+                        <p className="text-gray-400 text-xs mb-2">Envía exactamente:</p>
+                        <p className="text-4xl font-mono font-bold text-[#FCD535] mb-2">${cartTotal.toFixed(2)}</p>
+                        <div className="flex justify-center gap-2 mb-2">
+                            <div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><Mail size={12} className="text-yellow-500"/> {CONTACT_INFO.binance_email}</div>
+                        </div>
+                        <div className="flex justify-center gap-2">
+                            <div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><QrCode size={12} className="text-yellow-500"/> Pay ID: {CONTACT_INFO.binance_pay_id}</div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-white">Order ID / ID de Transacción</label>
+                        <input 
+                            type="text" 
+                            value={transactionId}
+                            onChange={(e) => setTransactionId(e.target.value.replace(/[^0-9]/g, ''))}
+                            placeholder="Pega aquí el ID (Ej: 423516...)"
+                            className="w-full bg-black/50 border border-gray-600 rounded-lg py-3 px-4 text-white font-mono focus:border-[#FCD535] outline-none"
+                        />
+                         <p className="text-[10px] text-gray-500">El ID que te da Binance tras el pago (18+ dígitos)</p>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button onClick={onCancel} className="px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800">Cancelar</button>
+                        <button onClick={handleVerify} disabled={status === 'verifying' || !transactionId} className="flex-1 bg-[#FCD535] hover:bg-[#E5C02C] text-black font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2">
+                            {status === 'verifying' ? <><Loader className="animate-spin" size={20} /> Verificando...</> : "Ya pagué, Verificar"}
+                        </button>
+                    </div>
+                </div>
+             )}
+        </div>
+    );
+};
+
+const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders }) => {
+    const [status, setStatus] = useState('idle'); 
+    const [invoiceId, setInvoiceId] = useState('');
+    const [approveLink, setApproveLink] = useState('');
+
+    const handlePayPalPayment = async () => {
+        setStatus('processing');
+        try {
+            const response = await fetch(`${SERVER_URL}/api/create-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: cartTotal.toFixed(2) })
+            });
+
+            if (!response.ok) throw new Error("Error en servidor al crear orden");
+
+            const data = await response.json();
+            const link = data.links.find(l => l.rel === "approve");
+            
+            if (link) {
+                setInvoiceId(data.id); 
+                setApproveLink(link.href);
+                window.open(link.href, '_blank');
+                setStatus('verifying');
+            } else {
+                throw new Error("No se recibió link de aprobación de PayPal");
+            }
+
+        } catch (error) {
+           console.error(error);
+           alert("Error al iniciar PayPal: " + error.message);
+           setStatus('idle');
+        }
+    };
+
+    const handleVerification = async () => {
+        if (!invoiceId) return;
+
+        try {
+            if (isExchange) setStatus('dispersing');
+
+            const response = await fetch(`${SERVER_URL}/api/capture-and-exchange`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    orderId: invoiceId,
+                    receiveAddress: exchangeData?.receiveAddress, 
+                    receiveType: 'bep20' 
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setStatus('completed');
+                onPaymentComplete(invoiceId, result.binanceTxId);
+                
+                if(result.manualActionRequired) {
+                    alert(`⚠️ ATENCIÓN: El pago fue exitoso, pero hubo un error enviando los USDT automáticamente.\n\nDetalle del error: ${result.errorDetail || "Error de conexión con Binance"}\n\nNo te preocupes, tu orden quedó registrada. Contacta a soporte para finalizar el envío.`);
+                }
+            } else {
+                alert("Pago no completado o fallido. Estado: " + (result.message || "Desconocido"));
+                if(isExchange) setStatus('verifying');
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión verificando el pago.");
+            setStatus('verifying');
+        }
+    };
+
+    return (
+        <div className="bg-gray-900 border border-indigo-500/30 rounded-xl p-6 max-w-md mx-auto animate-fade-in-up">
+            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-8" />
+                <span className="text-white font-bold text-lg">Checkout Seguro</span>
+            </div>
+
+            {status === 'idle' && (
+                <div className="space-y-4">
+                    <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20">
+                        <p className="text-gray-300 text-sm mb-2">Resumen de Pago:</p>
+                        <p className="text-3xl font-bold text-white">${cartTotal.toFixed(2)}</p>
+                        {isExchange && (
+                            <div className="mt-2 text-xs text-yellow-500 flex items-center gap-1">
+                                <RefreshCw size={10} /> Incluye dispersión automática a Binance
+                            </div>
+                        )}
+                    </div>
+                    <button 
+                        onClick={handlePayPalPayment}
+                        className="w-full bg-[#FFC439] hover:bg-[#F4BB35] text-blue-900 font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+                    >
+                        <img src="https://www.paypalobjects.com/webstatic/icon/pp258.png" className="w-4 h-4" alt="" />
+                        Pagar con PayPal
+                    </button>
+                    <p className="text-[10px] text-gray-500 text-center">Serás redirigido al portal seguro de PayPal.</p>
+                </div>
+            )}
+
+            {status === 'processing' && (
+                <div className="text-center py-8">
+                    <Loader className="w-12 h-12 text-[#003087] animate-spin mx-auto mb-4" />
+                    <p className="text-white font-bold">Iniciando Transacción...</p>
+                    <p className="text-xs text-gray-400">Creando factura en PayPal...</p>
+                </div>
+            )}
+
+            {status === 'verifying' && (
+                <div className="space-y-6 text-center">
+                    <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto border border-blue-500/50">
+                        <CreditCard className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <div>
+                        <h4 className="text-white font-bold text-xl">Confirmar Pago</h4>
+                        <p className="text-indigo-400 font-mono text-sm mt-1">Orden: {invoiceId}</p>
+                        <p className="text-gray-400 text-xs mt-2 px-4">Hemos abierto una pestaña de PayPal. Completa el pago y luego haz clic abajo.</p>
+                        {approveLink && <a href={approveLink} target="_blank" rel="noopener noreferrer" className="text-xs text-yellow-500 underline block mt-1">¿No se abrió? Clic aquí</a>}
+                    </div>
+                    
+                    <div className="bg-gray-800 p-4 rounded-lg text-left">
+                        <button onClick={handleVerification} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded text-sm animate-pulse-green shadow-lg">
+                            Ya realicé el pago
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {status === 'dispersing' && (
+                <div className="text-center py-8 space-y-4">
+                    <div className="relative w-16 h-16 mx-auto">
+                        <div className="absolute inset-0 border-4 border-yellow-500 rounded-full animate-spin border-t-transparent"></div>
+                        <img src="https://cryptologos.cc/logos/binance-coin-bnb-logo.png" className="absolute inset-0 w-8 h-8 m-auto animate-pulse" alt="Binance" />
+                    </div>
+                    <div>
+                        <p className="text-white font-bold">Verificando y Enviando...</p>
+                        <p className="text-xs text-yellow-500">Conectando con Binance API...</p>
+                    </div>
+                    <div className="w-full bg-gray-800 rounded-full h-1.5 mt-4">
+                        <div className="bg-yellow-500 h-1.5 rounded-full animate-[width_3s_ease-out_forwards]" style={{width: '90%'}}></div>
+                    </div>
+                </div>
+            )}
+
+            {status === 'completed' && (
+                <div className="text-center py-6">
+                    <Check className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                    <h4 className="text-2xl font-bold text-white">¡Operación Exitosa!</h4>
+                    <p className="text-gray-400 text-sm mt-2">El pago ha sido verificado.</p>
+                    {isExchange && (
+                        <p className="text-green-400 text-xs mt-2 font-bold bg-green-900/20 p-2 rounded border border-green-900">
+                            Fondos enviados via Binance.
+                        </p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate }) => {
   const fileInputRef = useRef(null);
   const idDocRef = useRef(null);
@@ -341,18 +599,24 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
       }
   };
 
+  const requiresExtraValidation = ['facebank', 'pipolpay', 'transfer_usd'].includes(paymentMethod);
+  
   const isFormValid = 
       proofData.name && 
       proofData.lastName && 
+      proofData.idNumber && 
+      proofData.phone && 
       proofData.refNumber && 
-      proofData.screenshot;
+      proofData.screenshot && 
+      (!requiresExtraValidation || (proofData.issuerAccount && proofData.idDoc));
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
-    if(!isFormValid) { alert("Completa todos los campos obligatorios."); return; }
+    if(!isFormValid) { alert("Completa todos los campos."); return; }
     
     setIsSubmitting(true);
 
+    // CONVERTIR IMÁGENES A BASE64 PARA ENVIARLAS AL SERVIDOR
     let screenshotBase64 = proofData.screenshot;
     let idDocBase64 = proofData.idDoc;
 
@@ -364,7 +628,8 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
             idDocBase64 = await convertToBase64(proofData.idDoc);
         }
     } catch (err) {
-        alert("Error procesando imagen.");
+        console.error("Error convirtiendo imagen", err);
+        alert("Error procesando imagen. Intenta con una más liviana.");
         setIsSubmitting(false);
         return;
     }
@@ -372,7 +637,10 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
     const finalData = {
         ...proofData,
         screenshot: screenshotBase64,
-        idDoc: idDocBase64
+        idDoc: idDocBase64,
+        // Guardamos los nombres originales también para referencia
+        screenshotName: proofData.screenshot?.name,
+        idDocName: proofData.idDoc?.name
     };
 
     await executeOrderCreation(finalData);
@@ -381,8 +649,29 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
 
   const handleScreenshotChange = (e) => {
     const file = e.target.files[0];
-    if (file) setProofData({ ...proofData, screenshot: file });
+    if (file) {
+        if (file.size > 1024 * 1024) { // 1MB LIMIT
+            alert("El archivo supera el límite de 1MB para optimizar el envío. Por favor comprímelo.");
+            e.target.value = ""; 
+            return;
+        }
+        setProofData({ ...proofData, screenshot: file });
+    }
   };
+
+  const handleIdDocChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 1024 * 1024) { // 1MB LIMIT
+            alert("El documento es demasiado pesado (Máx 1MB). Por favor comprímelo.");
+            e.target.value = "";
+            return;
+        }
+        setProofData({ ...proofData, idDoc: file });
+    }
+  };
+
+  const hasStreaming = cart.some(i => i.providerId);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
@@ -393,7 +682,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
                 <p className="text-yellow-500 font-bold">Binance Pay</p>
                 <div className="space-y-2">
                     <p className="text-white"><span className="text-gray-400 font-bold">Email:</span> {CONTACT_INFO.binance_email}</p>
-                    <p className="text-white"><span className="text-gray-400 font-bold">ID:</span> {CONTACT_INFO.binance_pay_id}</p>
                 </div>
             </div>
         )}
@@ -401,9 +689,46 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
             <div className="space-y-4">
                 <p className="text-blue-400 font-bold">Pago Móvil</p>
                 <div className="space-y-2">
-                    <p className="text-white"><span className="text-gray-400 font-bold">Banco:</span> {CONTACT_INFO.pagomovil.bank}</p>
-                    <p className="text-white"><span className="text-gray-400 font-bold">Tel:</span> {CONTACT_INFO.pagomovil.phone}</p>
-                    <p className="text-white"><span className="text-gray-400 font-bold">CI:</span> {CONTACT_INFO.pagomovil.id}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {CONTACT_INFO.pagomovil.bank}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Phone:</span> {CONTACT_INFO.pagomovil.phone}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">ID:</span> {CONTACT_INFO.pagomovil.id}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'transfer_bs' && (
+            <div className="space-y-4">
+                <p className="text-green-400 font-bold">Transferencia Bs</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {CONTACT_INFO.transfer_bs.bank}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {CONTACT_INFO.transfer_bs.account}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">ID:</span> {CONTACT_INFO.transfer_bs.id}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'transfer_usd' && (
+            <div className="space-y-4">
+                <p className="text-green-600 font-bold">Transferencia USD</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {CONTACT_INFO.transfer_usd.bank}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {CONTACT_INFO.transfer_usd.account}</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Routing No:</span> {CONTACT_INFO.transfer_usd.routing}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'facebank' && (
+            <div className="space-y-4">
+                <p className="text-blue-600 font-bold">FACEBANK</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> FACEBANK International</p>
+                    <p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {CONTACT_INFO.facebank.account}</p>
+                </div>
+            </div>
+        )}
+        {paymentMethod === 'pipolpay' && (
+            <div className="space-y-4">
+                <p className="text-orange-400 font-bold">PipolPay</p>
+                <div className="space-y-2">
+                    <p className="text-white"><span className="text-gray-400 font-bold">Email:</span> {CONTACT_INFO.pipolpay.email}</p>
                 </div>
             </div>
         )}
@@ -431,7 +756,31 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
               <input type="text" placeholder="Cédula/ID" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.idNumber} onChange={e => setProofData({...proofData, idNumber: e.target.value})} />
               <input type="tel" placeholder="Teléfono" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.phone} onChange={e => setProofData({...proofData, phone: e.target.value})} />
             </div>
-            
+            {requiresExtraValidation && (
+               <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20 space-y-4">
+                  <p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1"><ShieldCheck size={14}/> Verificación de Titular</p>
+                  <input type="text" placeholder="Cuenta Emisora (Email o Número)" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.issuerAccount || ''} onChange={e => setProofData({...proofData, issuerAccount: e.target.value})} />
+                  <div 
+                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${proofData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500'}`}
+                    onClick={() => idDocRef.current.click()}
+                  >
+                    <input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleIdDocChange} />
+                    {proofData.idDoc ? (
+                        <div className="flex flex-col items-center">
+                            <FileCheck className="text-green-400 mb-1" size={24}/>
+                            <p className="text-green-400 text-xs font-bold">Documento Cargado</p>
+                            <p className="text-gray-500 text-[10px]">{proofData.idDoc.name}</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <ImageIcon className="text-gray-500 mb-1" size={24}/>
+                            <p className="text-gray-300 text-xs">Foto Documento Identidad</p>
+                            <p className="text-[10px] text-red-400 mt-1 font-bold">REQUERIDO (Máx 1MB)</p>
+                        </div>
+                    )}
+                  </div>
+               </div>
+            )}
             <input type="text" placeholder="Referencia / Comprobante" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.refNumber} onChange={e => setProofData({...proofData, refNumber: e.target.value})} />
             
             <div className="space-y-2">
@@ -451,14 +800,36 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
                             <Check size={32} className="mb-2" />
                             <p className="font-bold text-sm">Comprobante Cargado</p>
                             <p className="text-xs opacity-70 mb-2">{proofData.screenshot.name}</p>
+                            <button 
+                                type="button" 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setProofData({...proofData, screenshot: null});
+                                    if(screenshotInputRef.current) screenshotInputRef.current.value = "";
+                                }} 
+                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
+                            >
+                                Cambiar imagen
+                            </button>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center text-gray-400">
                             <ImageIcon size={32} className="mb-2 opacity-50" />
                             <p className="font-bold text-sm text-white">Subir Comprobante de Pago</p>
+                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar imagen (Máx 1MB)</p>
+                            <p className="text-[10px] text-red-400 mt-2 font-bold uppercase tracking-wider border border-red-500/30 px-2 py-0.5 rounded">Requerido</p>
                         </div>
                     )}
                 </div>
+
+                {hasStreaming && (
+                    <div className="bg-yellow-900/20 p-4 rounded-lg border border-yellow-500/20">
+                        <p className="text-yellow-300 text-xs text-center flex items-center justify-center gap-1">
+                        <Clock className="inline w-4 h-4"/>
+                        <b>Streaming:</b> La cuenta se entregará por WhatsApp una vez verificado el pago manualmente.
+                        </p>
+                    </div>
+                )}
             </div>
             
             <button 
@@ -478,21 +849,136 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
   );
 };
 
+const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
+  const idDocRef = useRef(null);
+  const isBinance = paymentMethod === 'binance';
+  
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 500 * 1024) { // 500KB limit
+            alert("El documento es demasiado pesado (Máx 500KB). Por favor comprímelo.");
+            e.target.value = "";
+            return;
+        }
+        setPaypalData({ ...paypalData, idDoc: file });
+    }
+  };
+
+  const handleSubmit = (e) => { 
+      e.preventDefault(); 
+      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { 
+          alert("Por favor completa todos los campos de texto."); 
+          return; 
+      } 
+      if (!isBinance && !paypalData.idDoc) {
+          alert("Debes cargar la foto de tu documento de identidad para continuar.");
+          return;
+      }
+      setCheckoutStep(2); 
+  };
+  
+  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc);
+
+  return (
+    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
+      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
+      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
+          <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
+        </div>
+        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
+        
+        {!isBinance && (
+            <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
+                <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
+                <div 
+                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} 
+                    onClick={() => idDocRef.current.click()}
+                >
+                    <input 
+                        type="file" 
+                        ref={idDocRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleFileChange} 
+                    />
+                    {paypalData.idDoc ? (
+                        <div className="flex flex-col items-center text-green-400">
+                            <FileCheck size={32} className="mb-2" />
+                            <p className="font-bold text-sm">Documento Cargado</p>
+                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p>
+                            <button 
+                                type="button" 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPaypalData({...paypalData, idDoc: null});
+                                    if(idDocRef.current) idDocRef.current.value = "";
+                                }} 
+                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
+                            >
+                                Cambiar archivo
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center text-gray-400">
+                            <ImageIcon size={32} className="mb-2 opacity-50" />
+                            <p className="font-bold text-sm text-white">Subir Foto Documento ID</p>
+                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 500KB)</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        <button 
+            type="submit" 
+            disabled={!isFormValid}
+            className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all
+                ${isFormValid 
+                    ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') 
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'
+                }`}
+        >
+            Continuar al Pago <ArrowRight size={20} />
+        </button>
+      </form>
+    </div>
+  );
+};
+
 const SuccessScreen = ({ lastOrder, setView }) => {
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-scale-in">
         <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]"><Check className="w-12 h-12 text-white" strokeWidth={3} /></div>
         <h2 className="text-4xl font-bold text-white mb-4">¡Gracias por tu Compra!</h2>
-        <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido recibido correctamente.</p>
+        <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido recibido correctamente. Tu producto o servicio será entregado pronto vía WhatsApp al número proporcionado.</p>
         {lastOrder && (
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 max-w-md w-full mb-8 shadow-2xl">
             <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.id}</span></h3>
             <div className="space-y-3 text-left">
             {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
             <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
+            {lastOrder.fullData?.streamingAccount && (
+                <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
+                    <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
+                    <div className="space-y-1 font-mono text-sm">
+                        <div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>
+                        {lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}
+                    </div>
+                </div>
+            )}
+            {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
             </div>
         </div>
         )}
+        <div className="flex flex-col gap-3 w-full max-w-md">
+            <a href="https://wa.me/19047400467" target="_blank" rel="noopener noreferrer" className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"><MessageSquare size={20} /> Hablar con Nosotros</a>
+        </div>
         <button onClick={() => setView('home')} className="mt-8 text-gray-500 hover:text-white underline">Volver al inicio</button>
     </div>
   );
@@ -509,11 +995,23 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) 
       <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3">
         <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span>
       </button>
-      <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3">
-        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-blue-500"><CreditCard /></div><span className="font-bold text-white">PayPal</span>
+      
+      <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div>
+        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span>
       </button>
+
       <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3">
          <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span>
+      </button>
+      <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3">
+         <div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span>
+      </button>
+      <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3">
+         <div className="w-12 h-12 bg-blue-700/20 rounded-full flex items-center justify-center text-blue-600"><Building2 /></div><span className="font-bold text-white">FACEBANK</span>
+      </button>
+      <button onClick={() => { setPaymentMethod('pipolpay'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-orange-400 flex flex-col items-center gap-3">
+         <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-500"><Send /></div><span className="font-bold text-white">PipolPay</span>
       </button>
     </div>
     <div className="mt-4 flex justify-center"><button onClick={() => setView('home')} className="text-gray-500 hover:text-white">Cancelar</button></div>
@@ -525,28 +1023,90 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
     const exchangeItem = cart.find(item => item.type === 'usdt');
     const isExchange = !!exchangeItem;
 
-    const handleVerifiedSuccess = async (txId) => {
+    const processStreamingPurchase = async (finalOrder) => {
+        const streamingItem = finalOrder.rawItems.find(item => item.providerId && item.providerId > 0);
+        if (streamingItem) {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service_id: streamingItem.providerId })
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    finalOrder.fullData.streamingAccount = result.data; 
+                }
+            } catch (error) { console.error("Error auto-streaming:", error); }
+        }
+        return finalOrder;
+    };
+
+    const handleBinanceVerifiedSuccess = async (txId) => {
          const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
          const randomId = Math.floor(100 + Math.random() * 900);
          
          let automatedOrder = {
              id: `ORD-${randomId}`,
-             user: `Cliente Auto`, 
+             user: `${paypalData.firstName} ${paypalData.lastName}`, 
              items: cart.map(i => i.title).join(', '),
              total: cartTotal.toFixed(2),
              status: 'FACTURADO (Binance Verified)',
              date: new Date().toISOString(),
              rawItems: sanitizedItems,
              paymentMethod: 'binance_api',
-             fullData: { refNumber: txId }
+             fullData: {
+                 email: paypalData.email,
+                 phone: paypalData.phone,
+                 refNumber: txId,
+                 contactPhone: paypalData.phone
+             }
          };
+         automatedOrder = await processStreamingPurchase(automatedOrder);
          
-         const saved = await submitOrderToPrivateServer(automatedOrder);
-         if (saved) {
-            setLastOrder(automatedOrder);
-            setCart([]);
-            setCheckoutStep(3);
-         }
+         // ✅ Guardamos en el servidor privado en lugar de Firebase local
+         await submitOrderToPrivateServer(automatedOrder);
+
+         setLastOrder(automatedOrder);
+         setCart([]);
+         setCheckoutStep(3);
+    };
+
+    const handlePayPalComplete = async (invoiceId, bTxId) => {
+        const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
+        const randomId = Math.floor(100 + Math.random() * 900);
+        
+        let idDocBase64 = null;
+        if (paypalData.idDoc && typeof paypalData.idDoc !== 'string') {
+             try { idDocBase64 = await convertToBase64(paypalData.idDoc); } catch(e){}
+        }
+
+        let automatedOrder = {
+            id: `ORD-${randomId}`,
+            user: `${paypalData.firstName} ${paypalData.lastName}`, 
+            items: cart.map(i => i.title).join(', '),
+            total: cartTotal.toFixed(2),
+            status: isExchange ? 'COMPLETADO' : 'FACTURADO', 
+            date: new Date().toISOString(),
+            rawItems: sanitizedItems,
+            paymentMethod: 'paypal_api',
+            fullData: {
+                email: paypalData.email,
+                phone: paypalData.phone,
+                refNumber: invoiceId, 
+                binanceTxId: bTxId, 
+                exchangeData: exchangeItem ? exchangeItem.exchangeData : null,
+                contactPhone: paypalData.phone,
+                idDoc: idDocBase64 
+            }
+        };
+        automatedOrder = await processStreamingPurchase(automatedOrder);
+        
+        // ✅ Guardamos en el servidor privado
+        await submitOrderToPrivateServer(automatedOrder);
+
+        setLastOrder(automatedOrder);
+        setCart([]);
+        setCheckoutStep(3);
     };
 
     return (
@@ -555,20 +1115,37 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                  <div className="bg-yellow-900/20 border border-yellow-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
                      <AlertTriangle className="text-yellow-500 flex-shrink-0" />
                      <div className="text-sm text-yellow-200">
-                         <strong>Modo Exchange:</strong> Se verificará el pago y se enviará USDT a: 
+                         <strong>Modo Exchange Automatizado:</strong> Se detectó una solicitud de cambio a USDT. 
+                         El sistema verificará tu pago y automáticamente enviará los fondos a tu dirección: 
                          <span className="font-mono bg-black/30 px-2 rounded ml-1 text-white">{exchangeItem.exchangeData.receiveAddress}</span>
                      </div>
                  </div>
              )}
             
-            <div className="bg-gray-900 border border-yellow-500/30 rounded-xl p-6 max-w-lg mx-auto animate-fade-in-up relative overflow-hidden">
-                {/* Contenido Simulado de Binance para Demo */}
-                <div className="text-center">
-                    <Zap className="w-12 h-12 text-yellow-500 mx-auto mb-4"/>
-                    <h3 className="text-white font-bold mb-2">Pago con Binance Pay</h3>
-                    <p className="text-gray-400 text-sm mb-4">Envía ${cartTotal.toFixed(2)} al ID: {CONTACT_INFO.binance_pay_id}</p>
-                    <button onClick={() => handleVerifiedSuccess("TX-DEMO-123")} className="bg-yellow-500 text-black font-bold py-2 px-6 rounded-lg">Simular Pago Exitoso</button>
-                </div>
+            {paypalData && !isExchange && cart.some(i => i.providerId) && (
+                 <div className="bg-purple-900/20 border border-purple-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
+                     <Zap className="text-purple-400 flex-shrink-0" />
+                     <div className="text-sm text-purple-200">
+                         <strong>Entrega Inmediata:</strong> Al verificar tu pago automáticamente, el sistema generará y te entregará tu cuenta de streaming al instante.
+                     </div>
+                 </div>
+            )}
+            
+            <PayPalAutomatedCheckout 
+                cartTotal={cartTotal} 
+                onPaymentComplete={handlePayPalComplete}
+                isExchange={isExchange}
+                exchangeData={exchangeItem ? exchangeItem.exchangeData : null}
+                paypalData={paypalData}
+                allOrders={[]} 
+            />
+            <div className="hidden">
+                 <BinanceAutomatedCheckout 
+                    cartTotal={cartTotal}
+                    paypalData={paypalData}
+                    onVerified={handleBinanceVerifiedSuccess}
+                    onCancel={() => setCheckoutStep(0)}
+                />
             </div>
         </div>
     );
@@ -583,33 +1160,53 @@ export default function App() {
   const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS);
   const [checkoutStep, setCheckoutStep] = useState(0); 
   const [paymentMethod, setPaymentMethod] = useState(null);
-  const [paypalData, setPaypalData] = useState({});
-  const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', idDoc: null });
+  const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', nationalId: '', idDoc: null });
+  const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null });
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Horario del Exchange
   const getIsExchangeOpen = () => {
     const now = new Date();
-    // Simulación: Abierto Lun-Jue
-    const day = now.getDay(); 
+    const venString = now.toLocaleString("en-US", {timeZone: "America/Caracas"});
+    const venDate = new Date(venString);
+    const day = venDate.getDay(); 
     return day >= 1 && day <= 4;
   };
   const isExchangeAvailable = getIsExchangeOpen();
 
   useEffect(() => {
-    // Tasa dinámica
+    document.title = "TecnoByte | Soluciones Digitales";
+    let link = document.querySelector("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.src = 'unnamed.png'; 
+    img.onload = () => {
+      ctx.beginPath(); ctx.arc(32, 32, 32, 0, 2 * Math.PI); ctx.clip();
+      ctx.drawImage(img, 0, 0, 64, 64);
+      link.href = canvas.toDataURL();
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchRate = async () => {
+        // Obtenemos la tasa de la API pública o del servidor privado
         try {
             const response = await fetch(RATE_API_CONFIG.url);
+            if (!response.ok) throw new Error('Error tasa');
             const data = await response.json();
-            // Lógica simple para extraer tasa (depende de la API)
-            // Se usa una verificación genérica para asegurar que capturamos el valor correcto
-            const rate = data.rate || data.price || data.tasa || data.value || (data.rates && data.rates.VES) || data.VES;
-            if (rate) setExchangeRateBs(parseFloat(rate));
-        } catch (error) {
-            console.error("Error fetching rate:", error);
-        }
+            const newRate = parseFloat(data.rate || data.price || data.tasa || data.value);
+            if (!isNaN(newRate) && newRate > 0) setExchangeRateBs(newRate);
+        } catch (error) {}
     };
     fetchRate();
+    const intervalId = setInterval(fetchRate, RATE_API_CONFIG.intervalMinutes * 60 * 1000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const categories = ['All', ...new Set(SERVICES.map(s => s.category))];
@@ -619,92 +1216,121 @@ export default function App() {
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
 
   const handleCheckoutStart = async () => {
-    setCheckoutStep(0);
-    setView('checkout'); 
-    setIsCartOpen(false); 
+    setIsProcessing(true); 
+    setTimeout(() => {
+        setCheckoutStep(0);
+        setView('checkout'); 
+        setIsCartOpen(false); 
+        setIsProcessing(false);
+    }, 500);
   };
 
   return (
-    <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans">
+    <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans flex flex-col">
       <style>{globalStyles}</style>
-
+      
       <Navbar cartCount={cart.length} onOpenCart={() => setIsCartOpen(true)} setView={setView} />
-        
-        <main className="pt-6 pb-20">
-            {view === 'checkout' ? (
-            <div className="pt-24 px-4 sm:px-6 lg:px-8">
-                {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} />}
-                
-                {/* Paso 1: Depende del método */}
-                {checkoutStep === 1 && (paymentMethod === 'binance') && ( 
-                    <AutomatedFlowWrapper cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} /> 
-                )}
-                
-                {checkoutStep === 1 && (paymentMethod === 'paypal') && ( 
-                     <div className="bg-gray-900 border border-blue-500/30 p-6 rounded-lg text-center max-w-md mx-auto">
-                        <CreditCard className="w-12 h-12 text-blue-500 mx-auto mb-4"/>
-                        <h3 className="text-white font-bold mb-2">Pago con PayPal</h3>
-                        <p className="text-gray-400 text-sm mb-4">Monto: ${cartTotal.toFixed(2)}</p>
-                        <button onClick={() => {alert("Pago PayPal simulado"); setCheckoutStep(3);}} className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-full">Pagar con PayPal</button>
-                     </div>
-                )}
+      
+      <main className="flex-grow pt-6 pb-20">
+          {view === 'checkout' ? (
+          <div className="pt-24 px-4 sm:px-6 lg:px-8">
+              {/* INDICADOR DE PASOS 1-2-3 */}
+              <div className="flex justify-center mb-8">
+                <div className="flex items-center gap-4">
+                    <div onClick={() => { if (checkoutStep > 0 && checkoutStep < 3) { setCheckoutStep(0); setPaymentMethod(null); }}} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}>1</div>
+                    <div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div>
+                    <div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div>
+                </div>
+              </div>
+              
+              {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} />}
+              
+              {/* PASO 1: DATOS (PayPal/Binance) */}
+              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && ( 
+                  <PayPalDetailsForm 
+                      paypalData={paypalData} 
+                      setPaypalData={setPaypalData} 
+                      setCheckoutStep={setCheckoutStep} 
+                      paymentMethod={paymentMethod} 
+                  /> 
+              )}
 
-                {/* Paso 2: Manual (Pago Móvil, Transferencias) */}
-                {checkoutStep === 2 && (
-                    <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} />
-                )}
-                
-                {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
-            </div>
-            ) : (
-            <>
-                <Hero exchangeRate={exchangeRateBs} />
-                <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-wrap justify-center gap-4 mb-12">
-                    {categories.map(cat => ( <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}`}>{cat}</button> ))}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {filteredServices.map((service, idx) => (
-                    service.category === 'Exchange' ? (
-                        <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} />
-                    ) : (
-                        <div key={service.id} className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
-                        <div>
-                            <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">{service.icon}</div>
-                            <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
-                            <p className="text-gray-400 text-sm mb-4">{service.description}</p>
-                        </div>
-                        <div className="flex items-center justify-between mt-auto">
-                            <div className="flex flex-col"><span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">${service.price.toFixed(2)}</span><span className="text-xs text-gray-400 font-mono">≈ {(service.price * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs</span></div>
-                            <button onClick={() => addToCart(service)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-lg transition-colors"><ShoppingCart size={20} /></button>
-                        </div>
-                        </div>
-                    )
-                    ))}
-                </div>
-                </div>
-            </>
-            )}
-        </main>
-        
-        {/* Carrito Flotante */}
-        {isCartOpen && (
-            <div className="fixed inset-0 z-50 flex justify-end">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
-            <div className="relative w-full max-w-md bg-gray-900 h-full shadow-2xl border-l border-gray-800 p-6 flex flex-col animate-scale-in">
-                <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4"><h2 className="text-2xl font-bold text-white">Tu Carrito</h2><button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button></div>
-                <div className="flex-1 overflow-y-auto space-y-4">
-                {cart.length === 0 ? <div className="text-center text-gray-500 mt-20"><ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" /><p>Tu carrito está vacío</p></div> : cart.map((item, idx) => (
-                    <div key={idx} className="bg-gray-800/50 p-4 rounded-lg">
-                        <div className="flex justify-between items-center"><div><h4 className="text-white font-medium">{item.title}</h4><p className="text-sm text-cyan-400">${item.price.toFixed(2)}</p></div><button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button></div>
-                        {item.exchangeData && item.type === 'usdt' && <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">Destino: {item.exchangeData.receiveAddress} ({item.exchangeData.receiveType})</p>}
-                    </div>
-                ))}
-                </div>
-                <div className="mt-6 border-t border-gray-800 pt-4"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div>
-            </div>
-            </div>
-        )}
+              {/* PASO 2: PAGO (PayPal/Binance/Manual) */}
+              {checkoutStep === 2 && (
+                  paymentMethod === 'paypal' ? (
+                      <AutomatedFlowWrapper cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} />
+                  ) : paymentMethod === 'binance' ? (
+                      <BinanceAutomatedCheckout cartTotal={cartTotal} paypalData={paypalData} onVerified={() => {}} onCancel={() => setCheckoutStep(0)} />
+                  ) : (
+                      <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} />
+                  )
+              )}
+              
+              {/* PASO 3: ÉXITO */}
+              {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
+          </div>
+          ) : (
+          <>
+              <Hero exchangeRate={exchangeRateBs} />
+              <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-wrap justify-center gap-4 mb-12">
+                  {categories.map(cat => ( <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}`}>{cat}</button> ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {filteredServices.map((service, idx) => (
+                  service.category === 'Exchange' ? (
+                      <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} />
+                  ) : (
+                      <div key={service.id} className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
+                      <div>
+                          <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">{service.icon}</div>
+                          <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
+                          <p className="text-gray-400 text-sm mb-4">{service.description}</p>
+                      </div>
+                      <div className="flex items-center justify-between mt-auto">
+                          <div className="flex flex-col"><span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">${service.price.toFixed(2)}</span><span className="text-xs text-gray-400 font-mono">≈ {(service.price * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs</span></div>
+                          <button onClick={() => addToCart(service)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-lg transition-colors"><ShoppingCart size={20} /></button>
+                      </div>
+                      </div>
+                  )
+                  ))}
+              </div>
+              </div>
+          </>
+          )}
+      </main>
+      
+      <footer className="bg-black/90 border-t border-gray-800 text-gray-400 py-12">
+          <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div><h4 className="text-white font-orbitron font-bold text-xl mb-4">TECNOBYTE</h4><p className="text-sm">Innovación y seguridad en cada transacción. Tu aliado digital de confianza.</p></div>
+          <div><h4 className="text-white font-bold mb-4">Contacto</h4><ul className="space-y-2 text-sm"><li className="flex items-center gap-2"><Mail size={16}/> {CONTACT_INFO.email}</li><li className="flex items-center gap-2"><Phone size={16}/> {CONTACT_INFO.whatsapp_display}</li></ul></div>
+          <div><h4 className="text-white font-bold mb-4">Síguenos</h4><div className="flex gap-4"><a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors"><Facebook /></a><a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors"><Instagram /></a><a href={SOCIAL_LINKS.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors"><TikTokIcon /></a></div></div>
+          <div><h4 className="text-white font-bold mb-4">Legal</h4><ul className="space-y-2 text-sm"><li>Términos y Condiciones</li><li>Política de Privacidad</li></ul></div>
+          </div>
+          <div className="text-center mt-12 text-xs text-gray-600">
+              © 2024 TecnoByte LLC. Todos los derechos reservados.
+          </div>
+      </footer>
+
+      {isCartOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+          <div className="relative w-full max-w-md bg-gray-900 h-full shadow-2xl border-l border-gray-800 p-6 flex flex-col animate-scale-in">
+              <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4"><h2 className="text-2xl font-bold text-white">Tu Carrito</h2><button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button></div>
+              <div className="flex-1 overflow-y-auto space-y-4">
+              {cart.length === 0 ? <div className="text-center text-gray-500 mt-20"><ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" /><p>Tu carrito está vacío</p></div> : cart.map((item, idx) => (
+                  <div key={idx} className="bg-gray-800/50 p-4 rounded-lg">
+                      <div className="flex justify-between items-center"><div><h4 className="text-white font-medium">{item.title}</h4><p className="text-sm text-cyan-400">${item.price.toFixed(2)}</p></div><button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button></div>
+                      {item.exchangeData && item.type === 'usdt' && <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">Destino: {item.exchangeData.receiveAddress} ({item.exchangeData.receiveType})</p>}
+                  </div>
+              ))}
+              </div>
+              <div className="mt-6 border-t border-gray-800 pt-4"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div>
+          </div>
+          </div>
+      )}
     </div>
   );
 }

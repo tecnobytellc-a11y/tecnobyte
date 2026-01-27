@@ -573,6 +573,17 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
       const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
       const randomId = Math.floor(100 + Math.random() * 900);
       
+      // ✅ CALCULO DEL MONTO EXACTO EN BS (Al momento de finalizar)
+      // 1. RECALCULAMOS TOTAL POR SEGURIDAD
+      const safeTotal = cart.reduce((acc, item) => acc + item.price, 0);
+      const safeRate = parseFloat(exchangeRate) || 0;
+      
+      // 2. CÁLCULO DIRECTO SIN CONVERSIÓN A STRING (Number Puro)
+      const montoBsPuro = safeTotal * safeRate;
+
+      // 3. CÁLCULO FORMATEADO (String con 2 decimales)
+      const montoBsString = montoBsPuro.toFixed(2);
+
       const newOrder = {
           id: `ORD-${randomId}`,
           user: `${manualProofData.name} ${manualProofData.lastName}`,
@@ -583,9 +594,18 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
           rawItems: sanitizedItems, 
           paymentMethod: paymentMethod,
           exchangeRateUsed: exchangeRate,
+          
+          // ✅ ENVIAMOS MÚLTIPLES FORMATOS PARA ASEGURAR CAPTURA
+          tasa: safeRate,
+          montoBs: montoBsPuro,     // Envía como NUMBER (Ej: 25000.5)
+          totalBs: montoBsString,   // Envía como STRING (Ej: "25000.50")
+          amountBs: montoBsPuro,    // Redundancia con nombre en inglés
+
           fullData: {
             ...manualProofData,
-            contactPhone: manualProofData.phone
+            contactPhone: manualProofData.phone,
+            montoBs: montoBsPuro,
+            tasa: safeRate
           }
       };
 
@@ -1054,6 +1074,13 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
              date: new Date().toISOString(),
              rawItems: sanitizedItems,
              paymentMethod: 'binance_api',
+             
+             // ✅ EN AUTOMÁTICO SE ENVÍA 0
+             tasa: 0,
+             montoBs: 0,
+             totalBs: "0.00",
+             amountBs: 0,
+
              fullData: {
                  email: paypalData.email,
                  phone: paypalData.phone,
@@ -1089,6 +1116,13 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
             date: new Date().toISOString(),
             rawItems: sanitizedItems,
             paymentMethod: 'paypal_api',
+            
+            // ✅ EN AUTOMÁTICO SE ENVÍA 0
+            tasa: 0,
+            montoBs: 0,
+            totalBs: "0.00",
+            amountBs: 0,
+
             fullData: {
                 email: paypalData.email,
                 phone: paypalData.phone,

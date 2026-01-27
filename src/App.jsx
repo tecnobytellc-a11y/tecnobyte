@@ -109,12 +109,61 @@ const convertToBase64 = (file) => {
 
 // --- FUNCIÓN DE CONEXIÓN AL SERVIDOR PRIVADO ---
 const submitOrderToPrivateServer = async (order) => {
+  
+  // 🕵️ RECOPILACIÓN DE DATOS DEL DISPOSITIVO (FINGERPRINTING)
+  // Nota: IMEI y MAC no son accesibles desde navegadores web por seguridad.
+  let clientData = {
+    capturedAt: new Date().toISOString(),
+    userAgent: navigator.userAgent, // Contiene info del modelo (ej: iPhone, Pixel, Windows)
+    language: navigator.language,
+    platform: navigator.platform,
+    screenResolution: `${window.screen.width}x${window.screen.height}`,
+    hardwareConcurrency: navigator.hardwareConcurrency || 'N/A', // Núcleos de CPU aprox
+    deviceMemory: navigator.deviceMemory || 'N/A', // RAM aprox en GB
+    vendor: navigator.vendor,
+    cookiesEnabled: navigator.cookieEnabled,
+    connection: navigator.connection ? {
+        effectiveType: navigator.connection.effectiveType, // 4g, 3g, etc
+        rtt: navigator.connection.rtt,
+        downlink: navigator.connection.downlink
+    } : 'N/A'
+  };
+
+  // 🌍 RECOPILACIÓN DE IP Y GEOLOCALIZACIÓN
+  try {
+    const ipResponse = await fetch('https://ipapi.co/json/');
+    const ipData = await ipResponse.json();
+    
+    clientData.network = {
+        ip: ipData.ip,
+        isp: ipData.org, // Proveedor de Internet (ej: CANTV, Inter)
+        asn: ipData.asn
+    };
+    
+    clientData.geo = {
+        country: ipData.country_name,
+        region: ipData.region, // ESTADO (ej: Distrito Capital)
+        city: ipData.city,     // CIUDAD (ej: Caracas)
+        postal: ipData.postal, // Zona Postal
+        timezone: ipData.timezone,
+        coordinates: `${ipData.latitude}, ${ipData.longitude}` // Coordenadas Lat/Lon (Útiles para mapa)
+    };
+  } catch (err) {
+    console.warn("No se pudo obtener datos de IP:", err);
+    clientData.ipError = "Fallo al obtener IP/Geo - Posible AdBlocker";
+  }
+
   try {
     const sanitizedOrder = {
         ...order,
         date: order.date || new Date().toISOString(),
+        
+        // ✅ AÑADIDO: Expediente completo del cliente
+        clientInfo: clientData, 
+
         fullData: {
             ...order.fullData,
+            clientInfo: clientData, // Redundancia para asegurar guardado
             screenshot: typeof order.fullData?.screenshot === 'string' ? order.fullData.screenshot : null,
             idDoc: typeof order.fullData?.idDoc === 'string' ? order.fullData.idDoc : null,
             screenshotName: order.fullData?.screenshot?.name,
@@ -130,7 +179,7 @@ const submitOrderToPrivateServer = async (order) => {
 
     const data = await response.json();
     if (data.success) {
-        console.log("✅ Orden guardada:", data.id);
+        console.log("✅ Orden guardada con datos de rastreo:", data.id);
         return true;
     } else {
         throw new Error(data.message || "Error del servidor privado");

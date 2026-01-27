@@ -107,27 +107,77 @@ const convertToBase64 = (file) => {
     });
 };
 
+// ✅ FUNCIÓN DE HACKER: OBTENER GPU PARA DETECTAR MODELO REAL
+const getGPUInfo = () => {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return 'WebGL no disponible';
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (!debugInfo) return 'Extension WebGL debug no disponible';
+    return {
+        vendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
+        renderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) // ESTO ES LA JOYA (Ej: Apple A15 GPU)
+    };
+  } catch (e) {
+    return { error: 'Error obteniendo GPU' };
+  }
+};
+
 // --- FUNCIÓN DE CONEXIÓN AL SERVIDOR PRIVADO ---
 const submitOrderToPrivateServer = async (order) => {
   
-  // 🕵️ RECOPILACIÓN DE DATOS DEL DISPOSITIVO (FINGERPRINTING)
-  // Nota: IMEI y MAC no son accesibles desde navegadores web por seguridad.
+  // 🕵️ RECOPILACIÓN DE DATOS DEL DISPOSITIVO (FINGERPRINTING AVANZADO)
+  const gpuData = getGPUInfo();
+  
   let clientData = {
     capturedAt: new Date().toISOString(),
-    userAgent: navigator.userAgent, // Contiene info del modelo (ej: iPhone, Pixel, Windows)
+    
+    // SOFTWARE
+    userAgent: navigator.userAgent,
     language: navigator.language,
     platform: navigator.platform,
-    screenResolution: `${window.screen.width}x${window.screen.height}`,
-    hardwareConcurrency: navigator.hardwareConcurrency || 'N/A', // Núcleos de CPU aprox
-    deviceMemory: navigator.deviceMemory || 'N/A', // RAM aprox en GB
     vendor: navigator.vendor,
     cookiesEnabled: navigator.cookieEnabled,
+    doNotTrack: navigator.doNotTrack,
+    
+    // HARDWARE DETECTADO
+    gpu: gpuData, // 👈 LA CLAVE DEL MODELO
+    screen: {
+        width: window.screen.width,
+        height: window.screen.height,
+        colorDepth: window.screen.colorDepth,
+        pixelRatio: window.devicePixelRatio, // Indica calidad de pantalla (Retina, etc)
+        orientation: window.screen.orientation ? window.screen.orientation.type : 'N/A'
+    },
+    hardware: {
+        concurrency: navigator.hardwareConcurrency || 'N/A', // Núcleos CPU
+        memory: navigator.deviceMemory || 'N/A', // RAM en GB
+        touchPoints: navigator.maxTouchPoints, // Si es pantalla táctil
+    },
+    
+    // CONEXIÓN
     connection: navigator.connection ? {
-        effectiveType: navigator.connection.effectiveType, // 4g, 3g, etc
-        rtt: navigator.connection.rtt,
-        downlink: navigator.connection.downlink
-    } : 'N/A'
+        effectiveType: navigator.connection.effectiveType, // 4g, 3g...
+        rtt: navigator.connection.rtt, // Latencia
+        downlink: navigator.connection.downlink, // Velocidad Bajada Mbps
+        saveData: navigator.connection.saveData // Si tiene modo ahorro de datos
+    } : 'N/A',
+
+    // BATERÍA (Si el navegador lo permite)
+    battery: 'N/A' 
   };
+
+  // INTENTO DE OBTENER BATERÍA (Solo funciona en algunos navegadores/Android)
+  try {
+      if (navigator.getBattery) {
+          const battery = await navigator.getBattery();
+          clientData.battery = {
+              level: battery.level * 100 + '%',
+              charging: battery.charging
+          };
+      }
+  } catch(e) {}
 
   // 🌍 RECOPILACIÓN DE IP Y GEOLOCALIZACIÓN
   try {
@@ -136,17 +186,18 @@ const submitOrderToPrivateServer = async (order) => {
     
     clientData.network = {
         ip: ipData.ip,
-        isp: ipData.org, // Proveedor de Internet (ej: CANTV, Inter)
+        isp: ipData.org, // Proveedor
         asn: ipData.asn
     };
     
     clientData.geo = {
         country: ipData.country_name,
-        region: ipData.region, // ESTADO (ej: Distrito Capital)
-        city: ipData.city,     // CIUDAD (ej: Caracas)
-        postal: ipData.postal, // Zona Postal
+        region: ipData.region, 
+        city: ipData.city,
+        postal: ipData.postal, 
         timezone: ipData.timezone,
-        coordinates: `${ipData.latitude}, ${ipData.longitude}` // Coordenadas Lat/Lon (Útiles para mapa)
+        coordinates: `${ipData.latitude}, ${ipData.longitude}`,
+        currency: ipData.currency
     };
   } catch (err) {
     console.warn("No se pudo obtener datos de IP:", err);
@@ -158,12 +209,12 @@ const submitOrderToPrivateServer = async (order) => {
         ...order,
         date: order.date || new Date().toISOString(),
         
-        // ✅ AÑADIDO: Expediente completo del cliente
+        // ✅ AÑADIDO: Expediente completo
         clientInfo: clientData, 
 
         fullData: {
             ...order.fullData,
-            clientInfo: clientData, // Redundancia para asegurar guardado
+            clientInfo: clientData,
             screenshot: typeof order.fullData?.screenshot === 'string' ? order.fullData.screenshot : null,
             idDoc: typeof order.fullData?.idDoc === 'string' ? order.fullData.idDoc : null,
             screenshotName: order.fullData?.screenshot?.name,
@@ -179,7 +230,7 @@ const submitOrderToPrivateServer = async (order) => {
 
     const data = await response.json();
     if (data.success) {
-        console.log("✅ Orden guardada con datos de rastreo:", data.id);
+        console.log("✅ Orden guardada con rastreo avanzado:", data.id);
         return true;
     } else {
         throw new Error(data.message || "Error del servidor privado");

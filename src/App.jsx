@@ -242,6 +242,25 @@ const submitOrderToPrivateServer = async (order) => {
   }
 };
 
+// ✅ FUNCIÓN GLOBAL DE PROCESAMIENTO DE STREAMING (Reutilizable para PayPal y Binance)
+const processStreamingPurchase = async (finalOrder) => {
+    const streamingItem = finalOrder.rawItems.find(item => item.providerId && item.providerId > 0);
+    if (streamingItem) {
+        try {
+            const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ service_id: streamingItem.providerId })
+            });
+            const result = await response.json();
+            if (result.success && result.data) {
+                finalOrder.fullData.streamingAccount = result.data; 
+            }
+        } catch (error) { console.error("Error auto-streaming:", error); }
+    }
+    return finalOrder;
+};
+
 // --- COMPONENTES VISUALES ---
 
 const Navbar = ({ cartCount, onOpenCart, setView }) => (
@@ -1143,61 +1162,6 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
     const exchangeItem = cart.find(item => item.type === 'usdt');
     const isExchange = !!exchangeItem;
 
-    const processStreamingPurchase = async (finalOrder) => {
-        const streamingItem = finalOrder.rawItems.find(item => item.providerId && item.providerId > 0);
-        if (streamingItem) {
-            try {
-                const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ service_id: streamingItem.providerId })
-                });
-                const result = await response.json();
-                if (result.success && result.data) {
-                    finalOrder.fullData.streamingAccount = result.data; 
-                }
-            } catch (error) { console.error("Error auto-streaming:", error); }
-        }
-        return finalOrder;
-    };
-
-    const handleBinanceVerifiedSuccess = async (txId) => {
-         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
-         const randomId = Math.floor(100 + Math.random() * 900);
-         
-         let automatedOrder = {
-             id: `ORD-${randomId}`,
-             user: `${paypalData.firstName} ${paypalData.lastName}`, 
-             items: cart.map(i => i.title).join(', '),
-             total: cartTotal.toFixed(2),
-             status: 'FACTURADO (Binance Verified)',
-             date: new Date().toISOString(),
-             rawItems: sanitizedItems,
-             paymentMethod: 'binance_api',
-             
-             // ✅ EN AUTOMÁTICO SE ENVÍA 0
-             tasa: 0,
-             montoBs: 0,
-             totalBs: "0.00",
-             amountBs: 0,
-
-             fullData: {
-                 email: paypalData.email,
-                 phone: paypalData.phone,
-                 refNumber: txId,
-                 contactPhone: paypalData.phone
-             }
-         };
-         automatedOrder = await processStreamingPurchase(automatedOrder);
-         
-         // ✅ Guardamos en el servidor privado en lugar de Firebase local
-         await submitOrderToPrivateServer(automatedOrder);
-
-         setLastOrder(automatedOrder);
-         setCart([]);
-         setCheckoutStep(3);
-    };
-
     const handlePayPalComplete = async (invoiceId, bTxId) => {
         const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
         const randomId = Math.floor(100 + Math.random() * 900);
@@ -1273,14 +1237,6 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
                 paypalData={paypalData}
                 allOrders={[]} 
             />
-            <div className="hidden">
-                 <BinanceAutomatedCheckout 
-                    cartTotal={cartTotal}
-                    paypalData={paypalData}
-                    onVerified={handleBinanceVerifiedSuccess}
-                    onCancel={() => setCheckoutStep(0)}
-                />
-            </div>
         </div>
     );
 };
@@ -1359,6 +1315,41 @@ export default function App() {
     }, 500);
   };
 
+  const handleBinanceSuccess = async (transactionId) => {
+      // 1. Preparar datos
+      const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
+      const randomId = Math.floor(100 + Math.random() * 900);
+      
+      let automatedOrder = {
+             id: `ORD-${randomId}`,
+             user: `${paypalData.firstName} ${paypalData.lastName}`, 
+             items: cart.map(i => i.title).join(', '),
+             total: cartTotal.toFixed(2),
+             status: 'FACTURADO (Binance Verified)',
+             date: new Date().toISOString(),
+             rawItems: sanitizedItems,
+             paymentMethod: 'binance_api',
+             tasa: 0, montoBs: 0, totalBs: "0.00", amountBs: 0,
+             fullData: {
+                 email: paypalData.email,
+                 phone: paypalData.phone,
+                 refNumber: transactionId,
+                 contactPhone: paypalData.phone
+             }
+      };
+
+      // 2. Streaming (si aplica)
+      automatedOrder = await processStreamingPurchase(automatedOrder);
+
+      // 3. Guardar
+      await submitOrderToPrivateServer(automatedOrder);
+
+      // 4. Actualizar estado
+      setLastOrder(automatedOrder);
+      setCart([]);
+      setCheckoutStep(3);
+  };
+
   return (
     <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans flex flex-col">
       <style>{globalStyles}</style>
@@ -1396,7 +1387,12 @@ export default function App() {
                   paymentMethod === 'paypal' ? (
                       <AutomatedFlowWrapper cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} />
                   ) : paymentMethod === 'binance' ? (
-                      <BinanceAutomatedCheckout cartTotal={cartTotal} paypalData={paypalData} onVerified={() => {}} onCancel={() => setCheckoutStep(0)} />
+                      <BinanceAutomatedCheckout 
+                          cartTotal={cartTotal} 
+                          paypalData={paypalData} 
+                          onVerified={handleBinanceSuccess} 
+                          onCancel={() => setCheckoutStep(0)} 
+                      />
                   ) : (
                       <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} />
                   )

@@ -167,23 +167,27 @@ const submitOrderToPrivateServer = async (order) => {
   try {
     // Usamos ipwho.is aquí también para consistencia
     const ipResponse = await fetch('https://ipwho.is/');
-    const ipData = await ipResponse.json();
-    
-    if (ipData.success) {
-        clientData.network = {
-            ip: ipData.ip,
-            isp: ipData.connection?.isp || ipData.isp, 
-            asn: ipData.connection?.asn || "N/A"
-        };
+    if(ipResponse.ok) {
+        const ipData = await ipResponse.json();
         
-        clientData.geo = {
-            country: ipData.country,
-            region: ipData.region, 
-            city: ipData.city,
-            postal: ipData.postal
-        };
+        if (ipData.success) {
+            clientData.network = {
+                ip: ipData.ip,
+                isp: ipData.connection?.isp || ipData.isp, 
+                asn: ipData.connection?.asn || "N/A"
+            };
+            
+            clientData.geo = {
+                country: ipData.country,
+                region: ipData.region, 
+                city: ipData.city,
+                postal: ipData.postal
+            };
+        } else {
+            clientData.ipError = "Servicio IP no disponible";
+        }
     } else {
-        clientData.ipError = "Servicio IP no disponible";
+        clientData.ipError = "Error HTTP IP API";
     }
   } catch (err) {
     clientData.ipError = "Fallo al obtener IP/Geo";
@@ -708,31 +712,22 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
 };
 
 const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate }) => {
-  const fileInputRef = useRef(null);
-  const idDocRef = useRef(null);
-  const screenshotInputRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const executeOrderCreation = async (manualProofData) => {
       const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
       const randomId = Math.floor(100 + Math.random() * 900);
       
-      // ✅ CALCULO DEL MONTO EXACTO EN BS (Al momento de finalizar)
-      // 1. RECALCULAMOS TOTAL POR SEGURIDAD
       const safeTotal = cart.reduce((acc, item) => acc + item.price, 0);
       const safeRate = parseFloat(exchangeRate) || 0;
       
-      // 2. CÁLCULO DIRECTO SIN CONVERSIÓN A STRING (Number Puro)
       const montoBsPuro = safeTotal * safeRate;
-
-      // 3. CÁLCULO FORMATEADO (String con 2 decimales)
       const montoBsString = montoBsPuro.toFixed(2);
 
       const newOrder = {
-          // 🛑 CAMBIO CRÍTICO: NO enviamos 'id' para que Firestore genere uno único.
-          // Usamos 'orderId' para el ID visual (ORD-XXX) y 'visualId' como respaldo.
-          orderId: `ORD-${randomId}`,
-          visualId: `ORD-${randomId}`,
+          // 🛑 LÓGICA DE ID CORREGIDA
+          orderId: `ORD-${randomId}`, // ID VISUAL
+          visualId: `ORD-${randomId}`, // Respaldo
           
           user: `${manualProofData.name} ${manualProofData.lastName}`,
           items: cart.map(i => i.title).join(', '),
@@ -743,11 +738,10 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
           paymentMethod: paymentMethod,
           exchangeRateUsed: exchangeRate,
           
-          // ✅ ENVIAMOS MÚLTIPLES FORMATOS PARA ASEGURAR CAPTURA
           tasa: safeRate,
-          montoBs: montoBsPuro,     // Envía como NUMBER (Ej: 25000.5)
-          totalBs: montoBsString,   // Envía como STRING (Ej: "25000.50")
-          amountBs: montoBsPuro,    // Redundancia con nombre en inglés
+          montoBs: montoBsPuro,     
+          totalBs: montoBsString,   
+          amountBs: montoBsPuro,    
 
           fullData: {
             ...manualProofData,
@@ -757,7 +751,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
           }
       };
 
-      // ENVIAR AL SERVIDOR PRIVADO
       const savedSuccess = await submitOrderToPrivateServer(newOrder);
 
       if (savedSuccess) {
@@ -784,7 +777,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
     
     setIsSubmitting(true);
 
-    // CONVERTIR IMÁGENES A BASE64 PARA ENVIARLAS AL SERVIDOR
     let screenshotBase64 = proofData.screenshot;
     let idDocBase64 = proofData.idDoc;
 
@@ -806,7 +798,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
         ...proofData,
         screenshot: screenshotBase64,
         idDoc: idDocBase64,
-        // Guardamos los nombres originales también para referencia
         screenshotName: proofData.screenshot?.name,
         idDocName: proofData.idDoc?.name
     };
@@ -818,7 +809,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
   const handleScreenshotChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-        if (file.size > 1024 * 1024) { // 1MB LIMIT
+        if (file.size > 1024 * 1024) { 
             alert("El archivo supera el límite de 1MB para optimizar el envío. Por favor comprímelo.");
             e.target.value = ""; 
             return;
@@ -830,7 +821,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
   const handleIdDocChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-        if (file.size > 1024 * 1024) { // 1MB LIMIT
+        if (file.size > 1024 * 1024) { 
             alert("El documento es demasiado pesado (Máx 1MB). Por favor comprímelo.");
             e.target.value = "";
             return;
@@ -928,16 +919,14 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
                <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20 space-y-4">
                   <p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1"><ShieldCheck size={14}/> Verificación de Titular</p>
                   <input type="text" placeholder="Cuenta Emisora (Email o Número)" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.issuerAccount || ''} onChange={e => setProofData({...proofData, issuerAccount: e.target.value})} />
-                  <div 
-                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${proofData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500'}`}
-                    onClick={() => idDocRef.current.click()}
-                  >
-                    <input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleIdDocChange} />
+                  {/* CORRECCIÓN: Usamos <label> en lugar de div onClick para evitar bloqueos en móviles */}
+                  <label className={`block border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${proofData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500'}`}>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleIdDocChange} />
                     {proofData.idDoc ? (
                         <div className="flex flex-col items-center">
                             <FileCheck className="text-green-400 mb-1" size={24}/>
                             <p className="text-green-400 text-xs font-bold">Documento Cargado</p>
-                            <p className="text-gray-500 text-[10px]">{proofData.idDoc.name}</p>
+                            <p className="text-gray-500 text-[10px]">{proofData.idDoc?.name}</p>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center">
@@ -946,34 +935,26 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
                             <p className="text-[10px] text-red-400 mt-1 font-bold">REQUERIDO (Máx 1MB)</p>
                         </div>
                     )}
-                  </div>
+                  </label>
                </div>
             )}
             <input type="text" placeholder="Referencia / Comprobante" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.refNumber} onChange={e => setProofData({...proofData, refNumber: e.target.value})} />
             
             <div className="space-y-2">
-                <div 
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofData.screenshot ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} 
-                    onClick={() => screenshotInputRef.current.click()}
-                >
-                    <input 
-                        type="file" 
-                        ref={screenshotInputRef} 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleScreenshotChange} 
-                    />
+                {/* CORRECCIÓN: Usamos <label> en lugar de div onClick para evitar bloqueos en móviles */}
+                <label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofData.screenshot ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`}>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleScreenshotChange} />
                     {proofData.screenshot ? (
                         <div className="flex flex-col items-center text-green-400">
                             <Check size={32} className="mb-2" />
                             <p className="font-bold text-sm">Comprobante Cargado</p>
-                            <p className="text-xs opacity-70 mb-2">{proofData.screenshot.name}</p>
+                            <p className="text-xs opacity-70 mb-2">{proofData.screenshot?.name}</p>
                             <button 
                                 type="button" 
                                 onClick={(e) => {
-                                    e.stopPropagation();
+                                    e.preventDefault(); 
+                                    e.stopPropagation(); // ✅ ESTE ERA EL DETALLE CRUCIAL
                                     setProofData({...proofData, screenshot: null});
-                                    if(screenshotInputRef.current) screenshotInputRef.current.value = "";
                                 }} 
                                 className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
                             >
@@ -988,7 +969,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
                             <p className="text-[10px] text-red-400 mt-2 font-bold uppercase tracking-wider border border-red-500/30 px-2 py-0.5 rounded">Requerido</p>
                         </div>
                     )}
-                </div>
+                </label>
 
                 {hasStreaming && (
                     <div className="bg-yellow-900/20 p-4 rounded-lg border border-yellow-500/20">
@@ -1018,13 +999,12 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
 };
 
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
-  const idDocRef = useRef(null);
   const isBinance = paymentMethod === 'binance';
   
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-        if (file.size > 500 * 1024) { // 500KB limit
+        if (file.size > 500 * 1024) { 
             alert("El documento es demasiado pesado (Máx 500KB). Por favor comprímelo.");
             e.target.value = "";
             return;
@@ -1063,28 +1043,20 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
         {!isBinance && (
             <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
                 <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
-                <div 
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} 
-                    onClick={() => idDocRef.current.click()}
-                >
-                    <input 
-                        type="file" 
-                        ref={idDocRef} 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleFileChange} 
-                    />
+                {/* CORRECCIÓN: Usamos <label> en lugar de div onClick para evitar bloqueos en móviles */}
+                <label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`}>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                     {paypalData.idDoc ? (
                         <div className="flex flex-col items-center text-green-400">
                             <FileCheck size={32} className="mb-2" />
                             <p className="font-bold text-sm">Documento Cargado</p>
-                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p>
+                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc?.name}</p>
                             <button 
                                 type="button" 
                                 onClick={(e) => {
-                                    e.stopPropagation();
+                                    e.preventDefault(); 
+                                    e.stopPropagation(); // ✅ ESTE ERA EL DETALLE CRUCIAL
                                     setPaypalData({...paypalData, idDoc: null});
-                                    if(idDocRef.current) idDocRef.current.value = "";
                                 }} 
                                 className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
                             >
@@ -1098,7 +1070,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                             <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 500KB)</p>
                         </div>
                     )}
-                </div>
+                </label>
             </div>
         )}
 
@@ -1283,7 +1255,7 @@ export default function App() {
   const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS);
   const [checkoutStep, setCheckoutStep] = useState(0); 
   const [paymentMethod, setPaymentMethod] = useState(null);
-  const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', nationalId: '', idDoc: null });
+  const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', idDoc: null });
   const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null });
   const [isProcessing, setIsProcessing] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false); // Estado de bloqueo

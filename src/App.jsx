@@ -729,7 +729,11 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
       const montoBsString = montoBsPuro.toFixed(2);
 
       const newOrder = {
-          id: `ORD-${randomId}`,
+          // 🛑 CAMBIO CRÍTICO: NO enviamos 'id' para que Firestore genere uno único.
+          // Usamos 'orderId' para el ID visual (ORD-XXX) y 'visualId' como respaldo.
+          orderId: `ORD-${randomId}`,
+          visualId: `ORD-${randomId}`,
+          
           user: `${manualProofData.name} ${manualProofData.lastName}`,
           items: cart.map(i => i.title).join(', '),
           total: cartTotal.toFixed(2),
@@ -1122,7 +1126,8 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido recibido correctamente. Tu producto o servicio será entregado pronto vía WhatsApp al número proporcionado.</p>
         {lastOrder && (
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 max-w-md w-full mb-8 shadow-2xl">
-            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.id}</span></h3>
+            {/* CORRECCIÓN: Mostramos orderId O id, para que el usuario siempre vea algo */}
+            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.orderId || lastOrder.id}</span></h3>
             <div className="space-y-3 text-left">
             {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
             <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
@@ -1197,7 +1202,10 @@ const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheck
         }
 
         let automatedOrder = {
-            id: `ORD-${randomId}`,
+            // CAMBIO: ID generado por Firebase (No se envía 'id'), orderId para el ID visual
+            orderId: `ORD-${randomId}`,
+            visualId: `ORD-${randomId}`,
+            
             user: `${paypalData.firstName} ${paypalData.lastName}`, 
             items: cart.map(i => i.title).join(', '),
             total: cartTotal.toFixed(2),
@@ -1401,7 +1409,10 @@ export default function App() {
       const randomId = Math.floor(100 + Math.random() * 900);
       
       let automatedOrder = {
-             id: `ORD-${randomId}`,
+             // CAMBIO: ID generado por Firebase, orderId para visual
+             orderId: `ORD-${randomId}`,
+             visualId: `ORD-${randomId}`,
+             
              user: `${paypalData.firstName} ${paypalData.lastName}`, 
              items: cart.map(i => i.title).join(', '),
              total: cartTotal.toFixed(2),

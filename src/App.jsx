@@ -242,21 +242,41 @@ const submitOrderToPrivateServer = async (order) => {
   }
 };
 
-// ✅ FUNCIÓN GLOBAL DE PROCESAMIENTO DE STREAMING (Reutilizable para PayPal y Binance)
+// ✅ FUNCIÓN GLOBAL DE PROCESAMIENTO DE STREAMING MEJORADA
+// Corrección aplicada: Ahora soporta múltiples cuentas de streaming en una sola orden
 const processStreamingPurchase = async (finalOrder) => {
-    const streamingItem = finalOrder.rawItems.find(item => item.providerId && item.providerId > 0);
-    if (streamingItem) {
-        try {
-            const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ service_id: streamingItem.providerId })
-            });
-            const result = await response.json();
-            if (result.success && result.data) {
-                finalOrder.fullData.streamingAccount = result.data; 
+    // Buscamos TODOS los items que sean de streaming
+    const streamingItems = finalOrder.rawItems.filter(item => item.providerId && item.providerId > 0);
+    
+    if (streamingItems.length > 0) {
+        const accountsDelivered = [];
+        
+        // Procesamos cada cuenta una por una
+        for (const item of streamingItems) {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service_id: item.providerId })
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    accountsDelivered.push({
+                        title: item.title,
+                        ...result.data
+                    });
+                }
+            } catch (error) { 
+                console.error(`Error auto-streaming para ${item.title}:`, error); 
             }
-        } catch (error) { console.error("Error auto-streaming:", error); }
+        }
+        
+        // Si se entregaron cuentas, las guardamos en la orden
+        if (accountsDelivered.length > 0) {
+            finalOrder.fullData.streamingAccounts = accountsDelivered;
+            // Mantenemos compatibilidad con lógica anterior (primera cuenta)
+            finalOrder.fullData.streamingAccount = accountsDelivered[0]; 
+        }
     }
     return finalOrder;
 };
@@ -1101,7 +1121,20 @@ const SuccessScreen = ({ lastOrder, setView }) => {
             <div className="space-y-3 text-left">
             {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
             <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
-            {lastOrder.fullData?.streamingAccount && (
+            
+            {/* Lógica mejorada para mostrar múltiples cuentas entregadas */}
+            {lastOrder.fullData?.streamingAccounts?.length > 0 ? (
+                lastOrder.fullData.streamingAccounts.map((account, index) => (
+                    <div key={index} className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
+                        <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Cuenta {account.title}:</p>
+                        <div className="space-y-1 font-mono text-sm">
+                            <div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{account.email || account.user || "Ver detalle"}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{account.password || account.pass || "****"}</span></div>
+                            {account.message && (<p className="text-xs text-gray-500 mt-2 italic">{account.message}</p>)}
+                        </div>
+                    </div>
+                ))
+            ) : lastOrder.fullData?.streamingAccount && (
                 <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
                     <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
                     <div className="space-y-1 font-mono text-sm">
@@ -1111,6 +1144,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                     </div>
                 </div>
             )}
+            
             {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
             </div>
         </div>

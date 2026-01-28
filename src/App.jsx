@@ -5,7 +5,7 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, FileCheck, Download, EyeOff, ExternalLink, ShieldAlert, Ban
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DEL SERVIDOR PRIVADO ---
@@ -274,7 +274,7 @@ const processStreamingPurchase = async (finalOrder) => {
 const BlockedScreen = () => (
     <div className="blocked-screen font-sans">
         <div className="max-w-md p-8 bg-[#111] border-2 border-red-600 rounded-2xl text-center shadow-[0_0_50px_rgba(220,38,38,0.5)] animate-scale-in">
-            <ShieldAlert size={64} className="text-red-600 mx-auto mb-6 animate-pulse"/>
+            <AlertTriangle size={64} className="text-red-600 mx-auto mb-6 animate-pulse"/>
             <h1 className="text-3xl font-bold text-white mb-2 tracking-widest font-orbitron">ACCESO DENEGADO</h1>
             <div className="h-1 w-full bg-red-900 mb-6"></div>
             <p className="text-gray-400 mb-4 text-sm">Su dirección IP ha sido marcada como sospechosa o está utilizando una red no permitida (VPN/Proxy/Hosting).</p>
@@ -1126,20 +1126,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
             <div className="space-y-3 text-left">
             {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
             <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
-            
-            {/* Lógica mejorada para mostrar múltiples cuentas entregadas */}
-            {lastOrder.fullData?.streamingAccounts?.length > 0 ? (
-                lastOrder.fullData.streamingAccounts.map((account, index) => (
-                    <div key={index} className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
-                        <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Cuenta {account.title}:</p>
-                        <div className="space-y-1 font-mono text-sm">
-                            <div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{account.email || account.user || "Ver detalle"}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{account.password || account.pass || "****"}</span></div>
-                            {account.message && (<p className="text-xs text-gray-500 mt-2 italic">{account.message}</p>)}
-                        </div>
-                    </div>
-                ))
-            ) : lastOrder.fullData?.streamingAccount && (
+            {lastOrder.fullData?.streamingAccount && (
                 <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
                     <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
                     <div className="space-y-1 font-mono text-sm">
@@ -1149,7 +1136,6 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                     </div>
                 </div>
             )}
-            
             {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
             </div>
         </div>
@@ -1338,9 +1324,12 @@ export default function App() {
             // 3. CONSULTAR BLACKLIST AL SERVIDOR
             try {
                 const checkRes = await fetch(`${SERVER_URL}/api/check-ip?ip=${userIp}`);
-                const checkData = await checkRes.json();
-                if (checkData.blocked) {
-                    setIsBlocked(true);
+                // Only try to parse JSON if status is ok (200-299)
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    if (checkData.blocked) {
+                        setIsBlocked(true);
+                    }
                 }
             } catch (err) {
                 // Si el servidor falla, confiamos en la detección local

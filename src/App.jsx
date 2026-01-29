@@ -950,8 +950,9 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
     );
 };
 
-const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, coupon }) => { // ✅ Added coupon prop
+const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, coupon, openTerms, openPrivacy }) => { // ✅ Added coupon prop
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const executeOrderCreation = async (manualProofData) => {
       const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
@@ -1018,11 +1019,12 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
       proofData.phone && 
       proofData.refNumber && 
       proofData.screenshot && 
-      (!requiresExtraValidation || (proofData.issuerAccount && proofData.idDoc));
+      (!requiresExtraValidation || (proofData.issuerAccount && proofData.idDoc)) &&
+      acceptedTerms;
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
-    if(!isFormValid) { alert("Completa todos los campos."); return; }
+    if(!isFormValid) { alert("Completa todos los campos y acepta los términos."); return; }
     
     setIsSubmitting(true);
 
@@ -1251,6 +1253,19 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
                     </div>
                 )}
             </div>
+
+            <div className="flex items-center gap-2 mt-4">
+                <input 
+                    type="checkbox" 
+                    id="terms-checkbox-manual" 
+                    checked={acceptedTerms} 
+                    onChange={(e) => setAcceptedTerms(e.target.checked)} 
+                    className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" 
+                />
+                <label htmlFor="terms-checkbox-manual" className="text-sm text-gray-400">
+                    He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.
+                </label>
+            </div>
             
             <button 
                 type="submit" 
@@ -1392,6 +1407,96 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
 };
 
 const SuccessScreen = ({ lastOrder, setView }) => {
+  const handleDownloadInvoice = () => {
+    // Verificar si jsPDF está cargado, si no, cargarlo dinámicamente
+    if (!window.jspdf) {
+      const script = document.createElement('script');
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      script.onload = () => createPDF();
+      document.body.appendChild(script);
+    } else {
+      createPDF();
+    }
+
+    const createPDF = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const primaryColor = [79, 70, 229]; // Indigo
+
+        // HEADER
+        doc.setFillColor(...primaryColor);
+        doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.text("TECNOBYTE LLC", 20, 25);
+        
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("Comprobante Digital", 150, 25);
+
+        // INFO CLIENTE / ORDEN
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${new Date(lastOrder.date).toLocaleString()}`, 20, 55);
+        doc.text(`Orden ID: ${lastOrder.orderId || lastOrder.id}`, 20, 62);
+        doc.text(`Estado: ${lastOrder.status}`, 20, 69);
+        
+        doc.text(`Cliente: ${lastOrder.user}`, 120, 55);
+        doc.text(`Email: ${lastOrder.fullData?.email || 'N/A'}`, 120, 62);
+        doc.text(`Método: ${lastOrder.paymentMethod}`, 120, 69);
+
+        // DIVIDER
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, 75, 190, 75);
+
+        // TABLA DE ITEMS
+        let y = 90;
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Descripción", 20, y);
+        doc.text("Precio", 170, y, { align: "right" });
+        
+        y += 10;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        
+        lastOrder.rawItems.forEach(item => {
+            const title = item.title.length > 50 ? item.title.substring(0, 50) + '...' : item.title;
+            doc.text(title, 20, y);
+            doc.text(`$${item.price.toFixed(2)}`, 170, y, { align: "right" });
+            y += 8;
+        });
+
+        // SUMMARY DIVIDER
+        y += 5;
+        doc.line(20, y, 190, y);
+        y += 10;
+
+        // TOTALS & COUPONS
+        if (lastOrder.couponData) {
+             doc.text(`Cupón (${lastOrder.couponData.code}):`, 120, y);
+             doc.text(`-${lastOrder.couponData.percent}%`, 170, y, { align: "right" });
+             y += 7;
+        }
+        
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("TOTAL PAGADO:", 120, y);
+        doc.text(`$${lastOrder.total}`, 170, y, { align: "right" });
+
+        // FOOTER
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(100, 100, 100);
+        doc.text("Gracias por su compra. Este documento es un comprobante digital válido.", 105, 275, { align: "center" });
+        doc.text("Soporte: support@tecnobytellc.zendesk.com", 105, 280, { align: "center" });
+        doc.text("+1 (904) 740-0467", 105, 285, { align: "center" });
+
+        doc.save(`Factura_${lastOrder.orderId || 'TecnoByte'}.pdf`);
+    };
+  };
+
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-scale-in">
         <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]"><Check className="w-12 h-12 text-white" strokeWidth={3} /></div>
@@ -1450,6 +1555,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         )}
         <div className="flex flex-col gap-3 w-full max-w-md">
             <a href="https://wa.me/19047400467" target="_blank" rel="noopener noreferrer" className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"><MessageSquare size={20} /> Hablar con Nosotros</a>
+            <button onClick={handleDownloadInvoice} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl border border-indigo-500 flex items-center justify-center gap-2 transition-colors shadow-lg"><Download size={20} /> Descargar Factura (PDF)</button>
         </div>
         <button onClick={() => setView('home')} className="mt-8 text-gray-500 hover:text-white underline">Volver al inicio</button>
     </div>
@@ -1457,9 +1563,10 @@ const SuccessScreen = ({ lastOrder, setView }) => {
 };
 
 // --- COMPONENTE FALTANTE (Reemplazado por la versión original de App (28).jsx) ---
-const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
+const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy }) => {
   const idDocRef = useRef(null);
   const isBinance = paymentMethod === 'binance';
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -1486,7 +1593,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
       setCheckoutStep(2); 
   };
   
-  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc);
+  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc) && acceptedTerms;
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
@@ -1541,6 +1648,19 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                 </div>
             </div>
         )}
+
+        <div className="flex items-center gap-2 mt-4">
+            <input 
+                type="checkbox" 
+                id="terms-checkbox-paypal" 
+                checked={acceptedTerms} 
+                onChange={(e) => setAcceptedTerms(e.target.checked)} 
+                className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" 
+            />
+            <label htmlFor="terms-checkbox-paypal" className="text-sm text-gray-400">
+                He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.
+            </label>
+        </div>
 
         <button 
             type="submit" 
@@ -1834,6 +1954,8 @@ export default function App() {
                       setPaypalData={setPaypalData} 
                       setCheckoutStep={setCheckoutStep} 
                       paymentMethod={paymentMethod} 
+                      openTerms={() => setShowTerms(true)}
+                      openPrivacy={() => setShowPrivacy(true)}
                   /> 
               )}
 
@@ -1863,6 +1985,8 @@ export default function App() {
                         paypalData={paypalData} 
                         exchangeRate={exchangeRateBs}
                         coupon={coupon} 
+                        openTerms={() => setShowTerms(true)}
+                        openPrivacy={() => setShowPrivacy(true)}
                       />
                   )
               )}

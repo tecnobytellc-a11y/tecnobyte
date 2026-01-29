@@ -5,7 +5,7 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DEL SERVIDOR PRIVADO ---
@@ -1456,61 +1456,106 @@ const SuccessScreen = ({ lastOrder, setView }) => {
   );
 };
 
-// --- COMPONENTE FALTANTE (Agregado para evitar crash) ---
+// --- COMPONENTE FALTANTE (Reemplazado por la versión original de App (28).jsx) ---
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setCheckoutStep(2);
-    };
-    return (
-        <div className="max-w-md mx-auto bg-gray-900 p-8 rounded-xl border border-indigo-500/30 animate-fade-in-up">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <User className="text-indigo-500" /> Datos del Cliente
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <input 
-                        type="text" 
-                        placeholder="Nombre" 
-                        value={paypalData.firstName} 
-                        onChange={e => setPaypalData({...paypalData, firstName: e.target.value})}
-                        className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
-                        required 
-                    />
-                    <input 
-                        type="text" 
-                        placeholder="Apellido" 
-                        value={paypalData.lastName} 
-                        onChange={e => setPaypalData({...paypalData, lastName: e.target.value})}
-                        className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
-                        required 
-                    />
-                </div>
-                <input 
-                    type="email" 
-                    placeholder="Correo Electrónico" 
-                    value={paypalData.email} 
-                    onChange={e => setPaypalData({...paypalData, email: e.target.value})}
-                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
-                    required 
-                />
-                <input 
-                    type="tel" 
-                    placeholder="Teléfono / WhatsApp" 
-                    value={paypalData.phone} 
-                    onChange={e => setPaypalData({...paypalData, phone: e.target.value})}
-                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
-                    required 
-                />
-                <button 
-                    type="submit" 
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg mt-4 transition-all"
-                >
-                    Continuar al Pago
-                </button>
-            </form>
+  const idDocRef = useRef(null);
+  const isBinance = paymentMethod === 'binance';
+  
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 500 * 1024) { // 500KB limit
+            alert("El documento es demasiado pesado (Máx 500KB). Por favor comprímelo.");
+            e.target.value = "";
+            return;
+        }
+        setPaypalData({ ...paypalData, idDoc: file });
+    }
+  };
+
+  const handleSubmit = (e) => { 
+      e.preventDefault(); 
+      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { 
+          alert("Por favor completa todos los campos de texto."); 
+          return; 
+      } 
+      if (!isBinance && !paypalData.idDoc) {
+          alert("Debes cargar la foto de tu documento de identidad para continuar.");
+          return;
+      }
+      setCheckoutStep(2); 
+  };
+  
+  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc);
+
+  return (
+    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
+      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
+      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
+          <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
         </div>
-    );
+        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
+        
+        {!isBinance && (
+            <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
+                <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
+                <div 
+                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} 
+                    onClick={() => idDocRef.current.click()}
+                >
+                    <input 
+                        type="file" 
+                        ref={idDocRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleFileChange} 
+                    />
+                    {paypalData.idDoc ? (
+                        <div className="flex flex-col items-center text-green-400">
+                            <FileCheck size={32} className="mb-2" />
+                            <p className="font-bold text-sm">Documento Cargado</p>
+                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p>
+                            <button 
+                                type="button" 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPaypalData({...paypalData, idDoc: null});
+                                    if(idDocRef.current) idDocRef.current.value = "";
+                                }} 
+                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
+                            >
+                                Cambiar archivo
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center text-gray-400">
+                            <ImageIcon size={32} className="mb-2 opacity-50" />
+                            <p className="font-bold text-sm text-white">Subir Foto Documento ID</p>
+                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 500KB)</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        <button 
+            type="submit" 
+            disabled={!isFormValid}
+            className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all
+                ${isFormValid 
+                    ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') 
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'
+                }`}
+        >
+            Continuar al Pago <ArrowRight size={20} />
+        </button>
+      </form>
+    </div>
+  );
 };
 
 // --- WRAPPER FALTANTE (Agregado para evitar crash) ---

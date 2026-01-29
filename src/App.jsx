@@ -5,11 +5,214 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DEL SERVIDOR PRIVADO ---
 const SERVER_URL = "https://api-paypal-secure.vercel.app";
+
+// --- DATOS LEGALES ---
+const TERMS_CONTENT = `TÉRMINOS Y CONDICIONES DE USO
+Última actualización: 27 / 01 / 2026
+
+Bienvenido a TecnoByte LLC (en adelante, “TecnoByte LLC”, “TecnoByte”, “la Plataforma”, “nosotros” o “nuestro”). Al acceder, navegar o utilizar este sitio web, sus servicios, funcionalidades y sistemas asociados, usted (en adelante, “el Usuario” o “el Cliente”) acepta expresamente estos Términos y Condiciones, así como nuestra Política de Privacidad. Si no está de acuerdo con alguno de estos términos, debe abstenerse de utilizar la plataforma.
+
+1. NATURALEZA DEL SERVICIO
+TecnoByte es una plataforma digital intermediaria que facilita la adquisición y gestión de servicios digitales, incluyendo, pero no limitándose a:
+• Números virtuales para verificación en plataformas digitales.
+• Recargas y productos digitales relacionados con videojuegos.
+• Membresías y servicios de streaming digital.
+• Servicios de automatización básica y soluciones digitales.
+• Procesos de intermediación para conversión de fondos (exchange digital), incluyendo PayPal a USDT o moneda local.
+
+TecnoByte no es una institución bancaria, financiera, casa de cambio ni proveedor de servicios financieros regulados. No custodiamos fondos de los usuarios ni actuamos como entidad fiduciaria.
+
+2. ACEPTACIÓN Y CAPACIDAD LEGAL
+El Usuario declara que:
+• Es mayor de edad según la legislación aplicable en su país.
+• Tiene capacidad legal para contratar.
+• Utiliza la plataforma bajo su propia responsabilidad.
+
+TecnoByte se reserva el derecho de rechazar o cancelar operaciones si detecta uso indebido, fraude, información falsa o incumplimiento de estos términos.
+
+3. REGISTRO, DATOS Y VERIFICACIÓN
+Para utilizar determinados servicios, el Usuario deberá proporcionar información personal, incluyendo:
+• Nombre y apellido.
+• Documento de identidad.
+• Número telefónico y/o WhatsApp.
+• Correo electrónico.
+• Comprobantes de pago y, cuando aplique, documentación adicional.
+
+El Usuario garantiza que la información suministrada es veraz, exacta y actualizada. TecnoByte no se hace responsable por errores derivados de datos incorrectos proporcionados por el Usuario.
+TecnoByte se reserva el derecho de solicitar verificación adicional, suspender o cancelar servicios cuando sea necesario para prevención de fraude, cumplimiento interno o protección de la plataforma.
+
+4. SERVICIOS DE PAGO
+TecnoByte admite distintos métodos de pago, incluyendo, pero no limitándose a:
+• PayPal (mediante integración automatizada).
+• Binance Pay.
+• Transferencias bancarias nacionales e internacionales.
+• Plataformas de pago digital autorizadas.
+
+El Usuario reconoce que:
+• Los pagos automáticos dependen de plataformas externas (PayPal, Binance, bancos), ajenas al control de TecnoByte.
+• Los tiempos de procesamiento pueden variar según el proveedor de pago.
+• TecnoByte no se responsabiliza por retrasos, bloqueos, retenciones o revisiones realizadas por terceros.
+
+5. SERVICIO DE EXCHANGE DIGITAL
+El servicio de conversión (exchange) ofrecido por TecnoByte es un servicio de intermediación digital, sujeto a:
+• Tasas de cambio variables.
+• Comisiones previamente informadas en la plataforma.
+• Verificación manual o automática del pago.
+
+El Usuario entiende y acepta que:
+• Los montos mostrados son aproximados y pueden variar según comisiones externas.
+• TecnoByte no garantiza tiempos bancarios ni de dispersión.
+• En caso de fallos técnicos, congestión de red o errores de terceros, la operación podrá demorarse o requerir gestión manual.
+• TecnoByte se reserva el derecho de pausar, limitar o cancelar el servicio de exchange en cualquier momento.
+
+6. SERVICIOS DIGITALES Y STREAMING
+Los servicios digitales, incluyendo cuentas de streaming y productos similares:
+• Son de naturaleza intangible.
+• Se entregan por medios digitales (ej. WhatsApp, correo electrónico).
+• Pueden estar sujetos a disponibilidad del proveedor.
+
+TecnoByte no se responsabiliza por:
+• Cambios en políticas de las plataformas de streaming.
+• Suspensiones, bloqueos o limitaciones impuestas por terceros.
+• Uso indebido del servicio por parte del Usuario.
+
+7. POLÍTICA DE NO REEMBOLSOS
+Debido a la naturaleza digital e inmediata de los servicios:
+• No se realizan reembolsos una vez procesado el pago.
+• Excepciones solo aplicarán en casos comprobados de error atribuible exclusivamente a TecnoByte.
+• Pagos verificados, entregas realizadas o servicios activados se consideran consumados.
+
+8. PREVENCIÓN DE FRAUDE
+TecnoByte mantiene políticas estrictas de prevención de fraude. Cualquier intento de:
+• Uso de comprobantes falsos.
+• Suplantación de identidad.
+• Manipulación del sistema.
+• Uso malicioso o abusivo.
+
+Resultará en:
+• Cancelación inmediata del servicio.
+• Bloqueo permanente del usuario.
+• Reporte interno y, de ser necesario, a autoridades o proveedores externos.
+
+9. LIMITACIÓN DE RESPONSABILIDAD
+TecnoByte no será responsable por:
+• Daños indirectos, incidentales o consecuentes.
+• Pérdidas derivadas del uso de servicios de terceros.
+• Errores causados por información incorrecta del Usuario.
+• Fallos técnicos fuera de su control.
+• El uso de la plataforma se realiza bajo su propio riesgo.
+
+10. PROPIEDAD INTELECTUAL
+Todo el contenido, diseño, código, marca, logotipos y funcionalidades son propiedad de TecnoByte LLC o de sus licenciantes. Queda prohibida su reproducción, copia o uso no autorizado.
+
+11. MODIFICACIONES
+TecnoByte se reserva el derecho de modificar estos Términos y Condiciones en cualquier momento. Las modificaciones entrarán en vigor desde su publicación en el sitio web.
+
+12. JURISDICCIÓN Y LEY APLICABLE
+Estos Términos y Condiciones se rigen por las leyes aplicables de la jurisdicción donde TecnoByte tenga su operación principal. Cualquier disputa será resuelta conforme a dicha legislación.
+
+13. CONTACTO
+Para consultas, soporte o reclamos oficiales:
+📧 Correo: support@tecnobytellc.zendesk.com
+📱 WhatsApp: +1 (904) 740-0467
+
+Al utilizar TecnoByte, el Usuario declara haber leído, comprendido y aceptado estos Términos y Condiciones en su totalidad.`;
+
+const PRIVACY_CONTENT = `POLÍTICA DE PRIVACIDAD Y AVISO LEGAL
+Última actualización: 27 / 01 / 2026
+
+Esta Política de Privacidad y Aviso Legal regula el tratamiento de datos personales y el alcance legal de los servicios ofrecidos por TecnoByte LLC (en adelante, “TecnoByte LLC”, “TecnoByte” o “la Plataforma”). Al utilizar este sitio web y sus servicios, el Usuario acepta expresamente los términos aquí descritos.
+
+1. IDENTIDAD DEL RESPONSABLE
+Razón social: TecnoByte LLC
+Actividad: Plataforma digital de intermediación de servicios digitales
+Jurisdicción operativa: República Bolivariana de Venezuela
+Canales de contacto oficiales:
+- Correo electrónico: support@tecnobytellc.zendesk.com
+- WhatsApp: +1 (904) 740-0467
+
+2. DATOS PERSONALES QUE RECOPILAMOS
+TecnoByte LLC puede recopilar y tratar los siguientes datos personales:
+• Nombre y apellido.
+• Documento de identidad.
+• Número telefónico y/o WhatsApp.
+• Correo electrónico.
+• Capturas de comprobantes de pago.
+• Información relacionada con cuentas de pago utilizadas por el Usuario.
+• Datos técnicos básicos (IP, navegador, fecha y hora de operación).
+La provisión de estos datos es necesaria para la correcta prestación de los servicios.
+
+3. FINALIDAD DEL TRATAMIENTO DE DATOS
+Los datos personales recopilados serán utilizados exclusivamente para:
+• Procesar pedidos y servicios digitales.
+• Verificar pagos y prevenir fraudes.
+• Cumplir con procesos internos de seguridad.
+• Comunicarse con el Usuario respecto a su solicitud.
+• Mantener registros operativos y administrativos.
+TecnoByte LLC no vende, alquila ni comercializa datos personales a terceros.
+
+4. CONSERVACIÓN DE LA INFORMACIÓN
+Los documentos de identidad y comprobantes se conservan únicamente durante el tiempo necesario para la verificación.
+Una vez completado el proceso, la información sensible puede ser eliminada o anonimizada.
+Los registros técnicos podrán conservarse por motivos de seguridad y auditoría.
+
+5. SEGURIDAD DE LA INFORMACIÓN
+TecnoByte LLC implementa medidas técnicas y organizativas razonables para proteger los datos personales contra:
+• Accesos no autorizados.
+• Pérdida o destrucción.
+• Uso indebido o fraudulento.
+No obstante, el Usuario reconoce que ningún sistema es completamente infalible.
+
+6. DERECHOS DEL USUARIO
+El Usuario podrá:
+• Solicitar información sobre sus datos.
+• Solicitar la corrección de datos incorrectos.
+• Solicitar la eliminación de sus datos cuando sea legalmente procedente.
+Las solicitudes deberán realizarse por los canales oficiales de contacto.
+
+AVISO LEGAL Y DISCLAIMER FINANCIERO
+
+7. NATURALEZA DEL SERVICIO
+TecnoByte LLC es una plataforma de intermediación digital. No es:
+• Banco.
+• Institución financiera.
+• Casa de cambio regulada.
+• Proveedor de servicios financieros tradicionales.
+TecnoByte LLC no custodia fondos ni actúa como entidad fiduciaria.
+
+8. DISCLAIMER FINANCIERO Y DE EXCHANGE
+Los servicios de conversión de fondos (exchange) ofrecidos por TecnoByte LLC:
+• Son servicios digitales de intermediación.
+• Están sujetos a verificación, disponibilidad y validación manual o automática.
+• Utilizan plataformas y proveedores externos.
+El Usuario acepta que:
+• Las tasas mostradas son referenciales.
+• Los tiempos de procesamiento no están garantizados.
+• TecnoByte LLC no controla ni es responsable por retrasos, bloqueos o revisiones realizadas por terceros (PayPal, Binance, bancos u otros proveedores).
+
+9. LIMITACIÓN DE RESPONSABILIDAD
+TecnoByte LLC no será responsable por:
+• Decisiones financieras del Usuario.
+• Pérdidas ocasionadas por plataformas externas.
+• Cambios en políticas de terceros.
+• Errores derivados de información incorrecta proporcionada por el Usuario.
+El uso de la plataforma se realiza bajo responsabilidad exclusiva del Usuario.
+
+10. PREVENCIÓN DE FRAUDE
+Cualquier intento de fraude, suplantación de identidad o manipulación del sistema podrá resultar en:
+• Cancelación inmediata del servicio.
+• Bloqueo permanente del Usuario.
+• Conservación de evidencias internas.
+
+11. JURISDICCIÓN Y LEY APLICABLE
+Esta Política de Privacidad y Aviso Legal se rige por las leyes de la República Bolivariana de Venezuela. Cualquier controversia será sometida a los tribunales competentes de dicha jurisdicción.
+
+Al utilizar la plataforma, el Usuario declara haber leído, comprendido y aceptado íntegramente esta Política de Privacidad y Aviso Legal.`;
 
 // --- DATOS Y CONFIGURACIÓN ---
 
@@ -289,6 +492,42 @@ const BlockedScreen = () => (
         </div>
     </div>
 );
+
+// --- MODAL DE LEGALES (Términos / Privacidad) ---
+const LegalModal = ({ isOpen, onClose, title, content }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in-up">
+      <div className="bg-gray-900 border border-indigo-500/30 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-800 bg-gray-900/95 sticky top-0 z-10 flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-white font-orbitron flex items-center gap-2">
+                {title.includes("Privacidad") ? <Shield size={24} className="text-indigo-500"/> : <FileTextIcon size={24} className="text-indigo-500"/>}
+                {title}
+            </h2>
+            <p className="text-gray-400 text-xs mt-1">Documento Oficial TecnoByte LLC</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar text-gray-300 text-sm leading-relaxed whitespace-pre-wrap font-sans">
+          {content}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-800 bg-gray-900 flex justify-end">
+          <button onClick={onClose} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition-colors shadow-lg">
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- COMPONENTES VISUALES ---
 
@@ -711,7 +950,7 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
     );
 };
 
-const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate }) => {
+const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, coupon }) => { // ✅ Added coupon prop
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const executeOrderCreation = async (manualProofData) => {
@@ -719,9 +958,23 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
       const randomId = Math.floor(100 + Math.random() * 900);
       
       const safeTotal = cart.reduce((acc, item) => acc + item.price, 0);
+      
+      // ✅ CALCULAR DESCUENTO SI EXISTE CUPÓN
+      let finalTotal = safeTotal;
+      let couponData = null;
+      
+      if (coupon) {
+          finalTotal = safeTotal - (safeTotal * (coupon.percent / 100));
+          couponData = {
+              code: coupon.code,
+              percent: coupon.percent,
+              discountAmount: safeTotal - finalTotal
+          };
+      }
+
       const safeRate = parseFloat(exchangeRate) || 0;
       
-      const montoBsPuro = safeTotal * safeRate;
+      const montoBsPuro = finalTotal * safeRate; // Usa el total con descuento
       const montoBsString = montoBsPuro.toFixed(2);
 
       const newOrder = {
@@ -731,12 +984,13 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
           
           user: `${manualProofData.name} ${manualProofData.lastName}`,
           items: cart.map(i => i.title).join(', '),
-          total: cartTotal.toFixed(2),
+          total: finalTotal.toFixed(2), // Total con descuento aplicado
           status: 'PENDIENTE POR ENTREGAR', 
           date: new Date().toISOString(),
           rawItems: sanitizedItems, 
           paymentMethod: paymentMethod,
           exchangeRateUsed: exchangeRate,
+          couponData: couponData, // ✅ ENVIAR DATOS DEL CUPÓN
           
           tasa: safeRate,
           montoBs: montoBsPuro,     
@@ -892,13 +1146,33 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
             </div>
         )}
         
-        <p className="text-white font-bold text-xl mt-4">Total: ${cartTotal.toFixed(2)}</p>
+        <div className="mt-4 pt-4 border-t border-gray-600">
+            {coupon ? (
+                <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-300">Subtotal:</span>
+                    <span className="text-gray-400 line-through">${cartTotal.toFixed(2)}</span>
+                </div>
+            ) : null}
+            
+            <div className="flex justify-between items-center text-xl font-bold">
+                <span className="text-white">Total a Pagar:</span>
+                <span className="text-green-400">
+                    ${coupon ? (cartTotal - (cartTotal * (coupon.percent / 100))).toFixed(2) : cartTotal.toFixed(2)}
+                </span>
+            </div>
+            
+            {coupon && (
+                <div className="text-xs text-green-300 mt-1 flex items-center gap-1">
+                    <Ticket size={12}/> Cupón aplicado: {coupon.code} (-{coupon.percent}%)
+                </div>
+            )}
+        </div>
         
         {(paymentMethod === 'pagomovil' || paymentMethod === 'transfer_bs') && (
              <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-600">
                  <p className="text-gray-400 text-xs mb-1 uppercase tracking-wider">Monto en Bolívares (Tasa: {exchangeRate.toFixed(2)})</p>
                  <p className="text-cyan-400 font-bold font-mono text-3xl">
-                     Bs {(cartTotal * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                     Bs {((coupon ? (cartTotal - (cartTotal * (coupon.percent / 100))) : cartTotal) * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                  </p>
              </div>
         )}
@@ -998,96 +1272,126 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
   );
 };
 
-const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
-  const isBinance = paymentMethod === 'binance';
-  
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        if (file.size > 500 * 1024) { 
-            alert("El documento es demasiado pesado (Máx 500KB). Por favor comprímelo.");
-            e.target.value = "";
-            return;
-        }
-        setPaypalData({ ...paypalData, idDoc: file });
-    }
-  };
+// --- PAYMENT SELECTION WITH COUPONS ---
+const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, applyCoupon, coupon, removeCoupon }) => {
+    const [couponInput, setCouponInput] = useState('');
+    const [couponError, setCouponError] = useState('');
+    const [isValidating, setIsValidating] = useState(false);
 
-  const handleSubmit = (e) => { 
-      e.preventDefault(); 
-      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { 
-          alert("Por favor completa todos los campos de texto."); 
-          return; 
-      } 
-      if (!isBinance && !paypalData.idDoc) {
-          alert("Debes cargar la foto de tu documento de identidad para continuar.");
-          return;
-      }
-      setCheckoutStep(2); 
-  };
-  
-  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc);
+    const handleApplyCoupon = async () => {
+        if(!couponInput.trim()) return;
+        setIsValidating(true);
+        setCouponError('');
 
-  return (
-    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
-      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
-      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
-          <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
-        </div>
-        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
+        // SIMULACIÓN DE API DE CUPONES (Para preview - Reemplazar con fetch real)
+        // En producción: const res = await fetch(`${SERVER_URL}/api/validate-coupon`, ...);
+        setTimeout(async () => {
+            try {
+                // AQUÍ VA LA LLAMADA REAL A LA API
+                const res = await fetch(`${SERVER_URL}/api/validate-coupon`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ code: couponInput.toUpperCase() })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if(data.success) {
+                        applyCoupon(data.coupon); // { code: 'SALE10', percent: 10 }
+                        setCouponInput('');
+                    } else {
+                        setCouponError(data.message || "Cupón inválido o expirado");
+                    }
+                } else {
+                    // FALLBACK PARA DEMOSTRACIÓN SI LA API NO EXISTE AÚN
+                    if(couponInput.toUpperCase() === 'TECNOSALE') {
+                        applyCoupon({ code: 'TECNOSALE', percent: 10 });
+                        setCouponInput('');
+                    } else {
+                        setCouponError("Cupón no existe o expiró");
+                    }
+                }
+            } catch(e) {
+                // FALLBACK DE RED
+                setCouponError("Error validando cupón");
+            }
+            setIsValidating(false);
+        }, 800);
+    };
+
+    return (
+      <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
         
-        {!isBinance && (
-            <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
-                <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
-                {/* CORRECCIÓN: Usamos <label> en lugar de div onClick para evitar bloqueos en móviles */}
-                <label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`}>
-                    <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                    {paypalData.idDoc ? (
-                        <div className="flex flex-col items-center text-green-400">
-                            <FileCheck size={32} className="mb-2" />
-                            <p className="font-bold text-sm">Documento Cargado</p>
-                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc?.name}</p>
-                            <button 
-                                type="button" 
-                                onClick={(e) => {
-                                    e.preventDefault(); 
-                                    e.stopPropagation(); // ✅ ESTE ERA EL DETALLE CRUCIAL
-                                    setPaypalData({...paypalData, idDoc: null});
-                                }} 
-                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
-                            >
-                                Cambiar archivo
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center text-gray-400">
-                            <ImageIcon size={32} className="mb-2 opacity-50" />
-                            <p className="font-bold text-sm text-white">Subir Foto Documento ID</p>
-                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 500KB)</p>
-                        </div>
-                    )}
-                </label>
+        {/* MÓDULO DE CUPONES */}
+        <div className="mb-8 p-4 bg-indigo-900/10 rounded-xl border border-indigo-500/30">
+            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Ticket size={16} className="text-yellow-400"/> ¿Tienes un cupón?</h3>
+            <div className="flex gap-2">
+                <input 
+                    type="text" 
+                    value={couponInput}
+                    onChange={e => {
+                        setCouponInput(e.target.value);
+                        if (couponError) setCouponError(''); // ✅ LIMPIAR ERROR AL ESCRIBIR
+                    }}
+                    placeholder="Ingresa tu código aquí"
+                    className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white uppercase text-sm focus:border-indigo-500 outline-none"
+                    disabled={!!coupon}
+                />
+                <button 
+                    onClick={handleApplyCoupon}
+                    disabled={isValidating || !couponInput || !!coupon}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors disabled:opacity-50"
+                >
+                    {isValidating ? <Loader className="animate-spin" size={14}/> : 'APLICAR'}
+                </button>
             </div>
-        )}
+            {couponError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1"><AlertTriangle size={12}/> {couponError}</p>}
+            
+            {coupon && (
+                <div className="mt-3 bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex justify-between items-center animate-scale-in">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-green-500 text-black p-1 rounded-full"><Check size={12} strokeWidth={4}/></div>
+                        <div>
+                            <p className="text-green-400 text-sm font-bold">¡Cupón Aplicado!</p>
+                            <p className="text-gray-400 text-xs">{coupon.code} - {coupon.percent}% de Descuento</p>
+                        </div>
+                    </div>
+                    <button onClick={removeCoupon} className="text-red-400 hover:text-white text-xs underline">Quitar</button>
+                </div>
+            )}
+        </div>
 
-        <button 
-            type="submit" 
-            disabled={!isFormValid}
-            className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all
-                ${isFormValid 
-                    ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') 
-                    : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'
-                }`}
-        >
-            Continuar al Pago <ArrowRight size={20} />
-        </button>
-      </form>
-    </div>
-  );
+        <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group">
+             <div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div>
+            <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span>
+          </button>
+          <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3">
+            <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span>
+          </button>
+          
+          <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div>
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span>
+          </button>
+
+          <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3">
+             <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span>
+          </button>
+          <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3">
+             <div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span>
+          </button>
+          <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3">
+             <div className="w-12 h-12 bg-blue-700/20 rounded-full flex items-center justify-center text-blue-600"><Building2 /></div><span className="font-bold text-white">FACEBANK</span>
+          </button>
+          <button onClick={() => { setPaymentMethod('pipolpay'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-orange-400 flex flex-col items-center gap-3">
+             <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-500"><Send /></div><span className="font-bold text-white">PipolPay</span>
+          </button>
+        </div>
+        <div className="mt-4 flex justify-center"><button onClick={() => setView('home')} className="text-gray-500 hover:text-white">Cancelar</button></div>
+      </div>
+    );
 };
 
 const SuccessScreen = ({ lastOrder, setView }) => {
@@ -1102,7 +1406,29 @@ const SuccessScreen = ({ lastOrder, setView }) => {
             <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.orderId || lastOrder.id}</span></h3>
             <div className="space-y-3 text-left">
             {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
-            <div className="flex justify-between text-white font-bold pt-3 border-t border-gray-700 mt-2 text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
+            
+            {/* LOGICA VISUAL DEL CUPÓN EN RESUMEN */}
+            <div className="pt-3 border-t border-gray-700 mt-2">
+                {lastOrder.couponData ? (
+                    <>
+                        <div className="flex justify-between text-sm text-gray-400 mb-1">
+                            <span>Subtotal:</span>
+                            <span className="line-through">${(parseFloat(lastOrder.total) / (1 - lastOrder.couponData.percent / 100)).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-green-400 mb-1">
+                            <span>Cupón ({lastOrder.couponData.code}):</span>
+                            <span>-{lastOrder.couponData.percent}%</span>
+                        </div>
+                        <div className="flex justify-between text-white font-bold text-lg mt-2 pt-2 border-t border-gray-800">
+                            <span>Total Pagado:</span>
+                            <span className="text-green-400">${lastOrder.total}</span>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex justify-between text-white font-bold text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
+                )}
+            </div>
+
             {lastOrder.fullData?.streamingAccount && (
                 <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
                     <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
@@ -1125,127 +1451,6 @@ const SuccessScreen = ({ lastOrder, setView }) => {
   );
 };
 
-const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView }) => (
-  <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
-    <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group">
-         <div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div>
-        <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3">
-        <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span>
-      </button>
-      
-      <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div>
-        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span>
-      </button>
-
-      <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-blue-700/20 rounded-full flex items-center justify-center text-blue-600"><Building2 /></div><span className="font-bold text-white">FACEBANK</span>
-      </button>
-      <button onClick={() => { setPaymentMethod('pipolpay'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-orange-400 flex flex-col items-center gap-3">
-         <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-500"><Send /></div><span className="font-bold text-white">PipolPay</span>
-      </button>
-    </div>
-    <div className="mt-4 flex justify-center"><button onClick={() => setView('home')} className="text-gray-500 hover:text-white">Cancelar</button></div>
-  </div>
-);
-
-const AutomatedFlowWrapper = ({ cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paypalData }) => {
-    // Wrapper para manejar pagos automáticos (Binance/PayPal)
-    const exchangeItem = cart.find(item => item.type === 'usdt');
-    const isExchange = !!exchangeItem;
-
-    const handlePayPalComplete = async (invoiceId, bTxId) => {
-        const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
-        const randomId = Math.floor(100 + Math.random() * 900);
-        
-        let idDocBase64 = null;
-        if (paypalData.idDoc && typeof paypalData.idDoc !== 'string') {
-             try { idDocBase64 = await convertToBase64(paypalData.idDoc); } catch(e){}
-        }
-
-        let automatedOrder = {
-            // CAMBIO: ID generado por Firebase (No se envía 'id'), orderId para el ID visual
-            orderId: `ORD-${randomId}`,
-            visualId: `ORD-${randomId}`,
-            
-            user: `${paypalData.firstName} ${paypalData.lastName}`, 
-            items: cart.map(i => i.title).join(', '),
-            total: cartTotal.toFixed(2),
-            status: isExchange ? 'COMPLETADO' : 'FACTURADO', 
-            date: new Date().toISOString(),
-            rawItems: sanitizedItems,
-            paymentMethod: 'paypal_api',
-            
-            // ✅ EN AUTOMÁTICO SE ENVÍA 0
-            tasa: 0,
-            montoBs: 0,
-            totalBs: "0.00",
-            amountBs: 0,
-
-            fullData: {
-                email: paypalData.email,
-                phone: paypalData.phone,
-                refNumber: invoiceId, 
-                binanceTxId: bTxId, 
-                exchangeData: exchangeItem ? exchangeItem.exchangeData : null,
-                contactPhone: paypalData.phone,
-                idDoc: idDocBase64 
-            }
-        };
-        automatedOrder = await processStreamingPurchase(automatedOrder);
-        
-        // ✅ Guardamos en el servidor privado
-        await submitOrderToPrivateServer(automatedOrder);
-
-        setLastOrder(automatedOrder);
-        setCart([]);
-        setCheckoutStep(3);
-    };
-
-    return (
-        <div className="max-w-4xl mx-auto">
-             {isExchange && (
-                 <div className="bg-yellow-900/20 border border-yellow-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
-                     <AlertTriangle className="text-yellow-500 flex-shrink-0" />
-                     <div className="text-sm text-yellow-200">
-                         <strong>Modo Exchange Automatizado:</strong> Se detectó una solicitud de cambio a USDT. 
-                         El sistema verificará tu pago y automáticamente enviará los fondos a tu dirección: 
-                         <span className="font-mono bg-black/30 px-2 rounded ml-1 text-white">{exchangeItem.exchangeData.receiveAddress}</span>
-                     </div>
-                 </div>
-             )}
-            
-            {paypalData && !isExchange && cart.some(i => i.providerId) && (
-                 <div className="bg-purple-900/20 border border-purple-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
-                     <Zap className="text-purple-400 flex-shrink-0" />
-                     <div className="text-sm text-purple-200">
-                         <strong>Entrega Inmediata:</strong> Al verificar tu pago automáticamente, el sistema generará y te entregará tu cuenta de streaming al instante.
-                     </div>
-                 </div>
-            )}
-            
-            <PayPalAutomatedCheckout 
-                cartTotal={cartTotal} 
-                onPaymentComplete={handlePayPalComplete}
-                isExchange={isExchange}
-                exchangeData={exchangeItem ? exchangeItem.exchangeData : null}
-                paypalData={paypalData}
-                allOrders={[]} 
-            />
-        </div>
-    );
-};
-
 export default function App() {
   const [view, setView] = useState('home'); 
   const [cart, setCart] = useState([]);
@@ -1259,6 +1464,9 @@ export default function App() {
   const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null });
   const [isProcessing, setIsProcessing] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false); // Estado de bloqueo
+  const [showTerms, setShowTerms] = useState(false); // ✅ ESTADO PARA MODAL TÉRMINOS
+  const [showPrivacy, setShowPrivacy] = useState(false); // ✅ ESTADO PARA MODAL PRIVACIDAD
+  const [coupon, setCoupon] = useState(null); // ✅ ESTADO PARA EL CUPÓN
 
   const getIsExchangeOpen = () => {
     const now = new Date();
@@ -1438,7 +1646,16 @@ export default function App() {
                 </div>
               </div>
               
-              {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} />}
+              {checkoutStep === 0 && (
+                  <PaymentMethodSelection 
+                    setPaymentMethod={setPaymentMethod} 
+                    setCheckoutStep={setCheckoutStep} 
+                    setView={setView} 
+                    applyCoupon={setCoupon}
+                    coupon={coupon}
+                    removeCoupon={() => setCoupon(null)}
+                  />
+              )}
               
               {/* PASO 1: DATOS (PayPal/Binance) */}
               {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && ( 
@@ -1462,7 +1679,19 @@ export default function App() {
                           onCancel={() => setCheckoutStep(0)} 
                       />
                   ) : (
-                      <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} />
+                      <PaymentProofStep 
+                        proofData={proofData} 
+                        setProofData={setProofData} 
+                        cart={cart} 
+                        cartTotal={cartTotal} 
+                        setLastOrder={setLastOrder} 
+                        setCart={setCart} 
+                        setCheckoutStep={setCheckoutStep} 
+                        paymentMethod={paymentMethod} 
+                        paypalData={paypalData} 
+                        exchangeRate={exchangeRateBs}
+                        coupon={coupon} 
+                      />
                   )
               )}
               
@@ -1505,7 +1734,7 @@ export default function App() {
           <div><h4 className="text-white font-orbitron font-bold text-xl mb-4">TECNOBYTE</h4><p className="text-sm">Innovación y seguridad en cada transacción. Tu aliado digital de confianza.</p></div>
           <div><h4 className="text-white font-bold mb-4">Contacto</h4><ul className="space-y-2 text-sm"><li className="flex items-center gap-2"><Mail size={16}/> {CONTACT_INFO.email}</li><li className="flex items-center gap-2"><Phone size={16}/> {CONTACT_INFO.whatsapp_display}</li></ul></div>
           <div><h4 className="text-white font-bold mb-4">Síguenos</h4><div className="flex gap-4"><a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors"><Facebook /></a><a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors"><Instagram /></a><a href={SOCIAL_LINKS.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors"><TikTokIcon /></a></div></div>
-          <div><h4 className="text-white font-bold mb-4">Legal</h4><ul className="space-y-2 text-sm"><li>Términos y Condiciones</li><li>Política de Privacidad</li></ul></div>
+          <div><h4 className="text-white font-bold mb-4">Legal</h4><ul className="space-y-2 text-sm"><li className="cursor-pointer hover:text-white transition-colors" onClick={() => setShowTerms(true)}>Términos y Condiciones</li><li className="cursor-pointer hover:text-white transition-colors" onClick={() => setShowPrivacy(true)}>Política de Privacidad</li></ul></div>
           </div>
           <div className="text-center mt-12 text-xs text-gray-600">
               © 2024 TecnoByte LLC. Todos los derechos reservados.
@@ -1525,10 +1754,28 @@ export default function App() {
                   </div>
               ))}
               </div>
-              <div className="mt-6 border-t border-gray-800 pt-4"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div>
+              <div className="mt-6 border-t border-gray-800 pt-4">
+                  {coupon ? (
+                      <div className="flex justify-between text-sm mb-2">
+                          <span className="text-gray-400">Descuento ({coupon.code}):</span>
+                          <span className="text-green-400 font-bold">-{coupon.percent}%</span>
+                      </div>
+                  ) : null}
+                  <div className="flex justify-between text-xl font-bold text-white mb-4">
+                      <span>Total</span>
+                      <span>${coupon ? (cartTotal - (cartTotal * (coupon.percent / 100))).toFixed(2) : cartTotal.toFixed(2)}</span>
+                  </div>
+                  <button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button>
+              </div>
           </div>
           </div>
       )}
+
+      {/* RENDERIZADO DEL MODAL TÉRMINOS */}
+      <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Términos y Condiciones" content={TERMS_CONTENT} />
+      
+      {/* RENDERIZADO DEL MODAL PRIVACIDAD */}
+      <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Política de Privacidad y Aviso Legal" content={PRIVACY_CONTENT} />
     </div>
   );
 }

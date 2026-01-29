@@ -296,7 +296,20 @@ const globalStyles = `
   .custom-scrollbar::-webkit-scrollbar { width: 8px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-  .blocked-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+  /* ESTILO CORREGIDO DE BLOQUEO TOTAL */
+  .blocked-screen { 
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000000; 
+    z-index: 99999999; /* Z-index máximo */
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    overflow: hidden; /* Evita scroll */
+  }
 `;
 
 const TikTokIcon = () => ( <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg> );
@@ -1718,6 +1731,7 @@ export default function App() {
   const [showTerms, setShowTerms] = useState(false); // ✅ ESTADO PARA MODAL TÉRMINOS
   const [showPrivacy, setShowPrivacy] = useState(false); // ✅ ESTADO PARA MODAL PRIVACIDAD
   const [coupon, setCoupon] = useState(null); // ✅ ESTADO PARA EL CUPÓN
+  const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); // ✅ NUEVO ESTADO DE CARGA DE SEGURIDAD
 
   const getIsExchangeOpen = () => {
     const now = new Date();
@@ -1740,6 +1754,7 @@ export default function App() {
             // Check for success (ipwho.is returns {success: false, message: ...} on error)
             if (!ipData.success) {
                 console.warn("IP Check skipped:", ipData.message);
+                setIsLoadingSecurity(false); // ✅ Desbloqueamos si la API de IP falla (Fail Open)
                 return;
             }
 
@@ -1757,6 +1772,7 @@ export default function App() {
                 setIsBlocked(true);
                 // Reportar al servidor para que lo guarde en la Blacklist
                 reportSuspiciousIP(ipData, `Auto-Detect VPN: ${ipData.org}`);
+                setIsLoadingSecurity(false); // ✅ Dejamos de cargar para mostrar el bloqueo
                 return;
             }
 
@@ -1776,6 +1792,9 @@ export default function App() {
 
         } catch (error) {
             console.warn("Security Check Failed (Non-critical):", error);
+        } finally {
+            // ✅ SIEMPRE detener la carga al final de la verificación
+            setIsLoadingSecurity(false);
         }
     };
 
@@ -1831,6 +1850,22 @@ export default function App() {
     const intervalId = setInterval(fetchRate, RATE_API_CONFIG.intervalMinutes * 60 * 1000);
     return () => clearInterval(intervalId);
   }, []);
+
+  // ✅ PANTALLA DE CARGA DE SEGURIDAD (ANTES DE TODO)
+  if (isLoadingSecurity) {
+      return (
+          <div className="fixed inset-0 bg-[#0a0a12] flex flex-col items-center justify-center z-[100]">
+              <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <h2 className="text-white font-orbitron text-xl tracking-widest animate-pulse">CARGANDO FRONTEND</h2>
+              <p className="text-gray-500 text-xs mt-2 font-mono">Verificando entorno seguro...</p>
+          </div>
+      );
+  }
+
+  // ✅ BLOQUEO TOTAL SI ESTÁ EN BLACKLIST (DESPUÉS DE CARGAR)
+  if (isBlocked) {
+      return <BlockedScreen />;
+  }
 
   const categories = ['All', ...new Set(SERVICES.map(s => s.category))];
   const addToCart = (service) => { setCart([...cart, service]); setIsCartOpen(true); };
@@ -1910,11 +1945,6 @@ export default function App() {
       setCart([]);
       setCheckoutStep(3);
   };
-
-  // 🔴 BLOQUEO TOTAL SI ESTÁ EN BLACKLIST
-  if (isBlocked) {
-      return <BlockedScreen />;
-  }
 
   return (
     <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans flex flex-col">

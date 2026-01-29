@@ -1456,6 +1456,87 @@ const SuccessScreen = ({ lastOrder, setView }) => {
   );
 };
 
+// --- COMPONENTE FALTANTE (Agregado para evitar crash) ---
+const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setCheckoutStep(2);
+    };
+    return (
+        <div className="max-w-md mx-auto bg-gray-900 p-8 rounded-xl border border-indigo-500/30 animate-fade-in-up">
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <User className="text-indigo-500" /> Datos del Cliente
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <input 
+                        type="text" 
+                        placeholder="Nombre" 
+                        value={paypalData.firstName} 
+                        onChange={e => setPaypalData({...paypalData, firstName: e.target.value})}
+                        className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
+                        required 
+                    />
+                    <input 
+                        type="text" 
+                        placeholder="Apellido" 
+                        value={paypalData.lastName} 
+                        onChange={e => setPaypalData({...paypalData, lastName: e.target.value})}
+                        className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
+                        required 
+                    />
+                </div>
+                <input 
+                    type="email" 
+                    placeholder="Correo Electrónico" 
+                    value={paypalData.email} 
+                    onChange={e => setPaypalData({...paypalData, email: e.target.value})}
+                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
+                    required 
+                />
+                <input 
+                    type="tel" 
+                    placeholder="Teléfono / WhatsApp" 
+                    value={paypalData.phone} 
+                    onChange={e => setPaypalData({...paypalData, phone: e.target.value})}
+                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-lg text-white focus:border-indigo-500 outline-none" 
+                    required 
+                />
+                <button 
+                    type="submit" 
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg mt-4 transition-all"
+                >
+                    Continuar al Pago
+                </button>
+            </form>
+        </div>
+    );
+};
+
+// --- WRAPPER FALTANTE (Agregado para evitar crash) ---
+const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart }) => {
+    // Simulación de wrapper para el flujo de paypal
+    return (
+        <PayPalAutomatedCheckout 
+            finalTotal={cartTotal} 
+            paypalData={paypalData}
+            onPaymentComplete={(orderId) => {
+                setLastOrder({ 
+                    orderId: orderId, 
+                    total: cartTotal.toFixed(2), 
+                    items: "PayPal Order", 
+                    paymentMethod: 'paypal_api',
+                    fullData: paypalData,
+                    rawItems: []
+                });
+                setCart([]);
+                setCheckoutStep(3);
+            }} 
+            isExchange={false} 
+        />
+    );
+};
+
 export default function App() {
   const [view, setView] = useState('home'); 
   const [cart, setCart] = useState([]);
@@ -1547,13 +1628,27 @@ export default function App() {
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 64;
     const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.src = 'unnamed.png'; 
-    img.onload = () => {
-      ctx.beginPath(); ctx.arc(32, 32, 32, 0, 2 * Math.PI); ctx.clip();
-      ctx.drawImage(img, 0, 0, 64, 64);
-      link.href = canvas.toDataURL();
-    };
+
+    // SOLUCIÓN AL ERROR DE SEGURIDAD (Tainted Canvas):
+    // En lugar de cargar una imagen externa (que causa el error CORS al exportar),
+    // dibujamos el icono (círculo + iniciales) directamente en el canvas.
+    
+    // 1. Dibujar círculo de fondo
+    ctx.beginPath();
+    ctx.arc(32, 32, 32, 0, 2 * Math.PI);
+    ctx.fillStyle = '#4f46e5'; // Color índigo (coincide con el tema)
+    ctx.fill();
+    
+    // 2. Dibujar texto
+    ctx.font = 'bold 24px sans-serif'; // Fuente simple y negrita
+    ctx.fillStyle = '#ffffff'; // Texto blanco
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TB', 32, 32); // Iniciales "TB" centradas
+    
+    // 3. Exportar a Data URL (ya no causará error porque todo es nativo)
+    link.href = canvas.toDataURL();
+
   }, []);
 
   useEffect(() => {

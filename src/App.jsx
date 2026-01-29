@@ -699,7 +699,7 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
 
 // --- PAYMENT & API LOGIC ---
 
-const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData }) => {
+const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, paypalData }) => {
     const [transactionId, setTransactionId] = useState('');
     const [status, setStatus] = useState('idle'); 
 
@@ -713,7 +713,7 @@ const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     orderId: transactionId,
-                    amount: cartTotal.toFixed(2)
+                    amount: finalTotal.toFixed(2)
                 })
             });
 
@@ -756,7 +756,7 @@ const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData 
                 <div className="space-y-6 relative z-10">
                     <div className="bg-gray-800/50 p-4 rounded-lg border border-dashed border-gray-700 text-center">
                         <p className="text-gray-400 text-xs mb-2">Envía exactamente:</p>
-                        <p className="text-4xl font-mono font-bold text-[#FCD535] mb-2">${cartTotal.toFixed(2)}</p>
+                        <p className="text-4xl font-mono font-bold text-[#FCD535] mb-2">${finalTotal.toFixed(2)}</p>
                         <div className="flex justify-center gap-2 mb-2">
                             <div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><Mail size={12} className="text-yellow-500"/> {CONTACT_INFO.binance_email}</div>
                         </div>
@@ -789,7 +789,7 @@ const BinanceAutomatedCheckout = ({ cartTotal, onVerified, onCancel, paypalData 
     );
 };
 
-const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders }) => {
+const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders }) => {
     const [status, setStatus] = useState('idle'); 
     const [invoiceId, setInvoiceId] = useState('');
     const [approveLink, setApproveLink] = useState('');
@@ -800,7 +800,7 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
             const response = await fetch(`${SERVER_URL}/api/create-order`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: cartTotal.toFixed(2) })
+                body: JSON.stringify({ amount: finalTotal.toFixed(2) })
             });
 
             if (!response.ok) throw new Error("Error en servidor al crear orden");
@@ -872,7 +872,7 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
                 <div className="space-y-4">
                     <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20">
                         <p className="text-gray-300 text-sm mb-2">Resumen de Pago:</p>
-                        <p className="text-3xl font-bold text-white">${cartTotal.toFixed(2)}</p>
+                        <p className="text-3xl font-bold text-white">${finalTotal.toFixed(2)}</p>
                         {isExchange && (
                             <div className="mt-2 text-xs text-yellow-500 flex items-center gap-1">
                                 <RefreshCw size={10} /> Incluye dispersión automática a Binance
@@ -950,25 +950,20 @@ const PayPalAutomatedCheckout = ({ cartTotal, onPaymentComplete, isExchange, exc
     );
 };
 
-const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, coupon }) => { // ✅ Added coupon prop
+const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, paypalData, exchangeRate, coupon }) => { // ✅ Added coupon prop
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const executeOrderCreation = async (manualProofData) => {
       const sanitizedItems = cart.map(({ icon, ...rest }) => rest);
       const randomId = Math.floor(100 + Math.random() * 900);
       
-      const safeTotal = cart.reduce((acc, item) => acc + item.price, 0);
-      
-      // ✅ CALCULAR DESCUENTO SI EXISTE CUPÓN
-      let finalTotal = safeTotal;
       let couponData = null;
       
       if (coupon) {
-          finalTotal = safeTotal - (safeTotal * (coupon.percent / 100));
           couponData = {
               code: coupon.code,
               percent: coupon.percent,
-              discountAmount: safeTotal - finalTotal
+              excludedIds: coupon.excludedIds // ✅ GUARDA LAS EXCLUSIONES PARA FUTURA REFERENCIA
           };
       }
 
@@ -1150,20 +1145,22 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
             {coupon ? (
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-300">Subtotal:</span>
-                    <span className="text-gray-400 line-through">${cartTotal.toFixed(2)}</span>
+                    {/* El subtotal tachado se calcula a la inversa del descuento, pero es más fácil mostrar el total original */}
+                    <span className="text-gray-400 line-through">${cart.reduce((acc, i) => acc + i.price, 0).toFixed(2)}</span>
                 </div>
             ) : null}
             
             <div className="flex justify-between items-center text-xl font-bold">
                 <span className="text-white">Total a Pagar:</span>
                 <span className="text-green-400">
-                    ${coupon ? (cartTotal - (cartTotal * (coupon.percent / 100))).toFixed(2) : cartTotal.toFixed(2)}
+                    ${finalTotal.toFixed(2)}
                 </span>
             </div>
             
             {coupon && (
-                <div className="text-xs text-green-300 mt-1 flex items-center gap-1">
-                    <Ticket size={12}/> Cupón aplicado: {coupon.code} (-{coupon.percent}%)
+                <div className="text-xs text-green-300 mt-1 flex flex-col gap-1">
+                    <div className="flex items-center gap-1"><Ticket size={12}/> Cupón aplicado: {coupon.code} (-{coupon.percent}%)</div>
+                    {coupon.excludedIds && coupon.excludedIds.length > 0 && <span className="text-yellow-400 text-[10px]">*Algunos productos no aplican para descuento</span>}
                 </div>
             )}
         </div>
@@ -1172,7 +1169,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, cartTotal, setLastOrd
              <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-600">
                  <p className="text-gray-400 text-xs mb-1 uppercase tracking-wider">Monto en Bolívares (Tasa: {exchangeRate.toFixed(2)})</p>
                  <p className="text-cyan-400 font-bold font-mono text-3xl">
-                     Bs {((coupon ? (cartTotal - (cartTotal * (coupon.percent / 100))) : cartTotal) * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                     Bs {(finalTotal * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                  </p>
              </div>
         )}
@@ -1405,16 +1402,24 @@ const SuccessScreen = ({ lastOrder, setView }) => {
             {/* CORRECCIÓN: Mostramos orderId O id, para que el usuario siempre vea algo */}
             <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.orderId || lastOrder.id}</span></h3>
             <div className="space-y-3 text-left">
-            {lastOrder.rawItems.map((item, i) => (<div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><span className="text-gray-400">${item.price.toFixed(2)}</span></div>))}
+            {lastOrder.rawItems.map((item, i) => {
+                // Determinamos si este item fue excluido del descuento
+                const isExcluded = lastOrder.couponData && lastOrder.couponData.excludedIds && lastOrder.couponData.excludedIds.includes(item.id);
+                return (
+                    <div key={i} className="flex justify-between text-sm text-gray-300">
+                        <span>{item.title}</span>
+                        <div className="text-right">
+                            <span className="text-gray-400">${item.price.toFixed(2)}</span>
+                            {isExcluded && <span className="text-[9px] text-red-400 block">*Sin descuento</span>}
+                        </div>
+                    </div>
+                );
+            })}
             
             {/* LOGICA VISUAL DEL CUPÓN EN RESUMEN */}
             <div className="pt-3 border-t border-gray-700 mt-2">
                 {lastOrder.couponData ? (
                     <>
-                        <div className="flex justify-between text-sm text-gray-400 mb-1">
-                            <span>Subtotal:</span>
-                            <span className="line-through">${(parseFloat(lastOrder.total) / (1 - lastOrder.couponData.percent / 100)).toFixed(2)}</span>
-                        </div>
                         <div className="flex justify-between text-sm text-green-400 mb-1">
                             <span>Cupón ({lastOrder.couponData.code}):</span>
                             <span>-{lastOrder.couponData.percent}%</span>
@@ -1570,8 +1575,28 @@ export default function App() {
   const categories = ['All', ...new Set(SERVICES.map(s => s.category))];
   const addToCart = (service) => { setCart([...cart, service]); setIsCartOpen(true); };
   const removeFromCart = (index) => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart); };
-  const cartTotal = cart.reduce((acc, item) => acc + item.price, 0);
+  // const cartTotal = cart.reduce((acc, item) => acc + item.price, 0); // Removed old calculation
   const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
+
+  // ✅ NUEVA FUNCIÓN PARA CALCULAR TOTAL CON EXCLUSIONES
+  const calculateTotal = (cartItems, appliedCoupon) => {
+      return cartItems.reduce((acc, item) => {
+          // Si el cupón existe Y el item está en su lista de excluidos, NO aplicar descuento
+          if (appliedCoupon && appliedCoupon.excludedIds && appliedCoupon.excludedIds.includes(item.id)) {
+              return acc + item.price;
+          }
+          // Si el cupón existe y NO está excluido, aplicar descuento
+          if (appliedCoupon) {
+              return acc + (item.price * (1 - appliedCoupon.percent / 100));
+          }
+          // Si no hay cupón
+          return acc + item.price;
+      }, 0);
+  };
+
+  // ✅ Calcular totales en tiempo real para renderizado
+  const rawTotal = cart.reduce((acc, item) => acc + item.price, 0);
+  const finalTotal = calculateTotal(cart, coupon);
 
   const handleCheckoutStart = async () => {
     setIsProcessing(true); 
@@ -1595,12 +1620,17 @@ export default function App() {
              
              user: `${paypalData.firstName} ${paypalData.lastName}`, 
              items: cart.map(i => i.title).join(', '),
-             total: cartTotal.toFixed(2),
+             total: finalTotal.toFixed(2), // ✅ USA EL TOTAL FINAL CON EXCLUSIONES
              status: 'FACTURADO (Binance Verified)',
              date: new Date().toISOString(),
              rawItems: sanitizedItems,
              paymentMethod: 'binance_api',
              tasa: 0, montoBs: 0, totalBs: "0.00", amountBs: 0,
+             couponData: coupon ? { // ✅ Guardar info cupón
+                 code: coupon.code,
+                 percent: coupon.percent,
+                 excludedIds: coupon.excludedIds
+             } : null,
              fullData: {
                  email: paypalData.email,
                  phone: paypalData.phone,
@@ -1670,10 +1700,11 @@ export default function App() {
               {/* PASO 2: PAGO (PayPal/Binance/Manual) */}
               {checkoutStep === 2 && (
                   paymentMethod === 'paypal' ? (
-                      <AutomatedFlowWrapper cart={cart} cartTotal={cartTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} />
+                      <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} /> // ✅ Pass finalTotal
                   ) : paymentMethod === 'binance' ? (
                       <BinanceAutomatedCheckout 
-                          cartTotal={cartTotal} 
+                          finalTotal={finalTotal} // ✅ Changed prop name to be clear
+                          cartTotal={finalTotal} // Keep for compatibility just in case, but use logic above
                           paypalData={paypalData} 
                           onVerified={handleBinanceSuccess} 
                           onCancel={() => setCheckoutStep(0)} 
@@ -1683,7 +1714,8 @@ export default function App() {
                         proofData={proofData} 
                         setProofData={setProofData} 
                         cart={cart} 
-                        cartTotal={cartTotal} 
+                        cartTotal={rawTotal} // Pass raw for display if needed
+                        finalTotal={finalTotal} // ✅ Pass final calculated total
                         setLastOrder={setLastOrder} 
                         setCart={setCart} 
                         setCheckoutStep={setCheckoutStep} 
@@ -1763,7 +1795,7 @@ export default function App() {
                   ) : null}
                   <div className="flex justify-between text-xl font-bold text-white mb-4">
                       <span>Total</span>
-                      <span>${coupon ? (cartTotal - (cartTotal * (coupon.percent / 100))).toFixed(2) : cartTotal.toFixed(2)}</span>
+                      <span>${finalTotal.toFixed(2)}</span>
                   </div>
                   <button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button>
               </div>

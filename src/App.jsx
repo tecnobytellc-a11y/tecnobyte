@@ -1813,26 +1813,26 @@ export default function App() {
     canvas.width = 64; canvas.height = 64;
     const ctx = canvas.getContext('2d');
 
-    // SOLUCIÓN AL ERROR DE SEGURIDAD (Tainted Canvas):
-    // En lugar de cargar una imagen externa (que causa el error CORS al exportar),
-    // dibujamos el icono (círculo + iniciales) directamente en el canvas.
+    const img = new Image();
+    img.src = 'unnamed.png'; 
+    img.crossOrigin = 'Anonymous'; 
     
-    // 1. Dibujar círculo de fondo
-    ctx.beginPath();
-    ctx.arc(32, 32, 32, 0, 2 * Math.PI);
-    ctx.fillStyle = '#4f46e5'; // Color índigo (coincide con el tema)
-    ctx.fill();
+    img.onload = () => {
+        try {
+            ctx.beginPath();
+            ctx.arc(32, 32, 32, 0, 2 * Math.PI);
+            ctx.clip(); // Recorte circular
+            ctx.drawImage(img, 0, 0, 64, 64);
+            link.href = canvas.toDataURL();
+        } catch (e) {
+            console.warn("No se pudo generar favicon dinámico (CORS/Tainted):", e);
+        }
+    };
     
-    // 2. Dibujar texto
-    ctx.font = 'bold 24px sans-serif'; // Fuente simple y negrita
-    ctx.fillStyle = '#ffffff'; // Texto blanco
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('TB', 32, 32); // Iniciales "TB" centradas
-    
-    // 3. Exportar a Data URL (ya no causará error porque todo es nativo)
-    link.href = canvas.toDataURL();
-
+    // Fallback visual si falla la carga de la imagen (opcional, pero buena práctica)
+    img.onerror = () => {
+        // Dejar el favicon por defecto o dibujar las iniciales como fallback silencioso
+    };
   }, []);
 
   useEffect(() => {

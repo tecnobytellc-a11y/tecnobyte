@@ -802,7 +802,7 @@ const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, paypalData
     );
 };
 
-const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders }) => {
+const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, paypalData, allOrders, cart, coupon }) => {
     const [status, setStatus] = useState('idle'); 
     const [invoiceId, setInvoiceId] = useState('');
     const [approveLink, setApproveLink] = useState('');
@@ -810,13 +810,22 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
     const handlePayPalPayment = async () => {
         setStatus('processing');
         try {
+            // CORRECCIÓN: Enviar "items" y "couponCode" para que el servidor pueda validar el precio.
+            const payload = {
+                items: cart.map(item => ({ id: item.id, price: item.price })), // Enviamos ID y precio (para custom items)
+                couponCode: coupon ? coupon.code : null
+            };
+
             const response = await fetch(`${SERVER_URL}/api/create-order`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: finalTotal.toFixed(2) })
+                body: JSON.stringify(payload)
             });
 
-            if (!response.ok) throw new Error("Error en servidor al crear orden");
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Error en servidor al crear orden");
+            }
 
             const data = await response.json();
             const link = data.links.find(l => l.rel === "approve");
@@ -1692,8 +1701,8 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
 };
 
 // --- WRAPPER FALTANTE (Agregado para evitar crash) ---
-const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart }) => {
-    // Simulación de wrapper para el flujo de paypal
+const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart, cart, coupon }) => {
+    // CORRECCIÓN: Se agregaron props 'cart' y 'coupon' para pasarlos a PayPalAutomatedCheckout
     return (
         <PayPalAutomatedCheckout 
             finalTotal={cartTotal} 
@@ -1710,7 +1719,9 @@ const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastO
                 setCart([]);
                 setCheckoutStep(3);
             }} 
-            isExchange={false} 
+            isExchange={false}
+            cart={cart}     // PASAMOS EL CARRITO
+            coupon={coupon} // PASAMOS EL CUPÓN
         />
     );
 };
@@ -1992,11 +2003,19 @@ export default function App() {
               {/* PASO 2: PAGO (PayPal/Binance/Manual) */}
               {checkoutStep === 2 && (
                   paymentMethod === 'paypal' ? (
-                      <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} /> // ✅ Pass finalTotal
+                      <AutomatedFlowWrapper 
+                        cart={cart} // ✅ IMPORTANTE: Se agregó la prop cart
+                        cartTotal={finalTotal} 
+                        setLastOrder={setLastOrder} 
+                        setCart={setCart} 
+                        setCheckoutStep={setCheckoutStep} 
+                        paypalData={paypalData} 
+                        coupon={coupon} // ✅ IMPORTANTE: Se agregó la prop coupon
+                      /> 
                   ) : paymentMethod === 'binance' ? (
                       <BinanceAutomatedCheckout 
-                          finalTotal={finalTotal} // ✅ Changed prop name to be clear
-                          cartTotal={finalTotal} // Keep for compatibility just in case, but use logic above
+                          finalTotal={finalTotal} 
+                          cartTotal={finalTotal} 
                           paypalData={paypalData} 
                           onVerified={handleBinanceSuccess} 
                           onCancel={() => setCheckoutStep(0)} 

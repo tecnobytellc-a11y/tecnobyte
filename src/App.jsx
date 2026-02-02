@@ -5,11 +5,29 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DEL SERVIDOR PRIVADO ---
 const SERVER_URL = "https://api-paypal-secure.vercel.app";
+
+// --- MAPA DE ICONOS (Para mapear Strings del servidor a Componentes) ---
+const ICON_MAP = {
+    'MessageSquare': MessageSquare,
+    'CreditCard': CreditCard,
+    'RefreshCw': RefreshCw,
+    'Gamepad2': Gamepad2,
+    'Zap': Zap,
+    'Tv': Tv,
+    'Music': Music,
+    'Smartphone': Smartphone
+};
+
+// Componente para renderizar iconos dinámicamente
+const DynamicIcon = ({ name, className }) => {
+    const IconComponent = ICON_MAP[name] || HelpCircle;
+    return <IconComponent className={className} />;
+};
 
 // --- DATOS LEGALES ---
 const TERMS_CONTENT = `TÉRMINOS Y CONDICIONES DE USO
@@ -223,31 +241,7 @@ const RATE_API_CONFIG = {
 
 const INITIAL_RATE_BS = 570.00;
 
-const SERVICES = [
-  { id: 1, category: 'Virtual Numbers', title: 'WhatsApp Number', price: 2.05, icon: <MessageSquare />, description: 'Número virtual privado para verificación de WhatsApp.' },
-  { id: 2, category: 'Virtual Numbers', title: 'Telegram Number', price: 1.85, icon: <MessageSquare />, description: 'Verificación segura para Telegram.' },
-  { id: 3, category: 'Virtual Numbers', title: 'PayPal/Banks Number', price: 1.30, icon: <CreditCard />, description: 'Para recibir SMS de bancos y PayPal.' },
-  
-  { id: 4, category: 'Exchange', title: 'Cambio PayPal a USDT', price: 0, icon: <RefreshCw />, description: 'Recibe USDT netos (Binance Pay/BEP20).', type: 'usdt' },
-  { id: 5, category: 'Exchange', title: 'Cambio PayPal a Bs', price: 0, icon: <RefreshCw />, description: 'Recibe Bolívares en tu banco nacional.', type: 'bs' },
-  
-  { id: 6, category: 'Gaming', title: 'Recarga Free Fire (100 Diamantes)', price: 1.25, icon: <Gamepad2 />, description: 'Recarga directa vía ID.' },
-  { id: 7, category: 'Gaming', title: 'Recarga Roblox (400 Robux)', price: 5.50, icon: <Gamepad2 />, description: 'Tarjeta de regalo o recarga directa.' },
-  { id: 8, category: 'Gaming', title: 'COD Mobile Points (880 CP)', price: 10.90, icon: <Gamepad2 />, description: 'Call of Duty Mobile CP.' },
-  { id: 9, category: 'Membership', title: 'PS Plus Deluxe (1 Mes)', price: 15.45, icon: <Gamepad2 />, description: 'Acceso total a clásicos y catálogo de juegos.' },
-  { id: 10, category: 'Membership', title: 'PS Plus Extra (1 Mes)', price: 14.10, icon: <Gamepad2 />, description: 'Catálogo de juegos de PS4 y PS5.' },
-  { id: 11, category: 'Gift Cards', title: 'Amazon Gift Card $10', price: 11.00, icon: <CreditCard />, description: 'Código canjeable Región USA.' },
-  { id: 12, category: 'Services', title: 'ChatBot PyME', price: 5.00, icon: <Zap />, description: 'Automatización básica para WhatsApp Business.' },
-
-  // --- STREAMING ---
-  { id: 13, category: 'Streaming', title: 'Netflix (1 Mes)', price: 4.00, icon: <Tv />, description: 'Cuenta renovable 1 Pantalla Ultra HD.', providerId: 26 }, 
-  { id: 14, category: 'Streaming', title: 'Amazon Prime Video', price: 3.00, icon: <Tv />, description: 'Membresía mensual con acceso completo.', providerId: 25 },
-  { id: 15, category: 'Streaming', title: 'HBO Max (Max)', price: 2.55, icon: <Tv />, description: 'Disfruta de todas las series y películas de Max.', providerId: 9 },
-  { id: 16, category: 'Streaming', title: 'Disney+ Premium', price: 3.00, icon: <Tv />, description: 'Acceso total al contenido de Disney.', providerId: 11 },
-  { id: 17, category: 'Streaming', title: 'Crunchyroll Mega Fan', price: 1.50, icon: <Tv />, description: 'Anime sin anuncios y modo offline.', providerId: 13 },
-  { id: 18, category: 'Streaming', title: 'YouTube Premium', price: 3.50, icon: <Tv />, description: 'Videos sin publicidad, segundo plano y Music.', providerId: 23 },
-  { id: 19, category: 'Streaming', title: 'Spotify Premium (3 Meses)', price: 7.00, icon: <Music />, description: 'Música sin interrupciones, cuenta individual.', providerId: 24 },
-];
+// 🛑 CATALOGO ELIMINADO LOCALMENTE - SE OBTIENE DEL SERVIDOR
 
 const CONTACT_INFO = {
   whatsapp: "+19047400467",
@@ -645,7 +639,9 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
         )}
 
         <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center text-indigo-400">{service.icon}</div>
+            <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center text-indigo-400">
+                <DynamicIcon name={service.icon} />
+            </div>
             <div>
                 <h3 className="text-lg font-bold text-white leading-tight">{service.title}</h3>
                 <p className="text-xs text-indigo-400 font-mono">Fee: 13.60% + $0.47</p>
@@ -1428,278 +1424,6 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
     );
 };
 
-const SuccessScreen = ({ lastOrder, setView }) => {
-  const handleDownloadInvoice = () => {
-    // Verificar si jsPDF está cargado, si no, cargarlo dinámicamente
-    if (!window.jspdf) {
-      const script = document.createElement('script');
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      script.onload = () => createPDF();
-      document.body.appendChild(script);
-    } else {
-      createPDF();
-    }
-
-    const createPDF = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const primaryColor = [79, 70, 229]; // Indigo
-
-        // HEADER
-        doc.setFillColor(...primaryColor);
-        doc.rect(0, 0, 210, 40, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.setFont("helvetica", "bold");
-        doc.text("TECNOBYTE LLC", 20, 25);
-        
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "normal");
-        doc.text("Comprobante Digital", 150, 25);
-
-        // INFO CLIENTE / ORDEN
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(10);
-        doc.text(`Fecha: ${new Date(lastOrder.date).toLocaleString()}`, 20, 55);
-        doc.text(`Orden ID: ${lastOrder.orderId || lastOrder.id}`, 20, 62);
-        doc.text(`Estado: ${lastOrder.status}`, 20, 69);
-        
-        doc.text(`Cliente: ${lastOrder.user}`, 120, 55);
-        doc.text(`Email: ${lastOrder.fullData?.email || 'N/A'}`, 120, 62);
-        doc.text(`Método: ${lastOrder.paymentMethod}`, 120, 69);
-
-        // DIVIDER
-        doc.setDrawColor(200, 200, 200);
-        doc.line(20, 75, 190, 75);
-
-        // TABLA DE ITEMS
-        let y = 90;
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.text("Descripción", 20, y);
-        doc.text("Precio", 170, y, { align: "right" });
-        
-        y += 10;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        
-        lastOrder.rawItems.forEach(item => {
-            const title = item.title.length > 50 ? item.title.substring(0, 50) + '...' : item.title;
-            doc.text(title, 20, y);
-            doc.text(`$${item.price.toFixed(2)}`, 170, y, { align: "right" });
-            y += 8;
-        });
-
-        // SUMMARY DIVIDER
-        y += 5;
-        doc.line(20, y, 190, y);
-        y += 10;
-
-        // TOTALS & COUPONS
-        if (lastOrder.couponData) {
-             doc.text(`Cupón (${lastOrder.couponData.code}):`, 120, y);
-             doc.text(`-${lastOrder.couponData.percent}%`, 170, y, { align: "right" });
-             y += 7;
-        }
-        
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("TOTAL PAGADO:", 120, y);
-        doc.text(`$${lastOrder.total}`, 170, y, { align: "right" });
-
-        // FOOTER
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "italic");
-        doc.setTextColor(100, 100, 100);
-        doc.text("Gracias por su compra. Este documento es un comprobante digital válido.", 105, 275, { align: "center" });
-        doc.text("Soporte: support@tecnobytellc.zendesk.com", 105, 280, { align: "center" });
-        doc.text("+1 (904) 740-0467", 105, 285, { align: "center" });
-
-        doc.save(`Factura_${lastOrder.orderId || 'TecnoByte'}.pdf`);
-    };
-  };
-
-  return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-scale-in">
-        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]"><Check className="w-12 h-12 text-white" strokeWidth={3} /></div>
-        <h2 className="text-4xl font-bold text-white mb-4">¡Gracias por tu Compra!</h2>
-        <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido recibido correctamente. Tu producto o servicio será entregado pronto vía WhatsApp al número proporcionado.</p>
-        {lastOrder && (
-        <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 max-w-md w-full mb-8 shadow-2xl">
-            {/* CORRECCIÓN: Mostramos orderId O id, para que el usuario siempre vea algo */}
-            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.orderId || lastOrder.id}</span></h3>
-            <div className="space-y-3 text-left">
-            {lastOrder.rawItems.map((item, i) => {
-                // Determinamos si este item fue excluido del descuento
-                const isExcluded = lastOrder.couponData && lastOrder.couponData.excludedIds && lastOrder.couponData.excludedIds.includes(item.id);
-                return (
-                    <div key={i} className="flex justify-between text-sm text-gray-300">
-                        <span>{item.title}</span>
-                        <div className="text-right">
-                            <span className="text-gray-400">${item.price.toFixed(2)}</span>
-                            {isExcluded && <span className="text-[9px] text-red-400 block">*Sin descuento</span>}
-                        </div>
-                    </div>
-                );
-            })}
-            
-            {/* LOGICA VISUAL DEL CUPÓN EN RESUMEN */}
-            <div className="pt-3 border-t border-gray-700 mt-2">
-                {lastOrder.couponData ? (
-                    <>
-                        <div className="flex justify-between text-sm text-green-400 mb-1">
-                            <span>Cupón ({lastOrder.couponData.code}):</span>
-                            <span>-{lastOrder.couponData.percent}%</span>
-                        </div>
-                        <div className="flex justify-between text-white font-bold text-lg mt-2 pt-2 border-t border-gray-800">
-                            <span>Total Pagado:</span>
-                            <span className="text-green-400">${lastOrder.total}</span>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex justify-between text-white font-bold text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div>
-                )}
-            </div>
-
-            {lastOrder.fullData?.streamingAccount && (
-                <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left">
-                    <p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p>
-                    <div className="space-y-1 font-mono text-sm">
-                        <div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>
-                        {lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}
-                    </div>
-                </div>
-            )}
-            {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
-            </div>
-        </div>
-        )}
-        <div className="flex flex-col gap-3 w-full max-w-md">
-            <a href="https://wa.me/19047400467" target="_blank" rel="noopener noreferrer" className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"><MessageSquare size={20} /> Hablar con Nosotros</a>
-            <button onClick={handleDownloadInvoice} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl border border-indigo-500 flex items-center justify-center gap-2 transition-colors shadow-lg"><Download size={20} /> Descargar Factura (PDF)</button>
-        </div>
-        <button onClick={() => setView('home')} className="mt-8 text-gray-500 hover:text-white underline">Volver al inicio</button>
-    </div>
-  );
-};
-
-// --- COMPONENTE FALTANTE (Reemplazado por la versión original de App (28).jsx) ---
-const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy }) => {
-  const idDocRef = useRef(null);
-  const isBinance = paymentMethod === 'binance';
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        if (file.size > 500 * 1024) { // 500KB limit
-            alert("El documento es demasiado pesado (Máx 500KB). Por favor comprímelo.");
-            e.target.value = "";
-            return;
-        }
-        setPaypalData({ ...paypalData, idDoc: file });
-    }
-  };
-
-  const handleSubmit = (e) => { 
-      e.preventDefault(); 
-      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { 
-          alert("Por favor completa todos los campos de texto."); 
-          return; 
-      } 
-      if (!isBinance && !paypalData.idDoc) {
-          alert("Debes cargar la foto de tu documento de identidad para continuar.");
-          return;
-      }
-      setCheckoutStep(2); 
-  };
-  
-  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc) && acceptedTerms;
-
-  return (
-    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
-      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
-      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
-          <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
-        </div>
-        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
-        
-        {!isBinance && (
-            <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
-                <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
-                <div 
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} 
-                    onClick={() => idDocRef.current.click()}
-                >
-                    <input 
-                        type="file" 
-                        ref={idDocRef} 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleFileChange} 
-                    />
-                    {paypalData.idDoc ? (
-                        <div className="flex flex-col items-center text-green-400">
-                            <FileCheck size={32} className="mb-2" />
-                            <p className="font-bold text-sm">Documento Cargado</p>
-                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p>
-                            <button 
-                                type="button" 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPaypalData({...paypalData, idDoc: null});
-                                    if(idDocRef.current) idDocRef.current.value = "";
-                                }} 
-                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
-                            >
-                                Cambiar archivo
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center text-gray-400">
-                            <ImageIcon size={32} className="mb-2 opacity-50" />
-                            <p className="font-bold text-sm text-white">Subir Foto Documento ID</p>
-                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 500KB)</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
-
-        <div className="flex items-center gap-2 mt-4">
-            <input 
-                type="checkbox" 
-                id="terms-checkbox-paypal" 
-                checked={acceptedTerms} 
-                onChange={(e) => setAcceptedTerms(e.target.checked)} 
-                className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" 
-            />
-            <label htmlFor="terms-checkbox-paypal" className="text-sm text-gray-400">
-                He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.
-            </label>
-        </div>
-
-        <button 
-            type="submit" 
-            disabled={!isFormValid}
-            className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all
-                ${isFormValid 
-                    ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') 
-                    : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'
-                }`}
-        >
-            Continuar al Pago <ArrowRight size={20} />
-        </button>
-      </form>
-    </div>
-  );
-};
-
 // --- WRAPPER FALTANTE (Agregado para evitar crash) ---
 const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart, cart, coupon }) => {
     // CORRECCIÓN: Se agregaron props 'cart' y 'coupon' para pasarlos a PayPalAutomatedCheckout
@@ -1743,6 +1467,8 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false); // ✅ ESTADO PARA MODAL PRIVACIDAD
   const [coupon, setCoupon] = useState(null); // ✅ ESTADO PARA EL CUPÓN
   const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); // ✅ NUEVO ESTADO DE CARGA DE SEGURIDAD
+  const [services, setServices] = useState([]); // ✅ AHORA LOS SERVICIOS SON UN ESTADO
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true); // ✅ NUEVO ESTADO PARA CATALOGO
 
   const getIsExchangeOpen = () => {
     const now = new Date();
@@ -1753,63 +1479,71 @@ export default function App() {
   };
   const isExchangeAvailable = getIsExchangeOpen();
 
-  // --- FIREWALL & VPN DETECTION (Sin Firebase) ---
+  // --- FIREWALL & CATALOG FETCH ---
   useEffect(() => {
-    const checkSecurity = async () => {
+    const checkSecurityAndFetchCatalog = async () => {
         try {
             // 1. Obtener IP y datos
-            // CHANGED: ipapi.co -> ipwho.is
             const res = await fetch('https://ipwho.is/'); 
             const ipData = await res.json();
             
-            // Check for success (ipwho.is returns {success: false, message: ...} on error)
+            // Si hay error en IP, no bloqueamos (Fail Open)
             if (!ipData.success) {
                 console.warn("IP Check skipped:", ipData.message);
-                setIsLoadingSecurity(false); // ✅ Desbloqueamos si la API de IP falla (Fail Open)
-                return;
+            } else {
+                const userIp = ipData.ip;
+                const org = (ipData.connection?.org || ipData.connection?.isp || "").toLowerCase();
+                const asn = (ipData.connection?.asn || "").toString().toLowerCase(); 
+
+                // 2. DETECCIÓN DE VPN LOCAL
+                const vpnKeywords = ["vpn", "proxy", "hosting", "cloud", "datacenter", "digitalocean", "aws", "amazon", "google", "microsoft", "azure", "oracle", "hetzner", "ovh", "choopa", "m247", "linode", "vultr"];
+                const isSuspicious = vpnKeywords.some(keyword => org.includes(keyword) || asn.includes(keyword));
+
+                if (isSuspicious) {
+                    setIsBlocked(true);
+                    reportSuspiciousIP(ipData, `Auto-Detect VPN: ${ipData.org}`);
+                    setIsLoadingSecurity(false);
+                    return; // Detenemos aquí si es sospechoso
+                }
+
+                // 3. CONSULTAR BLACKLIST
+                try {
+                    const checkRes = await fetch(`${SERVER_URL}/api/check-ip?ip=${userIp}`);
+                    if (checkRes.ok) {
+                        const checkData = await checkRes.json();
+                        if (checkData.blocked) {
+                            setIsBlocked(true);
+                            setIsLoadingSecurity(false);
+                            return;
+                        }
+                    }
+                } catch (err) { /* Servidor caído, continuamos */ }
             }
-
-            const userIp = ipData.ip;
-            // ipwho.is structure: connection.isp, connection.org, connection.asn
-            const org = (ipData.connection?.org || ipData.connection?.isp || "").toLowerCase();
-            const asn = (ipData.connection?.asn || "").toString().toLowerCase(); 
-
-            // 2. DETECCIÓN DE VPN (Heurística Local)
-            const vpnKeywords = ["vpn", "proxy", "hosting", "cloud", "datacenter", "digitalocean", "aws", "amazon", "google", "microsoft", "azure", "oracle", "hetzner", "ovh", "choopa", "m247", "linode", "vultr"];
-            const isSuspicious = vpnKeywords.some(keyword => org.includes(keyword) || asn.includes(keyword));
-
-            if (isSuspicious) {
-                console.warn("VPN Detected: Blocking...");
-                setIsBlocked(true);
-                // Reportar al servidor para que lo guarde en la Blacklist
-                reportSuspiciousIP(ipData, `Auto-Detect VPN: ${ipData.org}`);
-                setIsLoadingSecurity(false); // ✅ Dejamos de cargar para mostrar el bloqueo
-                return;
-            }
-
-            // 3. CONSULTAR BLACKLIST AL SERVIDOR
+            
+            // 4. 🔥 OBTENER EL CATÁLOGO DEL SERVIDOR (Solo si pasó la seguridad)
             try {
-                const checkRes = await fetch(`${SERVER_URL}/api/check-ip?ip=${userIp}`);
-                // Only try to parse JSON if status is ok (200-299)
-                if (checkRes.ok) {
-                    const checkData = await checkRes.json();
-                    if (checkData.blocked) {
-                        setIsBlocked(true);
+                const catalogRes = await fetch(`${SERVER_URL}/api/get-catalog`);
+                if (catalogRes.ok) {
+                    const catalogData = await catalogRes.json();
+                    if (catalogData.success && Array.isArray(catalogData.catalog)) {
+                        setServices(catalogData.catalog);
                     }
                 }
             } catch (err) {
-                // Si el servidor falla, confiamos en la detección local
+                console.error("Error fetching catalog", err);
+                // Si falla el servidor, la lista queda vacía (como solicitaste: "eliminalos")
             }
 
         } catch (error) {
-            console.warn("Security Check Failed (Non-critical):", error);
+            console.warn("Security/Catalog Check Failed:", error);
         } finally {
-            // ✅ SIEMPRE detener la carga al final de la verificación
+            // ✅ DETENEMOS AMBAS CARGAS
             setIsLoadingSecurity(false);
+            setIsLoadingCatalog(false);
         }
     };
 
-    checkSecurity();
+    checkSecurityAndFetchCatalog();
   }, []);
 
   useEffect(() => {
@@ -1840,10 +1574,7 @@ export default function App() {
         }
     };
     
-    // Fallback visual si falla la carga de la imagen (opcional, pero buena práctica)
-    img.onerror = () => {
-        // Dejar el favicon por defecto o dibujar las iniciales como fallback silencioso
-    };
+    img.onerror = () => { };
   }, []);
 
   useEffect(() => {
@@ -1862,13 +1593,13 @@ export default function App() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // ✅ PANTALLA DE CARGA DE SEGURIDAD (ANTES DE TODO)
-  if (isLoadingSecurity) {
+  // ✅ PANTALLA DE CARGA (SEGURIDAD + CATALOGO)
+  if (isLoadingSecurity || isLoadingCatalog) {
       return (
           <div className="fixed inset-0 bg-[#0a0a12] flex flex-col items-center justify-center z-[100]">
               <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <h2 className="text-white font-orbitron text-xl tracking-widest animate-pulse">CARGANDO FRONTEND</h2>
-              <p className="text-gray-500 text-xs mt-2 font-mono">Verificando entorno seguro...</p>
+              <h2 className="text-white font-orbitron text-xl tracking-widest animate-pulse">CARGANDO TIENDA</h2>
+              <p className="text-gray-500 text-xs mt-2 font-mono">Conectando con el servidor...</p>
           </div>
       );
   }
@@ -1878,11 +1609,11 @@ export default function App() {
       return <BlockedScreen />;
   }
 
-  const categories = ['All', ...new Set(SERVICES.map(s => s.category))];
+  // ✅ Usamos 'services' (estado) en lugar de 'SERVICES' (constante)
+  const categories = ['All', ...new Set(services.map(s => s.category))];
   const addToCart = (service) => { setCart([...cart, service]); setIsCartOpen(true); };
   const removeFromCart = (index) => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart); };
-  // const cartTotal = cart.reduce((acc, item) => acc + item.price, 0); // Removed old calculation
-  const filteredServices = activeCategory === 'All' ? SERVICES : SERVICES.filter(s => s.category === activeCategory);
+  const filteredServices = activeCategory === 'All' ? services : services.filter(s => s.category === activeCategory);
 
   // ✅ NUEVA FUNCIÓN PARA CALCULAR TOTAL CON EXCLUSIONES
   const calculateTotal = (cartItems, appliedCoupon) => {
@@ -2057,7 +1788,9 @@ export default function App() {
                   ) : (
                       <div key={service.id} className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
                       <div>
-                          <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">{service.icon}</div>
+                          <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">
+                              <DynamicIcon name={service.icon} />
+                          </div>
                           <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
                           <p className="text-gray-400 text-sm mb-4">{service.description}</p>
                       </div>

@@ -8,11 +8,9 @@ import {
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle
 } from 'lucide-react';
 
-// --- CONFIGURACIÓN DEL SERVIDOR PRIVADO ---
 const SERVER_URL = "https://api-paypal-secure.vercel.app";
 
 // --- MAPEO DE ICONOS ---
-// Esto permite que el diseño original funcione aunque los datos vengan del servidor
 const ICON_MAP = {
     'MessageSquare': MessageSquare, 'CreditCard': CreditCard, 'RefreshCw': RefreshCw,
     'Gamepad2': Gamepad2, 'Zap': Zap, 'Tv': Tv, 'Music': Music, 'Smartphone': Smartphone,
@@ -20,14 +18,22 @@ const ICON_MAP = {
 };
 
 const DynamicIcon = ({ name, className }) => {
-    // Si el nombre es un string (del servidor), usa el mapa. Si es componente (local), úsalo directo.
     const IconComponent = typeof name === 'string' ? (ICON_MAP[name] || HelpCircle) : HelpCircle;
-    // Si name ya es un elemento React (ej: <Gamepad2 /> del código legacy), retornarlo
+    // Si por alguna razón sigue llegando un objeto React (legacy), lo renderiza directo
     if (React.isValidElement(name)) return name;
     return <IconComponent className={className} />;
 };
 
-// --- ESTILOS GLOBALES (INTEGRADOS PARA EVITAR ERROR DE IMPORT) ---
+const RATE_API_CONFIG = { url: "https://api-secure-server.vercel.app/api/get-tasa", intervalMinutes: 0.1 };
+const INITIAL_RATE_BS = 570.00;
+
+// VALORES POR DEFECTO (Para carga inicial suave)
+const DEFAULT_CONTACT_INFO = {
+  whatsapp: "+19047400467", whatsapp_display: "Cargando...", email: "...", binance_email: "...", binance_pay_id: "...", 
+  pagomovil: { bank: "", id: "", phone: "" }, transfer_bs: { bank: "", account: "", id: "" },
+  transfer_usd: { bank: "", account: "", routing: "" }, facebank: { account: "" }, pipolpay: { email: "" }
+};
+
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
   .font-orbitron { font-family: 'Orbitron', sans-serif; }
@@ -46,16 +52,6 @@ const globalStyles = `
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
   .blocked-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; z-index: 99999999; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 `;
-
-const RATE_API_CONFIG = { url: "https://api-secure-server.vercel.app/api/get-tasa", intervalMinutes: 0.1 };
-const INITIAL_RATE_BS = 570.00;
-
-// VALORES POR DEFECTO (Para evitar pantallazos blancos mientras carga el servidor)
-const DEFAULT_CONTACT = {
-  whatsapp: "+19047400467", whatsapp_display: "Cargando...", email: "...", binance_email: "...", binance_pay_id: "...", 
-  pagomovil: { bank: "", id: "", phone: "" }, transfer_bs: { bank: "", account: "", id: "" },
-  transfer_usd: { bank: "", account: "", routing: "" }, facebank: { account: "" }, pipolpay: { email: "" }
-};
 
 const TikTokIcon = () => ( <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg> );
 
@@ -118,9 +114,9 @@ const LegalModal = ({ isOpen, onClose, title, content }) => {
   );
 };
 
-const Navbar = ({ cartCount, onOpenCart, setView }) => ( <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.3)]"><div className="max-w-7xl mx-auto px-4"><div className="flex items-center justify-between h-20"><div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}><div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-indigo-400 shadow-lg group"><img src="unnamed.png" alt="TB" className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=TB&background=4f46e5&color=fff"; }} /></div><span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-500 font-orbitron">TECNOBYTE</span></div><div className="relative group cursor-pointer" onClick={onOpenCart}><ShoppingCart className="w-7 h-7 text-gray-300 group-hover:text-cyan-400 transition-colors" />{cartCount > 0 && <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-bounce">{cartCount}</span>}</div></div></div></nav> );
+const Navbar = ({ cartCount, onOpenCart, setView }) => ( <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.3)]"><div className="max-w-7xl mx-auto px-4"><div className="flex items-center justify-between h-20"><div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}><div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-indigo-400 shadow-lg group"><img src="unnamed.png" alt="TB" className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=TB&background=4f46e5&color=fff"; }} /></div><span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-500 font-orbitron">TECNOBYTE</span></div><div className="relative group cursor-pointer" onClick={onOpenCart}><ShoppingCart className="w-7 h-7 text-gray-300 group-hover:text-cyan-400 transition-colors" />{cartCount > 0 && <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cartCount}</span>}</div></div></div></nav> );
 
-// --- COMPONENTE HERO RESTAURADO CON RELOJ ---
+// --- COMPONENTE HERO RESTAURADO CON RELOJ DE VENEZUELA ---
 const Hero = ({ exchangeRate }) => {
   const [date, setDate] = useState(new Date());
   useEffect(() => { const timer = setInterval(() => setDate(new Date()), 1000); return () => clearInterval(timer); }, []);
@@ -311,7 +307,7 @@ const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastO
 
 export default function App() {
   const [view, setView] = useState('home'); const [cart, setCart] = useState([]); const [isCartOpen, setIsCartOpen] = useState(false); const [activeCategory, setActiveCategory] = useState('All'); const [lastOrder, setLastOrder] = useState(null); const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); const [checkoutStep, setCheckoutStep] = useState(0); const [paymentMethod, setPaymentMethod] = useState(null); const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', idDoc: null }); const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null }); const [isProcessing, setIsProcessing] = useState(false); const [isBlocked, setIsBlocked] = useState(false); const [showTerms, setShowTerms] = useState(false); const [showPrivacy, setShowPrivacy] = useState(false); const [coupon, setCoupon] = useState(null); const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); const [services, setServices] = useState([]); const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
-  const [contactInfo, setContactInfo] = useState(DEFAULT_CONTACT); const [legalInfo, setLegalInfo] = useState({ terms: "Cargando...", privacy: "Cargando..." }); const [socialLinks, setSocialLinks] = useState({ tiktok: "#", instagram: "#", facebook: "#" });
+  const [contactInfo, setContactInfo] = useState(DEFAULT_CONTACT_INFO); const [legalInfo, setLegalInfo] = useState({ terms: "Cargando...", privacy: "Cargando..." }); const [socialLinks, setSocialLinks] = useState({ tiktok: "#", instagram: "#", facebook: "#" });
 
   const isExchangeAvailable = (() => { const now = new Date(); const venDate = new Date(now.toLocaleString("en-US", {timeZone: "America/Caracas"})); const day = venDate.getDay(); return day >= 1 && day <= 4; })();
 

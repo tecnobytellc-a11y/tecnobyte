@@ -1,4 +1,3 @@
-import './styles.css';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingCart, Gamepad2, CreditCard, MessageSquare, 
@@ -19,7 +18,6 @@ const ICON_MAP = {
 
 const DynamicIcon = ({ name, className }) => {
     const IconComponent = typeof name === 'string' ? (ICON_MAP[name] || HelpCircle) : HelpCircle;
-    // Si por alguna razón sigue llegando un objeto React (legacy), lo renderiza directo
     if (React.isValidElement(name)) return name;
     return <IconComponent className={className} />;
 };
@@ -27,7 +25,7 @@ const DynamicIcon = ({ name, className }) => {
 const RATE_API_CONFIG = { url: "https://api-secure-server.vercel.app/api/get-tasa", intervalMinutes: 0.1 };
 const INITIAL_RATE_BS = 570.00;
 
-// VALORES POR DEFECTO (Para carga inicial suave)
+// VALORES POR DEFECTO
 const DEFAULT_CONTACT_INFO = {
   whatsapp: "+19047400467", whatsapp_display: "Cargando...", email: "...", binance_email: "...", binance_pay_id: "...", 
   pagomovil: { bank: "", id: "", phone: "" }, transfer_bs: { bank: "", account: "", id: "" },
@@ -116,7 +114,6 @@ const LegalModal = ({ isOpen, onClose, title, content }) => {
 
 const Navbar = ({ cartCount, onOpenCart, setView }) => ( <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.3)]"><div className="max-w-7xl mx-auto px-4"><div className="flex items-center justify-between h-20"><div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}><div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-indigo-400 shadow-lg group"><img src="unnamed.png" alt="TB" className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=TB&background=4f46e5&color=fff"; }} /></div><span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-500 font-orbitron">TECNOBYTE</span></div><div className="relative group cursor-pointer" onClick={onOpenCart}><ShoppingCart className="w-7 h-7 text-gray-300 group-hover:text-cyan-400 transition-colors" />{cartCount > 0 && <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cartCount}</span>}</div></div></div></nav> );
 
-// --- COMPONENTE HERO RESTAURADO CON RELOJ DE VENEZUELA ---
 const Hero = ({ exchangeRate }) => {
   const [date, setDate] = useState(new Date());
   useEffect(() => { const timer = setInterval(() => setDate(new Date()), 1000); return () => clearInterval(timer); }, []);
@@ -196,6 +193,7 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
 
 const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, exchangeRate, coupon, contactInfo, openTerms, openPrivacy }) => {
   const [isSubmitting, setIsSubmitting] = useState(false); const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
   const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: `ORD-${Math.floor(100+Math.random()*900)}`, visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
 
   return (

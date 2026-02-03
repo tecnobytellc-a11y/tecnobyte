@@ -8,15 +8,12 @@ import {
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle
 } from 'lucide-react';
 
-// --- CONFIGURACIÓN DE SERVIDORES ---
 const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
 const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa"; 
 
-// Configuración de límites
 const MAX_FILE_SIZE_MB = 1;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// --- MAPEO DE ICONOS ---
 const ICON_MAP = {
     'MessageSquare': MessageSquare, 'CreditCard': CreditCard, 'RefreshCw': RefreshCw,
     'Gamepad2': Gamepad2, 'Zap': Zap, 'Tv': Tv, 'Music': Music, 'Smartphone': Smartphone,
@@ -32,9 +29,8 @@ const DynamicIcon = ({ name, className }) => {
 const RATE_API_CONFIG = { url: RATE_API_URL, intervalMinutes: 0.1 };
 const INITIAL_RATE_BS = 570.00;
 
-// VALORES POR DEFECTO
 const DEFAULT_CONTACT_INFO = {
-  whatsapp: "+19047400467", whatsapp_display: "Cargando...", email: "...", binance_email: "...", binance_pay_id: "...", 
+  whatsapp: "+19047400467", whatsapp_display: "Cargando...", email: "...", binance_email: "...", binance_pay_id: "...", deposit_address: "Cargando...",
   pagomovil: { bank: "", id: "", phone: "" }, transfer_bs: { bank: "", account: "", id: "" },
   transfer_usd: { bank: "", account: "", routing: "" }, facebank: { account: "" }, pipolpay: { email: "" }
 };
@@ -85,14 +81,11 @@ const submitOrderToPrivateServer = async (order) => {
 
 const reportSuspiciousIP = async (ipData, reason) => { try { await fetch(`${SERVER_URL}/api/report-ip`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip: ipData.ip, reason, geo: ipData.country, detectedAt: new Date().toISOString() }) }); } catch (e) {} };
 
-// --- FUNCIÓN DE ENTREGA AUTOMÁTICA MEJORADA ---
 const processStreamingPurchase = async (finalOrder) => {
     const streamingItems = finalOrder.rawItems.filter(item => item.providerId && item.providerId > 0);
-    
     if (streamingItems.length > 0) {
         const accountsDelivered = [];
         let deliverySuccess = false;
-
         for (const item of streamingItems) {
             try {
                 const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_id: item.providerId }) });
@@ -103,14 +96,12 @@ const processStreamingPurchase = async (finalOrder) => {
                 }
             } catch (error) { console.error(`Error auto-streaming:`, error); }
         }
-
         if (deliverySuccess) {
              finalOrder.fullData.streamingAccounts = accountsDelivered;
              finalOrder.fullData.streamingAccount = accountsDelivered[0];
              finalOrder.status = "ENTREGADO AUTOMÁTICAMENTE";
              finalOrder.deliveryStatus = "SUCCESS";
         } else {
-             // El pago es real, pero falló el proveedor de streaming
              finalOrder.status = "PAGADO (Pendiente Entrega Manual)"; 
              finalOrder.deliveryStatus = "FAILED_PROVIDER";
              finalOrder.fullData.deliveryNote = "El pago fue verificado correctamente, pero hubo un error conectando con el proveedor de cuentas. Contacte soporte para entrega manual.";
@@ -198,7 +189,6 @@ const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInf
             
             if (result.success) { 
                 setStatus('success'); 
-                // SOLO PROCEDEMOS SI EL BACKEND CONFIRMA QUE EL PAGO ES REAL
                 setTimeout(() => onVerified(transactionId), 2000); 
             } else { 
                 alert(result.message); 
@@ -217,6 +207,98 @@ const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInf
              {status === 'success' ? <div className="text-center py-10 animate-scale-in"><div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(34,197,94,0.6)]"><Check className="w-10 h-10 text-white" strokeWidth={4} /></div><h4 className="text-2xl font-bold text-white">¡Pago Verificado!</h4><p className="text-yellow-500 text-xs mt-2">Procesando entrega automática...</p></div> : (
                 <div className="space-y-6 relative z-10"><div className="bg-gray-800/50 p-4 rounded-lg border border-dashed border-gray-700 text-center"><p className="text-gray-400 text-xs mb-2">Envía exactamente:</p><p className="text-4xl font-mono font-bold text-[#FCD535] mb-2">${finalTotal.toFixed(2)}</p><div className="flex justify-center gap-2 mb-2"><div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><Mail size={12} className="text-yellow-500"/> {contactInfo.binance_email}</div></div><div className="flex justify-center gap-2"><div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><QrCode size={12} className="text-yellow-500"/> Pay ID: {contactInfo.binance_pay_id}</div></div></div><div className="space-y-2"><label className="text-sm font-bold text-white">Order ID / ID de Transacción</label><input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Pega aquí el ID (Ej: 423516...)" className="w-full bg-black/50 border border-gray-600 rounded-lg py-3 px-4 text-white font-mono focus:border-[#FCD535] outline-none"/><p className="text-[10px] text-gray-500">El ID que te da Binance tras el pago (18+ dígitos)</p></div><div className="flex gap-3 pt-2"><button onClick={onCancel} className="px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800">Cancelar</button><button onClick={handleVerify} disabled={status === 'verifying' || !transactionId} className="flex-1 bg-[#FCD535] hover:bg-[#E5C02C] text-black font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2">{status === 'verifying' ? <><Loader className="animate-spin" size={20} /> Verificando...</> : "Ya pagué, Verificar"}</button></div></div>
              )}
+        </div>
+    );
+};
+
+// --- NUEVA PASARELA DE TARJETA AUTOMÁTICA ---
+const CardAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }) => {
+    // Generamos un "MEMO" único que servirá como identificador
+    const [memoId] = useState(Math.floor(10000000 + Math.random() * 90000000).toString());
+    const [isChecking, setIsChecking] = useState(false);
+    const [copySuccess, setCopySuccess] = useState('');
+
+    useEffect(() => {
+        // Polling: Consultar cada 10 segundos si llegó el depósito
+        const interval = setInterval(async () => {
+            if (isChecking) return;
+            setIsChecking(true);
+            try {
+                const response = await fetch(`${SERVER_URL}/api/verify-binance-deposit`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ memo: memoId, amount: finalTotal.toFixed(2) }) 
+                });
+                const result = await response.json();
+                if (result.success) {
+                    clearInterval(interval);
+                    onVerified(result.txId || memoId);
+                }
+            } catch (e) {}
+            setIsChecking(false);
+        }, 10000);
+        return () => clearInterval(interval);
+    }, [memoId, finalTotal, onVerified]);
+
+    const handleCopy = (text, label) => {
+        navigator.clipboard.writeText(text);
+        setCopySuccess(label);
+        setTimeout(() => setCopySuccess(''), 2000);
+    };
+
+    return (
+        <div className="bg-gray-900 border border-cyan-500/30 rounded-xl p-6 max-w-lg mx-auto animate-fade-in-up relative overflow-hidden">
+             <div className="flex justify-between items-start mb-6 relative z-10 border-b border-gray-800 pb-4">
+                 <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold"><CreditCard size={20} /></div>
+                     <div><h3 className="text-white font-bold text-lg">Tarjeta Universal</h3><p className="text-xs text-gray-400">Pago automático vía depósito</p></div>
+                 </div>
+             </div>
+             
+             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30 mb-6">
+                 <p className="text-sm text-cyan-300 font-bold mb-2">INSTRUCCIONES DE PAGO:</p>
+                 <p className="text-xs text-gray-300 leading-relaxed mb-2">
+                     Para pagar con tarjeta (Visa, Master, etc.) en cualquier moneda (Bs, Pesos, USD), realiza un envío de USDT a la siguiente dirección de Binance. 
+                     Puedes usar <b>Binance Pay</b>, <b>Zinli (Comprar Cripto)</b>, o cualquier exchange.
+                 </p>
+                 <p className="text-xs text-yellow-400 font-bold bg-yellow-900/20 p-2 rounded border border-yellow-600/30 text-center">
+                     ⚠️ IMPORTANTE: DEBES INCLUIR EL MEMO/TAG O EL PAGO NO SE ACREDITARÁ.
+                 </p>
+             </div>
+
+             <div className="space-y-4">
+                 <div>
+                     <label className="text-xs text-gray-400 block mb-1">Monto Exacto (USDT)</label>
+                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
+                         <span className="text-xl font-mono font-bold text-white">${finalTotal.toFixed(2)}</span>
+                         <button onClick={() => handleCopy(finalTotal.toFixed(2), 'Monto')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
+                     </div>
+                 </div>
+                 
+                 <div>
+                     <label className="text-xs text-gray-400 block mb-1">Dirección de Depósito (BEP20 / BSC)</label>
+                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
+                         <span className="text-xs font-mono text-gray-300 break-all">{contactInfo.deposit_address}</span>
+                         <button onClick={() => handleCopy(contactInfo.deposit_address, 'Address')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
+                     </div>
+                 </div>
+
+                 <div className="relative">
+                     <label className="text-xs text-cyan-400 font-bold block mb-1">MEMO / TAG (OBLIGATORIO)</label>
+                     <div className="flex items-center justify-between bg-cyan-900/10 p-4 rounded border border-cyan-500">
+                         <span className="text-2xl font-mono font-bold text-white tracking-widest">{memoId}</span>
+                         <button onClick={() => handleCopy(memoId, 'MEMO')} className="text-cyan-500 hover:text-white"><Copy size={20}/></button>
+                     </div>
+                     {copySuccess && <div className="absolute top-0 right-0 -mt-6 bg-green-500 text-black text-[10px] font-bold px-2 py-1 rounded animate-fade-in-up">¡{copySuccess} Copiado!</div>}
+                 </div>
+             </div>
+
+             <div className="mt-8 text-center">
+                 <div className="flex items-center justify-center gap-2 text-gray-400 text-xs animate-pulse">
+                     <Loader className="animate-spin" size={14} /> Esperando depósito...
+                 </div>
+                 <button onClick={onCancel} className="mt-4 text-gray-500 text-xs hover:text-white underline">Cancelar Operación</button>
+             </div>
         </div>
     );
 };
@@ -274,7 +356,6 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
   const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
   const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: `ORD-${Math.floor(100+Math.random()*900)}`, visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
   
-  // VALIDACIÓN DE PESO (1MB)
   const handleFileChange = (e, field) => {
       const file = e.target.files[0];
       if (file) {
@@ -330,8 +411,12 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
         <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group"><div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div><div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span></button>
-          <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span></button>
           <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span></button>
+          
+          {/* NUEVO BOTÓN: TARJETA UNIVERSAL */}
+          <button onClick={() => { setPaymentMethod('card_deposit'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-cyan-600 to-blue-700 rounded-xl border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden"><div className="absolute top-0 right-0 bg-white text-blue-800 text-[10px] font-bold px-2 py-0.5">AUTO</div><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-cyan-600"><CreditCard /></div><span className="font-bold text-white text-center text-sm">Tarjeta Débito/Crédito (Cualquier País)</span></button>
+
+          <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span></button>
           <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span></button>
           <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span></button>
           <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-blue-700/20 rounded-full flex items-center justify-center text-blue-600"><Building2 /></div><span className="font-bold text-white">FACEBANK</span></button>
@@ -342,69 +427,9 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
     );
 };
 
-const SuccessScreen = ({ lastOrder, setView }) => {
-  const handleDownloadInvoice = () => { if (!window.jspdf) { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"; script.onload = () => createPDF(); document.body.appendChild(script); } else { createPDF(); } const createPDF = () => { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const primaryColor = [79, 70, 229]; doc.setFillColor(...primaryColor); doc.rect(0, 0, 210, 40, 'F'); doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.setFont("helvetica", "bold"); doc.text("TECNOBYTE LLC", 20, 25); doc.setFontSize(12); doc.setFont("helvetica", "normal"); doc.text("Comprobante Digital", 150, 25); doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.text(`Fecha: ${new Date(lastOrder.date).toLocaleString()}`, 20, 55); doc.text(`Orden ID: ${lastOrder.orderId || lastOrder.id}`, 20, 62); doc.text(`Estado: ${lastOrder.status}`, 20, 69); doc.text(`Cliente: ${lastOrder.user}`, 120, 55); doc.text(`Email: ${lastOrder.fullData?.email || 'N/A'}`, 120, 62); doc.text(`Método: ${lastOrder.paymentMethod}`, 120, 69); doc.setDrawColor(200, 200, 200); doc.line(20, 75, 190, 75); let y = 90; doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.text("Descripción", 20, y); doc.text("Precio", 170, y, { align: "right" }); y += 10; doc.setFont("helvetica", "normal"); doc.setFontSize(10); lastOrder.rawItems.forEach(item => { const title = item.title.length > 50 ? item.title.substring(0, 50) + '...' : item.title; doc.text(title, 20, y); doc.text(`$${item.price.toFixed(2)}`, 170, y, { align: "right" }); y += 8; }); y += 5; doc.line(20, y, 190, y); y += 10; if (lastOrder.couponData) { doc.text(`Cupón (${lastOrder.couponData.code}):`, 120, y); doc.text(`-${lastOrder.couponData.percent}%`, 170, y, { align: "right" }); y += 7; } doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("TOTAL PAGADO:", 120, y); doc.text(`$${lastOrder.total}`, 170, y, { align: "right" }); doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(100, 100, 100); doc.text("Gracias por su compra. Este documento es un comprobante digital válido.", 105, 275, { align: "center" }); doc.text("Soporte: support@tecnobytellc.zendesk.com", 105, 280, { align: "center" }); doc.text("+1 (904) 740-0467", 105, 285, { align: "center" }); doc.save(`Factura_${lastOrder.orderId || 'TecnoByte'}.pdf`); }; };
-
-  return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-scale-in">
-        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]"><Check className="w-12 h-12 text-white" strokeWidth={3} /></div>
-        <h2 className="text-4xl font-bold text-white mb-4">¡Gracias por tu Compra!</h2>
-        <p className="text-gray-300 max-w-lg mb-8 text-lg">Tu pedido ha sido recibido correctamente. Tu producto o servicio será entregado pronto vía WhatsApp al número proporcionado.</p>
-        {lastOrder && (
-        <div className="bg-gray-900 p-6 rounded-xl border border-gray-700 max-w-md w-full mb-8 shadow-2xl">
-            <h3 className="text-indigo-400 font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between">Resumen de Compra<span className="text-gray-500 text-xs font-normal">{lastOrder.orderId || lastOrder.id}</span></h3>
-            <div className="space-y-3 text-left">
-            {lastOrder.rawItems.map((item, i) => { const isExcluded = lastOrder.couponData && lastOrder.couponData.excludedIds && lastOrder.couponData.excludedIds.includes(item.id); return ( <div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><div className="text-right"><span className="text-gray-400">${item.price.toFixed(2)}</span>{isExcluded && <span className="text-[9px] text-red-400 block">*Sin descuento</span>}</div></div> ); })}
-            <div className="pt-3 border-t border-gray-700 mt-2">{lastOrder.couponData ? ( <><div className="flex justify-between text-sm text-green-400 mb-1"><span>Cupón ({lastOrder.couponData.code}):</span><span>-{lastOrder.couponData.percent}%</span></div><div className="flex justify-between text-white font-bold text-lg mt-2 pt-2 border-t border-gray-800"><span>Total Pagado:</span><span className="text-green-400">${lastOrder.total}</span></div></> ) : ( <div className="flex justify-between text-white font-bold text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div> )}</div>
-            {lastOrder.fullData?.streamingAccount && ( <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left animate-fade-in-up"><p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p><div className="space-y-1 font-mono text-sm"><div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div><div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>{lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}</div></div> )}
-            {lastOrder.deliveryStatus === "FAILED_PROVIDER" && (<div className="mt-4 bg-yellow-900/20 border border-yellow-500/50 p-4 rounded-lg text-left"><p className="text-yellow-500 text-xs font-bold flex items-center gap-2"><AlertTriangle size={14} /> Atención:</p><p className="text-gray-300 text-xs mt-1">{lastOrder.fullData.deliveryNote}</p></div>)}
-            {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
-            </div>
-        </div>
-        )}
-        <div className="flex flex-col gap-3 w-full max-w-md"><a href="https://wa.me/19047400467" target="_blank" rel="noopener noreferrer" className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition-colors"><MessageSquare size={20} /> Hablar con Nosotros</a><button onClick={handleDownloadInvoice} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl border border-indigo-500 flex items-center justify-center gap-2 transition-colors shadow-lg"><Download size={20} /> Descargar Factura (PDF)</button></div><button onClick={() => setView('home')} className="mt-8 text-gray-500 hover:text-white underline">Volver al inicio</button>
-    </div>
-  );
-};
-
-const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy }) => {
-  const idDocRef = useRef(null); const isBinance = paymentMethod === 'binance'; const [acceptedTerms, setAcceptedTerms] = useState(false);
-  
-  // VALIDACIÓN ARCHIVO 1MB
-  const handleFileChange = (e) => { 
-      const file = e.target.files[0]; 
-      if (file) { 
-          if (file.size > MAX_FILE_SIZE_BYTES) { 
-              alert("El archivo supera el límite de 1MB."); 
-              e.target.value = "";
-              return; 
-          } 
-          setPaypalData({ ...paypalData, idDoc: file }); 
-      } 
-  };
-
-  const handleSubmit = (e) => { e.preventDefault(); if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { alert("Por favor completa todos los campos de texto."); return; } if (!isBinance && !paypalData.idDoc) { alert("Debes cargar la foto de tu documento de identidad para continuar."); return; } setCheckoutStep(2); };
-  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc) && acceptedTerms;
-
-  return (
-    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
-      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
-      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
-        <div className="grid grid-cols-2 gap-4"><div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div><div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div></div>
-        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
-        {!isBinance && ( <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4"><label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label><div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} onClick={() => idDocRef.current.click()}><input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleFileChange} />{paypalData.idDoc ? ( <div className="flex flex-col items-center text-green-400"><FileCheck size={32} className="mb-2" /><p className="font-bold text-sm">Documento Cargado</p><p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p><button type="button" onClick={(e) => { e.stopPropagation(); setPaypalData({...paypalData, idDoc: null}); if(idDocRef.current) idDocRef.current.value = ""; }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar archivo</button></div> ) : ( <div className="flex flex-col items-center text-gray-400"><ImageIcon size={32} className="mb-2 opacity-50" /><p className="font-bold text-sm text-white">Subir Foto Documento ID</p><p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 1MB)</p></div> )}</div></div> )}
-        <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="terms-checkbox-paypal" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" /><label htmlFor="terms-checkbox-paypal" className="text-sm text-gray-400">He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.</label></div>
-        <button type="submit" disabled={!isFormValid} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all ${isFormValid ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>Continuar al Pago <ArrowRight size={20} /></button>
-      </form>
-    </div>
-  );
-};
-
-const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart, cart, coupon, contactInfo }) => {
+const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart, cart, coupon, contactInfo, paymentMethod }) => {
     return (
-        <PayPalAutomatedCheckout finalTotal={cartTotal} paypalData={paypalData} onPaymentComplete={(orderId) => { setLastOrder({ orderId: orderId, total: cartTotal.toFixed(2), items: "PayPal Order", paymentMethod: 'paypal_api', fullData: paypalData, rawItems: [] }); setCart([]); setCheckoutStep(3); }} isExchange={false} cart={cart} coupon={coupon} />
+        <PayPalAutomatedCheckout finalTotal={cartTotal} paypalData={paypalData} onPaymentComplete={(orderId) => { setLastOrder({ orderId: orderId, total: cartTotal.toFixed(2), items: "PayPal Order", paymentMethod: 'paypal_api', fullData: paypalData, rawItems: [] }); setCart([]); setCheckoutStep(3); }} isExchange={false} cart={cart} coupon={coupon} isCardMode={false} />
     );
 };
 
@@ -450,16 +475,13 @@ export default function App() {
   const rawTotal = cart.reduce((acc, item) => acc + item.price, 0);
   const finalTotal = calculateTotal(cart, coupon);
 
-  // --- LÓGICA DE REDIRECCIÓN AUTOMÁTICA EXCHANGE -> PAYPAL ---
   const handleCheckoutStart = async () => { 
       setIsProcessing(true); 
-      // Detectamos si hay servicios "Exchange" en el carrito
       const hasExchangeItem = cart.some(i => i.category === 'Exchange');
-      
       setTimeout(() => { 
           if (hasExchangeItem) {
-              setPaymentMethod('paypal'); // Forzamos PayPal
-              setCheckoutStep(1); // Saltamos la selección (vamos directo al form)
+              setPaymentMethod('paypal'); // Exchange siempre a PayPal por seguridad
+              setCheckoutStep(1); 
           } else {
               setPaymentMethod(null);
               setCheckoutStep(0); 
@@ -470,7 +492,6 @@ export default function App() {
       }, 500); 
   };
   
-  // --- MANEJO ROBUSTO DE ÉXITO DE BINANCE Y ENTREGA ---
   const handleBinanceSuccess = async (transactionId) => { 
       const randomId = Math.floor(100 + Math.random() * 900); 
       let automatedOrder = { 
@@ -487,32 +508,18 @@ export default function App() {
           couponData: coupon ? { code: coupon.code, percent: coupon.percent, excludedIds: coupon.excludedIds } : null, 
           fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: transactionId, contactPhone: paypalData.phone } 
       }; 
-      
       try {
-          // 1. INTENTO DE ENTREGA AUTOMÁTICA
-          try {
-              automatedOrder = await processStreamingPurchase(automatedOrder);
-          } catch (streamingError) {
+          try { automatedOrder = await processStreamingPurchase(automatedOrder); } 
+          catch (streamingError) {
               console.error("Error en entrega automática:", streamingError);
               automatedOrder.status = "PAGADO (Fallo Entrega Auto)";
               automatedOrder.deliveryStatus = "FAILED_SYSTEM";
               automatedOrder.fullData.deliveryNote = "Error de sistema al conectar con proveedor. Entregar manualmente.";
           }
-
-          // 2. GUARDADO DE ORDEN (CRÍTICO: SIEMPRE SE EJECUTA)
           const saveSuccess = await submitOrderToPrivateServer(automatedOrder); 
-          
-          if (saveSuccess) {
-              setLastOrder(automatedOrder); 
-              setCart([]); 
-              setCheckoutStep(3); 
-          } else {
-              alert(`PAGO RECIBIDO PERO ERROR AL GUARDAR.\n\nTu ID de pago es: ${transactionId}\nPor favor toma una captura de pantalla y contáctanos por WhatsApp.`);
-          }
-      } catch (e) {
-          console.error("Error fatal en checkout:", e);
-          alert("Ocurrió un error inesperado. Si ya pagaste, contáctanos con tu comprobante.");
-      }
+          if (saveSuccess) { setLastOrder(automatedOrder); setCart([]); setCheckoutStep(3); } 
+          else { alert(`PAGO RECIBIDO PERO ERROR AL GUARDAR.\n\nTu ID de pago es: ${transactionId}\nPor favor toma una captura de pantalla.`); }
+      } catch (e) { console.error("Error fatal checkout:", e); alert("Error inesperado. Contáctanos."); }
   };
 
   return (
@@ -524,8 +531,8 @@ export default function App() {
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
               <div className="flex justify-center mb-8"><div className="flex items-center gap-4"><div onClick={() => { if (checkoutStep > 0 && checkoutStep < 3) { setCheckoutStep(0); setPaymentMethod(null); }}} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}>1</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div></div></div>
               {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={setCoupon} coupon={coupon} removeCoupon={() => setCoupon(null)} />}
-              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />}
-              {checkoutStep === 2 && ( paymentMethod === 'paypal' ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} /> : paymentMethod === 'binance' ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} /> )}
+              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'card_deposit') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod === 'card_deposit' ? 'binance' : paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />}
+              {checkoutStep === 2 && ( (paymentMethod === 'paypal') ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} paymentMethod={paymentMethod} /> : (paymentMethod === 'binance' ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : (paymentMethod === 'card_deposit' ? <CardAutomatedCheckout finalTotal={finalTotal} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />)) )}
               {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
           </div>
           ) : (

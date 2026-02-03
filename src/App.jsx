@@ -211,15 +211,12 @@ const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInf
     );
 };
 
-// --- NUEVA PASARELA DE TARJETA AUTOMÁTICA ---
 const CardAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }) => {
-    // Generamos un "MEMO" único que servirá como identificador
     const [memoId] = useState(Math.floor(10000000 + Math.random() * 90000000).toString());
     const [isChecking, setIsChecking] = useState(false);
     const [copySuccess, setCopySuccess] = useState('');
 
     useEffect(() => {
-        // Polling: Consultar cada 10 segundos si llegó el depósito
         const interval = setInterval(async () => {
             if (isChecking) return;
             setIsChecking(true);
@@ -254,99 +251,44 @@ const CardAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }
                      <div><h3 className="text-white font-bold text-lg">Tarjeta Universal</h3><p className="text-xs text-gray-400">Pago automático vía depósito</p></div>
                  </div>
              </div>
-             
-             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30 mb-6">
-                 <p className="text-sm text-cyan-300 font-bold mb-2">INSTRUCCIONES DE PAGO:</p>
-                 <p className="text-xs text-gray-300 leading-relaxed mb-2">
-                     Para pagar con tarjeta (Visa, Master, etc.) en cualquier moneda (Bs, Pesos, USD), realiza un envío de USDT a la siguiente dirección de Binance. 
-                     Puedes usar <b>Binance Pay</b>, <b>Zinli (Comprar Cripto)</b>, o cualquier exchange.
-                 </p>
-                 <p className="text-xs text-yellow-400 font-bold bg-yellow-900/20 p-2 rounded border border-yellow-600/30 text-center">
-                     ⚠️ IMPORTANTE: DEBES INCLUIR EL MEMO/TAG O EL PAGO NO SE ACREDITARÁ.
-                 </p>
-             </div>
-
+             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30 mb-6"><p className="text-sm text-cyan-300 font-bold mb-2">INSTRUCCIONES:</p><p className="text-xs text-gray-300">Paga con tarjeta en Binance/Zinli enviando USDT a esta dirección. ⚠️ INCLUYE EL MEMO OBLIGATORIAMENTE.</p></div>
              <div className="space-y-4">
-                 <div>
-                     <label className="text-xs text-gray-400 block mb-1">Monto Exacto (USDT)</label>
-                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
-                         <span className="text-xl font-mono font-bold text-white">${finalTotal.toFixed(2)}</span>
-                         <button onClick={() => handleCopy(finalTotal.toFixed(2), 'Monto')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
-                     </div>
-                 </div>
-                 
-                 <div>
-                     <label className="text-xs text-gray-400 block mb-1">Dirección de Depósito (BEP20 / BSC)</label>
-                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
-                         <span className="text-xs font-mono text-gray-300 break-all">{contactInfo.deposit_address}</span>
-                         <button onClick={() => handleCopy(contactInfo.deposit_address, 'Address')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
-                     </div>
-                 </div>
-
-                 <div className="relative">
-                     <label className="text-xs text-cyan-400 font-bold block mb-1">MEMO / TAG (OBLIGATORIO)</label>
-                     <div className="flex items-center justify-between bg-cyan-900/10 p-4 rounded border border-cyan-500">
-                         <span className="text-2xl font-mono font-bold text-white tracking-widest">{memoId}</span>
-                         <button onClick={() => handleCopy(memoId, 'MEMO')} className="text-cyan-500 hover:text-white"><Copy size={20}/></button>
-                     </div>
-                     {copySuccess && <div className="absolute top-0 right-0 -mt-6 bg-green-500 text-black text-[10px] font-bold px-2 py-1 rounded animate-fade-in-up">¡{copySuccess} Copiado!</div>}
-                 </div>
+                 <div><label className="text-xs text-gray-400 block mb-1">Monto (USDT)</label><div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700"><span className="text-xl font-mono font-bold text-white">${finalTotal.toFixed(2)}</span><button onClick={() => handleCopy(finalTotal.toFixed(2), 'Monto')}><Copy size={16}/></button></div></div>
+                 <div><label className="text-xs text-gray-400 block mb-1">Dirección (BEP20)</label><div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700"><span className="text-xs font-mono text-gray-300 break-all">{contactInfo.deposit_address}</span><button onClick={() => handleCopy(contactInfo.deposit_address, 'Address')}><Copy size={16}/></button></div></div>
+                 <div><label className="text-xs text-cyan-400 font-bold block mb-1">MEMO (TAG)</label><div className="flex items-center justify-between bg-cyan-900/10 p-4 rounded border border-cyan-500"><span className="text-2xl font-mono font-bold text-white tracking-widest">{memoId}</span><button onClick={() => handleCopy(memoId, 'MEMO')}><Copy size={20}/></button></div></div>
              </div>
-
-             <div className="mt-8 text-center">
-                 <div className="flex items-center justify-center gap-2 text-gray-400 text-xs animate-pulse">
-                     <Loader className="animate-spin" size={14} /> Esperando depósito...
-                 </div>
-                 <button onClick={onCancel} className="mt-4 text-gray-500 text-xs hover:text-white underline">Cancelar Operación</button>
-             </div>
+             <div className="mt-8 text-center"><div className="flex items-center justify-center gap-2 text-gray-400 text-xs animate-pulse"><Loader className="animate-spin" size={14} /> Esperando depósito...</div><button onClick={onCancel} className="mt-4 text-gray-500 text-xs hover:text-white underline">Cancelar</button></div>
         </div>
     );
 };
 
-const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, cart, coupon }) => {
+const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, cart, coupon, isCardMode }) => {
     const [status, setStatus] = useState('idle'); const [invoiceId, setInvoiceId] = useState(''); const [approveLink, setApproveLink] = useState('');
     
-    // MANEJO SEGURO DE POPUP (Evita bloqueo de navegadores)
     const handlePayPalPayment = async () => { 
         setStatus('processing');
         const newWindow = window.open('', '_blank');
         if (newWindow) {
-             newWindow.document.write('<div style="background:#000;color:#fff;height:100vh;display:flex;justify-content:center;align-items:center;font-family:sans-serif;"><h1>Conectando con PayPal...</h1></div>');
+             newWindow.document.write(`<div style="background:#000;color:#fff;height:100vh;display:flex;justify-content:center;align-items:center;font-family:sans-serif;"><h1>${isCardMode ? 'Cargando formulario de Tarjeta...' : 'Conectando con PayPal...'}</h1></div>`);
         }
-
         try { 
-            const payload = { items: cart.map(item => ({ id: parseInt(item.id, 10), price: item.price })), couponCode: coupon ? coupon.code : null }; 
+            const payload = { items: cart.map(item => ({ id: parseInt(item.id, 10), price: item.price })), couponCode: coupon ? coupon.code : null, isCard: isCardMode }; 
             const response = await fetch(`${SERVER_URL}/api/create-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
             const data = await response.json(); 
-            
-            if (data.id) { 
-                setInvoiceId(data.id); 
-                const link = data.links.find(l => l.rel === "approve").href;
-                setApproveLink(link); 
-                if (newWindow) {
-                    newWindow.location.href = link;
-                } else {
-                    window.location.href = link; 
-                }
-                setStatus('verifying'); 
-            } else throw new Error("Error PayPal"); 
-        } catch (error) { 
-            if(newWindow) newWindow.close();
-            alert("Error PayPal: " + error.message); 
-            setStatus('idle'); 
-        } 
+            if (data.id) { setInvoiceId(data.id); const link = data.links.find(l => l.rel === "approve").href; setApproveLink(link); if (newWindow) newWindow.location.href = link; setStatus('verifying'); } else throw new Error("Error PayPal"); 
+        } catch (error) { if(newWindow) newWindow.close(); alert("Error: " + error.message); setStatus('idle'); } 
     };
 
     const handleVerification = async () => { if (!invoiceId) return; if (isExchange) setStatus('dispersing'); try { const response = await fetch(`${SERVER_URL}/api/capture-and-exchange`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: invoiceId, receiveAddress: exchangeData?.receiveAddress }) }); const result = await response.json(); if (result.success) { setStatus('completed'); onPaymentComplete(invoiceId, result.binanceTxId); } else { alert("Pago fallido: " + result.message); setStatus('verifying'); } } catch (error) { alert("Error conexión"); setStatus('verifying'); } };
 
     return (
         <div className="bg-gray-900 border border-indigo-500/30 rounded-xl p-6 max-w-md mx-auto animate-fade-in-up">
-            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-8" /><span className="text-white font-bold text-lg">Checkout Seguro</span></div>
-            {status === 'idle' && <div className="space-y-4"><div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20"><p className="text-gray-300 text-sm mb-2">Resumen de Pago:</p><p className="text-3xl font-bold text-white">${finalTotal.toFixed(2)}</p>{isExchange && <div className="mt-2 text-xs text-yellow-500 flex items-center gap-1"><RefreshCw size={10} /> Incluye dispersión automática a Binance</div>}</div><button onClick={handlePayPalPayment} className="w-full bg-[#FFC439] hover:bg-[#F4BB35] text-blue-900 font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"><img src="https://www.paypalobjects.com/webstatic/icon/pp258.png" className="w-4 h-4" alt="" />Pagar con PayPal</button><p className="text-[10px] text-gray-500 text-center">Serás redirigido al portal seguro de PayPal.</p></div>}
-            {status === 'processing' && <div className="text-center py-8"><Loader className="w-12 h-12 text-[#003087] animate-spin mx-auto mb-4" /><p className="text-white font-bold">Iniciando Transacción...</p><p className="text-xs text-gray-400">Creando factura en PayPal...</p></div>}
-            {status === 'verifying' && <div className="space-y-6 text-center"><div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto border border-blue-500/50"><CreditCard className="w-8 h-8 text-blue-500" /></div><div><h4 className="text-white font-bold text-xl">Confirmar Pago</h4><p className="text-indigo-400 font-mono text-sm mt-1">Orden: {invoiceId}</p><p className="text-gray-400 text-xs mt-2 px-4">Hemos abierto una pestaña de PayPal. Completa el pago y luego haz clic abajo.</p>{approveLink && <a href={approveLink} target="_blank" rel="noopener noreferrer" className="text-xs text-yellow-500 underline block mt-1">¿No se abrió? Clic aquí</a>}</div><div className="bg-gray-800 p-4 rounded-lg text-left"><button onClick={handleVerification} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded text-sm animate-pulse-green shadow-lg">Ya realicé el pago</button></div></div>}
-            {status === 'dispersing' && <div className="text-center py-8 space-y-4"><div className="relative w-16 h-16 mx-auto"><div className="absolute inset-0 border-4 border-yellow-500 rounded-full animate-spin border-t-transparent"></div><img src="https://cryptologos.cc/logos/binance-coin-bnb-logo.png" className="absolute inset-0 w-8 h-8 m-auto animate-pulse" alt="Binance" /></div><div><p className="text-white font-bold">Verificando y Enviando...</p><p className="text-xs text-yellow-500">Conectando con Binance API...</p></div><div className="w-full bg-gray-800 rounded-full h-1.5 mt-4"><div className="bg-yellow-500 h-1.5 rounded-full animate-[width_3s_ease-out_forwards]" style={{width: '90%'}}></div></div></div>}
-            {status === 'completed' && <div className="text-center py-6"><Check className="w-16 h-16 text-green-500 mx-auto mb-4" /><h4 className="text-2xl font-bold text-white">¡Operación Exitosa!</h4><p className="text-gray-400 text-sm mt-2">El pago ha sido verificado.</p>{isExchange && <p className="text-green-400 text-xs mt-2 font-bold bg-green-900/20 p-2 rounded border border-green-900">Fondos enviados via Binance.</p>}</div>}
+            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">{isCardMode ? <CreditCard className="h-8 w-8 text-cyan-400" /> : <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-8" />}<span className="text-white font-bold text-lg">{isCardMode ? 'Pago con Tarjeta' : 'Checkout Seguro'}</span></div>
+            {status === 'idle' && <div className="space-y-4"><div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20"><p className="text-gray-300 text-sm mb-2">Resumen de Pago:</p><p className="text-3xl font-bold text-white">${finalTotal.toFixed(2)}</p></div><button onClick={handlePayPalPayment} className={`w-full font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 ${isCardMode ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : 'bg-[#FFC439] hover:bg-[#F4BB35] text-blue-900'}`}>{isCardMode ? "Ingresar Datos" : "Pagar con PayPal"}</button></div>}
+            {status === 'processing' && <div className="text-center py-8"><Loader className="w-12 h-12 text-[#003087] animate-spin mx-auto mb-4" /><p className="text-white font-bold">Procesando...</p></div>}
+            {status === 'verifying' && <div className="space-y-6 text-center"><div className="w-16 h-16 bg-blue-500/20 rounded-full mx-auto border border-blue-500/50 flex items-center justify-center"><CreditCard className="w-8 h-8 text-blue-500" /></div><div><h4 className="text-white font-bold text-xl">Confirmar Pago</h4><p className="text-indigo-400 font-mono text-sm mt-1">Orden: {invoiceId}</p><p className="text-gray-400 text-xs mt-2">Completa el pago en la ventana emergente.</p>{approveLink && <a href={approveLink} target="_blank" rel="noopener noreferrer" className="text-xs text-yellow-500 underline block mt-1">¿No abrió? Clic aquí</a>}</div><button onClick={handleVerification} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded text-sm shadow-lg">Ya pagué</button></div>}
+            {status === 'dispersing' && <div className="text-center py-8 space-y-4"><Loader className="animate-spin w-12 h-12 text-yellow-500 mx-auto"/><p className="text-white font-bold">Verificando...</p></div>}
+            {status === 'completed' && <div className="text-center py-6"><Check className="w-16 h-16 text-green-500 mx-auto mb-4" /><h4 className="text-2xl font-bold text-white">¡Éxito!</h4></div>}
         </div>
     );
 };
@@ -356,71 +298,80 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
   const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
   const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: `ORD-${Math.floor(100+Math.random()*900)}`, visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
   
-  const handleFileChange = (e, field) => {
-      const file = e.target.files[0];
-      if (file) {
-          if (file.size > MAX_FILE_SIZE_BYTES) {
-              alert("El archivo supera el límite de 1MB. Por favor, comprímelo o sube uno más ligero.");
-              e.target.value = ""; 
-              return;
-          }
-          setProofData({...proofData, [field]: file});
-      }
-  };
+  const handleFileChange = (e, field) => { const file = e.target.files[0]; if (file) { if (file.size > MAX_FILE_SIZE_BYTES) { alert("Máx 1MB"); e.target.value = ""; return; } setProofData({...proofData, [field]: file}); } };
 
   return (
     <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
       <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 h-fit">
         <h3 className="text-xl font-bold text-white mb-4">Datos para Transferir</h3>
-        {paymentMethod === 'binance' && <div className="space-y-4"><p className="text-yellow-500 font-bold">Binance Pay</p><div className="space-y-2"><p className="text-white"><span className="text-gray-400 font-bold">Email:</span> {contactInfo.binance_email}</p></div></div>}
-        {paymentMethod === 'pagomovil' && <div className="space-y-4"><p className="text-blue-400 font-bold">Pago Móvil</p><div className="space-y-2"><p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {contactInfo.pagomovil.bank}</p><p className="text-white"><span className="text-gray-400 font-bold">Phone:</span> {contactInfo.pagomovil.phone}</p><p className="text-white"><span className="text-gray-400 font-bold">ID:</span> {contactInfo.pagomovil.id}</p></div></div>}
-        {paymentMethod === 'transfer_bs' && <div className="space-y-4"><p className="text-green-400 font-bold">Transferencia Bs</p><div className="space-y-2"><p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {contactInfo.transfer_bs.bank}</p><p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {contactInfo.transfer_bs.account}</p><p className="text-white"><span className="text-gray-400 font-bold">ID:</span> {contactInfo.transfer_bs.id}</p></div></div>}
-        {paymentMethod === 'transfer_usd' && <div className="space-y-4"><p className="text-green-600 font-bold">Transferencia USD</p><div className="space-y-2"><p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> {contactInfo.transfer_usd.bank}</p><p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {contactInfo.transfer_usd.account}</p><p className="text-white"><span className="text-gray-400 font-bold">Routing No:</span> {contactInfo.transfer_usd.routing}</p></div></div>}
-        {paymentMethod === 'facebank' && <div className="space-y-4"><p className="text-blue-600 font-bold">FACEBANK</p><div className="space-y-2"><p className="text-white"><span className="text-gray-400 font-bold">Bank:</span> FACEBANK International</p><p className="text-white"><span className="text-gray-400 font-bold">Account No:</span> {contactInfo.facebank.account}</p></div></div>}
-        {paymentMethod === 'pipolpay' && <div className="space-y-4"><p className="text-orange-400 font-bold">PipolPay</p><div className="space-y-2"><p className="text-white"><span className="text-gray-400 font-bold">Email:</span> {contactInfo.pipolpay.email}</p></div></div>}
-        <div className="mt-4 pt-4 border-t border-gray-600">
-            {coupon && <div className="flex justify-between items-center mb-2"><span className="text-gray-300">Subtotal:</span><span className="text-gray-400 line-through">${cart.reduce((acc, i) => acc + i.price, 0).toFixed(2)}</span></div>}
-            <div className="flex justify-between items-center text-xl font-bold"><span className="text-white">Total a Pagar:</span><span className="text-green-400">${finalTotal.toFixed(2)}</span></div>
-            {coupon && <div className="text-xs text-green-300 mt-1 flex flex-col gap-1"><div className="flex items-center gap-1"><Ticket size={12}/> Cupón aplicado: {coupon.code} (-{coupon.percent}%)</div>{coupon.excludedIds?.length > 0 && <span className="text-yellow-400 text-[10px]">*Algunos productos no aplican para descuento</span>}</div>}
-        </div>
-        {(paymentMethod === 'pagomovil' || paymentMethod === 'transfer_bs') && <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-600"><p className="text-gray-400 text-xs mb-1 uppercase tracking-wider">Monto en Bolívares (Tasa: {exchangeRate.toFixed(2)})</p><p className="text-cyan-400 font-bold font-mono text-3xl">Bs {(finalTotal * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>}
+        <p className="text-gray-300 text-sm">Realiza el pago a los datos indicados y sube el comprobante.</p>
+        <div className="mt-4 pt-4 border-t border-gray-600"><div className="flex justify-between items-center text-xl font-bold"><span className="text-white">Total:</span><span className="text-green-400">${finalTotal.toFixed(2)}</span></div></div>
       </div>
       <div className="bg-gray-900 p-8 rounded-2xl border border-indigo-500/30">
          <h3 className="text-xl font-bold text-white mb-6">Confirmar Pago Manual</h3>
          <form onSubmit={handleFinalSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Nombre" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.name} onChange={e => setProofData({...proofData, name: e.target.value})} /><input type="text" placeholder="Apellido" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.lastName} onChange={e => setProofData({...proofData, lastName: e.target.value})} /></div>
-            <div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Cédula/ID" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.idNumber} onChange={e => setProofData({...proofData, idNumber: e.target.value})} /><input type="tel" placeholder="Teléfono" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.phone} onChange={e => setProofData({...proofData, phone: e.target.value})} /></div>
-            {['facebank', 'pipolpay', 'transfer_usd'].includes(paymentMethod) && <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20 space-y-4"><p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1"><ShieldCheck size={14}/> Verificación de Titular</p><input type="text" placeholder="Cuenta Emisora (Email o Número)" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.issuerAccount || ''} onChange={e => setProofData({...proofData, issuerAccount: e.target.value})} /><label className={`block border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${proofData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500'}`}><input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'idDoc')} />{proofData.idDoc ? <div className="flex flex-col items-center"><FileCheck className="text-green-400 mb-1" size={24}/><p className="text-green-400 text-xs font-bold">Documento Cargado</p><p className="text-gray-500 text-[10px]">{proofData.idDoc?.name}</p></div> : <div className="flex flex-col items-center"><ImageIcon className="text-gray-500 mb-1" size={24}/><p className="text-gray-300 text-xs">Foto Documento Identidad</p><p className="text-[10px] text-red-400 mt-1 font-bold">REQUERIDO (Máx 1MB)</p></div>}</label></div>}
-            <input type="text" placeholder="Referencia / Comprobante" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.refNumber} onChange={e => setProofData({...proofData, refNumber: e.target.value})} />
-            <div className="space-y-2"><label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofData.screenshot ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`}><input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'screenshot')} />{proofData.screenshot ? <div className="flex flex-col items-center text-green-400"><Check size={32} className="mb-2" /><p className="font-bold text-sm">Comprobante Cargado</p><p className="text-xs opacity-70 mb-2">{proofData.screenshot?.name}</p><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setProofData({...proofData, screenshot: null}); }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar imagen</button></div> : <div className="flex flex-col items-center text-gray-400"><ImageIcon size={32} className="mb-2 opacity-50" /><p className="font-bold text-sm text-white">Subir Comprobante de Pago</p><p className="text-xs mt-1 opacity-70">Haz clic para cargar imagen (Máx 1MB)</p><p className="text-[10px] text-red-400 mt-2 font-bold uppercase tracking-wider border border-red-500/30 px-2 py-0.5 rounded">Requerido</p></div>}</label></div>
-            <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="terms-checkbox-manual" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" /><label htmlFor="terms-checkbox-manual" className="text-sm text-gray-400">He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.</label></div>
-            <button type="submit" disabled={!isFormValid || isSubmitting} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-6 transition-all flex items-center justify-center gap-2 ${isFormValid && !isSubmitting ? 'bg-green-600 hover:bg-green-700 text-white transform hover:scale-[1.02]' : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>{isSubmitting ? <Loader className="animate-spin" /> : (isFormValid ? "REGISTRAR PAGO" : "COMPLETA EL FORMULARIO")}</button>
+            <input type="text" placeholder="Nombre" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.name} onChange={e => setProofData({...proofData, name: e.target.value})} />
+            <input type="text" placeholder="Apellido" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.lastName} onChange={e => setProofData({...proofData, lastName: e.target.value})} />
+            <input type="text" placeholder="Cédula/ID" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.idNumber} onChange={e => setProofData({...proofData, idNumber: e.target.value})} />
+            <input type="tel" placeholder="Teléfono" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.phone} onChange={e => setProofData({...proofData, phone: e.target.value})} />
+            <input type="text" placeholder="Referencia" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.refNumber} onChange={e => setProofData({...proofData, refNumber: e.target.value})} />
+            <div className="space-y-2"><label className="block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer border-gray-600 hover:border-indigo-500 bg-gray-800/50"><input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'screenshot')} /><ImageIcon size={32} className="mx-auto mb-2 opacity-50 text-gray-400" /><p className="text-sm text-gray-400">{proofData.screenshot ? proofData.screenshot.name : "Subir Comprobante"}</p></label></div>
+            <div className="flex items-center gap-2 mt-4"><input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600" /><label className="text-sm text-gray-400">Acepto términos y condiciones.</label></div>
+            <button type="submit" disabled={!isFormValid || isSubmitting} className="w-full font-bold py-4 rounded-lg shadow-lg mt-6 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">{isSubmitting ? <Loader className="animate-spin mx-auto"/> : "REGISTRAR PAGO"}</button>
          </form>
       </div>
     </div>
   );
 };
 
+const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
+  // FORMULARIO SIMPLIFICADO PARA EVITAR CRASHES
+  const isBinance = (paymentMethod === 'binance' || paymentMethod === 'card_deposit'); 
+  
+  const handleSubmit = (e) => { 
+      e.preventDefault(); 
+      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) return alert("Completa todos los campos"); 
+      setCheckoutStep(2); 
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
+      <h2 className="text-xl font-bold text-white mb-2">Datos de Facturación</h2>
+      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para procesar el pago automático.</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="Correo Electrónico" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} />
+        <div className="grid grid-cols-2 gap-4">
+            <input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="Nombre" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} />
+            <input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="Apellido" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} />
+        </div>
+        <input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="WhatsApp" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} />
+        
+        {/* ELIMINADA LA CARGA DE ID PARA MÉTODOS AUTOMÁTICOS PARA EVITAR EL CRASH */}
+        {/* Los métodos automáticos (PayPal/Binance) ya verifican identidad por su cuenta */}
+        
+        <button type="submit" className="w-full font-bold py-4 rounded-lg shadow-lg mt-4 bg-indigo-600 hover:bg-indigo-700 text-white flex justify-center gap-2">Continuar <ArrowRight size={20} /></button>
+      </form>
+    </div>
+  );
+};
+
 const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, applyCoupon, coupon, removeCoupon }) => {
-    const [couponInput, setCouponInput] = useState(''); const [couponError, setCouponError] = useState(''); const [isValidating, setIsValidating] = useState(false);
-    const handleApplyCoupon = async () => { if(!couponInput.trim()) return; setIsValidating(true); setCouponError(''); setTimeout(async () => { try { const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: couponInput.toUpperCase() }) }); if (res.ok) { const data = await res.json(); if(data.success) { applyCoupon(data.coupon); setCouponInput(''); } else { setCouponError(data.message || "Cupón inválido"); } } else { setCouponError("Error de conexión"); } } catch(e) { setCouponError("Error validando cupón"); } setIsValidating(false); }, 800); };
+    const [couponInput, setCouponInput] = useState('');
+    const handleApplyCoupon = async () => { if(!couponInput.trim()) return; try { const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: couponInput.toUpperCase() }) }); if (res.ok) { const data = await res.json(); if(data.success) { applyCoupon(data.coupon); setCouponInput(''); } else { alert(data.message); } } } catch(e) {} };
 
     return (
       <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
-        <div className="mb-8 p-4 bg-indigo-900/10 rounded-xl border border-indigo-500/30"><h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Ticket size={16} className="text-yellow-400"/> ¿Tienes un cupón?</h3><div className="flex gap-2"><input type="text" value={couponInput} onChange={e => { setCouponInput(e.target.value); if (couponError) setCouponError(''); }} placeholder="Ingresa tu código aquí" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white uppercase text-sm focus:border-indigo-500 outline-none" disabled={!!coupon}/><button onClick={handleApplyCoupon} disabled={isValidating || !couponInput || !!coupon} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors disabled:opacity-50">{isValidating ? <Loader className="animate-spin" size={14}/> : 'APLICAR'}</button></div>{couponError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1"><AlertTriangle size={12}/> {couponError}</p>}{coupon && <div className="mt-3 bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex justify-between items-center animate-scale-in"><div className="flex items-center gap-2"><div className="bg-green-500 text-black p-1 rounded-full"><Check size={12} strokeWidth={4}/></div><div><p className="text-green-400 text-sm font-bold">¡Cupón Aplicado!</p><p className="text-gray-400 text-xs">{coupon.code} - {coupon.percent}% de Descuento</p></div></div><button onClick={removeCoupon} className="text-red-400 hover:text-white text-xs underline">Quitar</button></div>}</div>
+        <div className="mb-8 p-4 bg-indigo-900/10 rounded-xl border border-indigo-500/30"><div className="flex gap-2"><input type="text" value={couponInput} onChange={e => setCouponInput(e.target.value)} placeholder="Código Cupón" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white uppercase text-sm" disabled={!!coupon}/><button onClick={handleApplyCoupon} disabled={!couponInput || !!coupon} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs">APLICAR</button></div>{coupon && <div className="mt-2 text-green-400 text-xs">Cupón aplicado: -{coupon.percent}% <button onClick={removeCoupon} className="text-red-400 underline ml-2">Quitar</button></div>}</div>
         <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group"><div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div><div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span></button>
-          <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span></button>
-          
-          {/* NUEVO BOTÓN: TARJETA UNIVERSAL */}
-          <button onClick={() => { setPaymentMethod('card_deposit'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-cyan-600 to-blue-700 rounded-xl border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden"><div className="absolute top-0 right-0 bg-white text-blue-800 text-[10px] font-bold px-2 py-0.5">AUTO</div><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-cyan-600"><CreditCard /></div><span className="font-bold text-white text-center text-sm">Tarjeta Débito/Crédito (Cualquier País)</span></button>
-
-          <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span></button>
-          <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span></button>
-          <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span></button>
-          <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-blue-700/20 rounded-full flex items-center justify-center text-blue-600"><Building2 /></div><span className="font-bold text-white">FACEBANK</span></button>
-          <button onClick={() => { setPaymentMethod('pipolpay'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-orange-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-500"><Send /></div><span className="font-bold text-white">PipolPay</span></button>
+          <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3"><Zap className="text-yellow-500" size={32}/><span className="font-bold text-white">Binance Pay</span></button>
+          <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 flex flex-col items-center gap-3"><CreditCard className="text-white" size={32}/><span className="font-bold text-white">PayPal API</span></button>
+          <button onClick={() => { setPaymentMethod('card_deposit'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-cyan-600 to-blue-700 rounded-xl border border-cyan-400 flex flex-col items-center gap-3"><CreditCard className="text-white" size={32}/><span className="font-bold text-white text-center text-xs">Tarjeta (Visa/Master)</span></button>
+          <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3"><Smartphone className="text-blue-500" size={32}/><span className="font-bold text-white">Pago Móvil</span></button>
+          <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3"><Landmark className="text-green-500" size={32}/><span className="font-bold text-white">Transf. Bs</span></button>
+          <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3"><Landmark className="text-green-600" size={32}/><span className="font-bold text-white">Transf. USD</span></button>
+          <button onClick={() => { setPaymentMethod('facebank'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-600 flex flex-col items-center gap-3"><Building2 className="text-blue-600" size={32}/><span className="font-bold text-white">FACEBANK</span></button>
+          <button onClick={() => { setPaymentMethod('pipolpay'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-orange-400 flex flex-col items-center gap-3"><Send className="text-orange-500" size={32}/><span className="font-bold text-white">PipolPay</span></button>
         </div>
         <div className="mt-4 flex justify-center"><button onClick={() => setView('home')} className="text-gray-500 hover:text-white">Cancelar</button></div>
       </div>
@@ -429,7 +380,7 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
 
 const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart, cart, coupon, contactInfo, paymentMethod }) => {
     return (
-        <PayPalAutomatedCheckout finalTotal={cartTotal} paypalData={paypalData} onPaymentComplete={(orderId) => { setLastOrder({ orderId: orderId, total: cartTotal.toFixed(2), items: "PayPal Order", paymentMethod: 'paypal_api', fullData: paypalData, rawItems: [] }); setCart([]); setCheckoutStep(3); }} isExchange={false} cart={cart} coupon={coupon} isCardMode={false} />
+        <PayPalAutomatedCheckout finalTotal={cartTotal} paypalData={paypalData} onPaymentComplete={(orderId) => { setLastOrder({ orderId: orderId, total: cartTotal.toFixed(2), items: "PayPal Order", paymentMethod: 'paypal_api', fullData: paypalData, rawItems: [] }); setCart([]); setCheckoutStep(3); }} isExchange={false} cart={cart} coupon={coupon} isCardMode={paymentMethod === 'card'} />
     );
 };
 
@@ -480,7 +431,7 @@ export default function App() {
       const hasExchangeItem = cart.some(i => i.category === 'Exchange');
       setTimeout(() => { 
           if (hasExchangeItem) {
-              setPaymentMethod('paypal'); // Exchange siempre a PayPal por seguridad
+              setPaymentMethod('paypal'); 
               setCheckoutStep(1); 
           } else {
               setPaymentMethod(null);
@@ -531,7 +482,7 @@ export default function App() {
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
               <div className="flex justify-center mb-8"><div className="flex items-center gap-4"><div onClick={() => { if (checkoutStep > 0 && checkoutStep < 3) { setCheckoutStep(0); setPaymentMethod(null); }}} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}>1</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div></div></div>
               {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={setCoupon} coupon={coupon} removeCoupon={() => setCoupon(null)} />}
-              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'card_deposit') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod === 'card_deposit' ? 'binance' : paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />}
+              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'card_deposit') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />}
               {checkoutStep === 2 && ( (paymentMethod === 'paypal') ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} paymentMethod={paymentMethod} /> : (paymentMethod === 'binance' ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : (paymentMethod === 'card_deposit' ? <CardAutomatedCheckout finalTotal={finalTotal} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />)) )}
               {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
           </div>

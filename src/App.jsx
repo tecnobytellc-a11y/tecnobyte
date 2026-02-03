@@ -251,13 +251,51 @@ const CardAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }
                      <div><h3 className="text-white font-bold text-lg">Tarjeta Universal</h3><p className="text-xs text-gray-400">Pago automático vía depósito</p></div>
                  </div>
              </div>
-             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30 mb-6"><p className="text-sm text-cyan-300 font-bold mb-2">INSTRUCCIONES:</p><p className="text-xs text-gray-300">Paga con tarjeta en Binance/Zinli enviando USDT a esta dirección. ⚠️ INCLUYE EL MEMO OBLIGATORIAMENTE.</p></div>
-             <div className="space-y-4">
-                 <div><label className="text-xs text-gray-400 block mb-1">Monto (USDT)</label><div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700"><span className="text-xl font-mono font-bold text-white">${finalTotal.toFixed(2)}</span><button onClick={() => handleCopy(finalTotal.toFixed(2), 'Monto')}><Copy size={16}/></button></div></div>
-                 <div><label className="text-xs text-gray-400 block mb-1">Dirección (BEP20)</label><div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700"><span className="text-xs font-mono text-gray-300 break-all">{contactInfo.deposit_address}</span><button onClick={() => handleCopy(contactInfo.deposit_address, 'Address')}><Copy size={16}/></button></div></div>
-                 <div><label className="text-xs text-cyan-400 font-bold block mb-1">MEMO (TAG)</label><div className="flex items-center justify-between bg-cyan-900/10 p-4 rounded border border-cyan-500"><span className="text-2xl font-mono font-bold text-white tracking-widest">{memoId}</span><button onClick={() => handleCopy(memoId, 'MEMO')}><Copy size={20}/></button></div></div>
+             
+             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30 mb-6">
+                 <p className="text-sm text-cyan-300 font-bold mb-2">INSTRUCCIONES DE PAGO:</p>
+                 <p className="text-xs text-gray-300 leading-relaxed mb-2">
+                     Para pagar con tarjeta (Visa, Master, etc.) en cualquier moneda (Bs, Pesos, USD), realiza un envío de USDT a la siguiente dirección de Binance. 
+                     Puedes usar <b>Binance Pay</b>, <b>Zinli (Comprar Cripto)</b>, o cualquier exchange.
+                 </p>
+                 <p className="text-xs text-yellow-400 font-bold bg-yellow-900/20 p-2 rounded border border-yellow-600/30 text-center">
+                     ⚠️ IMPORTANTE: DEBES INCLUIR EL MEMO/TAG O EL PAGO NO SE ACREDITARÁ.
+                 </p>
              </div>
-             <div className="mt-8 text-center"><div className="flex items-center justify-center gap-2 text-gray-400 text-xs animate-pulse"><Loader className="animate-spin" size={14} /> Esperando depósito...</div><button onClick={onCancel} className="mt-4 text-gray-500 text-xs hover:text-white underline">Cancelar</button></div>
+
+             <div className="space-y-4">
+                 <div>
+                     <label className="text-xs text-gray-400 block mb-1">Monto Exacto (USDT)</label>
+                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
+                         <span className="text-xl font-mono font-bold text-white">${finalTotal.toFixed(2)}</span>
+                         <button onClick={() => handleCopy(finalTotal.toFixed(2), 'Monto')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
+                     </div>
+                 </div>
+                 
+                 <div>
+                     <label className="text-xs text-gray-400 block mb-1">Dirección de Depósito (BEP20 / BSC)</label>
+                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
+                         <span className="text-xs font-mono text-gray-300 break-all">{contactInfo.deposit_address}</span>
+                         <button onClick={() => handleCopy(contactInfo.deposit_address, 'Address')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
+                     </div>
+                 </div>
+
+                 <div className="relative">
+                     <label className="text-xs text-cyan-400 font-bold block mb-1">MEMO / TAG (OBLIGATORIO)</label>
+                     <div className="flex items-center justify-between bg-cyan-900/10 p-4 rounded border border-cyan-500">
+                         <span className="text-2xl font-mono font-bold text-white tracking-widest">{memoId}</span>
+                         <button onClick={() => handleCopy(memoId, 'MEMO')} className="text-cyan-500 hover:text-white"><Copy size={20}/></button>
+                     </div>
+                     {copySuccess && <div className="absolute top-0 right-0 -mt-6 bg-green-500 text-black text-[10px] font-bold px-2 py-1 rounded animate-fade-in-up">¡{copySuccess} Copiado!</div>}
+                 </div>
+             </div>
+
+             <div className="mt-8 text-center">
+                 <div className="flex items-center justify-center gap-2 text-gray-400 text-xs animate-pulse">
+                     <Loader className="animate-spin" size={14} /> Esperando depósito...
+                 </div>
+                 <button onClick={onCancel} className="mt-4 text-gray-500 text-xs hover:text-white underline">Cancelar Operación</button>
+             </div>
         </div>
     );
 };
@@ -265,18 +303,35 @@ const CardAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }
 const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, cart, coupon, isCardMode }) => {
     const [status, setStatus] = useState('idle'); const [invoiceId, setInvoiceId] = useState(''); const [approveLink, setApproveLink] = useState('');
     
+    // MANEJO SEGURO DE POPUP (Evita bloqueo de navegadores)
     const handlePayPalPayment = async () => { 
         setStatus('processing');
         const newWindow = window.open('', '_blank');
         if (newWindow) {
              newWindow.document.write(`<div style="background:#000;color:#fff;height:100vh;display:flex;justify-content:center;align-items:center;font-family:sans-serif;"><h1>${isCardMode ? 'Cargando formulario de Tarjeta...' : 'Conectando con PayPal...'}</h1></div>`);
         }
+
         try { 
             const payload = { items: cart.map(item => ({ id: parseInt(item.id, 10), price: item.price })), couponCode: coupon ? coupon.code : null, isCard: isCardMode }; 
             const response = await fetch(`${SERVER_URL}/api/create-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
             const data = await response.json(); 
-            if (data.id) { setInvoiceId(data.id); const link = data.links.find(l => l.rel === "approve").href; setApproveLink(link); if (newWindow) newWindow.location.href = link; setStatus('verifying'); } else throw new Error("Error PayPal"); 
-        } catch (error) { if(newWindow) newWindow.close(); alert("Error: " + error.message); setStatus('idle'); } 
+            
+            if (data.id) { 
+                setInvoiceId(data.id); 
+                const link = data.links.find(l => l.rel === "approve").href;
+                setApproveLink(link); 
+                if (newWindow) {
+                    newWindow.location.href = link;
+                } else {
+                    window.location.href = link; 
+                }
+                setStatus('verifying'); 
+            } else throw new Error("Error PayPal"); 
+        } catch (error) { 
+            if(newWindow) newWindow.close();
+            alert("Error PayPal: " + error.message); 
+            setStatus('idle'); 
+        } 
     };
 
     const handleVerification = async () => { if (!invoiceId) return; if (isExchange) setStatus('dispersing'); try { const response = await fetch(`${SERVER_URL}/api/capture-and-exchange`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: invoiceId, receiveAddress: exchangeData?.receiveAddress }) }); const result = await response.json(); if (result.success) { setStatus('completed'); onPaymentComplete(invoiceId, result.binanceTxId); } else { alert("Pago fallido: " + result.message); setStatus('verifying'); } } catch (error) { alert("Error conexión"); setStatus('verifying'); } };
@@ -298,7 +353,17 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
   const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
   const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: `ORD-${Math.floor(100+Math.random()*900)}`, visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
   
-  const handleFileChange = (e, field) => { const file = e.target.files[0]; if (file) { if (file.size > MAX_FILE_SIZE_BYTES) { alert("Máx 1MB"); e.target.value = ""; return; } setProofData({...proofData, [field]: file}); } };
+  const handleFileChange = (e, field) => {
+      const file = e.target.files[0];
+      if (file) {
+          if (file.size > MAX_FILE_SIZE_BYTES) {
+              alert("El archivo supera el límite de 1MB. Por favor, comprímelo o sube uno más ligero.");
+              e.target.value = ""; 
+              return;
+          }
+          setProofData({...proofData, [field]: file});
+      }
+  };
 
   return (
     <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
@@ -327,11 +392,31 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod }) => {
   // FORMULARIO SIMPLIFICADO PARA EVITAR CRASHES
   const isBinance = (paymentMethod === 'binance' || paymentMethod === 'card_deposit'); 
-  
+  const idDocRef = useRef(null); // Ref para el input de archivo
+
   const handleSubmit = (e) => { 
       e.preventDefault(); 
       if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) return alert("Completa todos los campos"); 
       setCheckoutStep(2); 
+  };
+
+  // Función segura para manejar el click en el input file
+  const handleFileClick = () => {
+    if (idDocRef.current) {
+      idDocRef.current.click();
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        alert("El archivo supera el límite de 1MB.");
+        e.target.value = "";
+        return;
+      }
+      setPaypalData({ ...paypalData, idDoc: file });
+    }
   };
 
   return (
@@ -346,8 +431,29 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
         </div>
         <input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="WhatsApp" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} />
         
-        {/* ELIMINADA LA CARGA DE ID PARA MÉTODOS AUTOMÁTICOS PARA EVITAR EL CRASH */}
-        {/* Los métodos automáticos (PayPal/Binance) ya verifican identidad por su cuenta */}
+        {/* Renderizado condicional SEGURO */}
+        {!isBinance && ( 
+            <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
+                <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
+                <div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} onClick={handleFileClick}>
+                    <input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                    {paypalData.idDoc ? ( 
+                        <div className="flex flex-col items-center text-green-400">
+                            <FileCheck size={32} className="mb-2" />
+                            <p className="font-bold text-sm">Documento Cargado</p>
+                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setPaypalData({...paypalData, idDoc: null}); if(idDocRef.current) idDocRef.current.value = ""; }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar archivo</button>
+                        </div> 
+                    ) : ( 
+                        <div className="flex flex-col items-center text-gray-400">
+                            <ImageIcon size={32} className="mb-2 opacity-50" />
+                            <p className="font-bold text-sm text-white">Subir Foto Documento ID</p>
+                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 1MB)</p>
+                        </div> 
+                    )}
+                </div>
+            </div> 
+        )}
         
         <button type="submit" className="w-full font-bold py-4 rounded-lg shadow-lg mt-4 bg-indigo-600 hover:bg-indigo-700 text-white flex justify-center gap-2">Continuar <ArrowRight size={20} /></button>
       </form>

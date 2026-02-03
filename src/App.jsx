@@ -8,7 +8,13 @@ import {
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle
 } from 'lucide-react';
 
-const SERVER_URL = "https://api-paypal-secure.vercel.app";
+// --- CONFIGURACIÓN DE SERVIDORES ---
+const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
+const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa"; 
+
+// Configuración de límites
+const MAX_FILE_SIZE_MB = 1;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // --- MAPEO DE ICONOS ---
 const ICON_MAP = {
@@ -23,7 +29,7 @@ const DynamicIcon = ({ name, className }) => {
     return <IconComponent className={className} />;
 };
 
-const RATE_API_CONFIG = { url: "https://api-secure-server.vercel.app/api/get-tasa", intervalMinutes: 0.1 };
+const RATE_API_CONFIG = { url: RATE_API_URL, intervalMinutes: 0.1 };
 const INITIAL_RATE_BS = 570.00;
 
 // VALORES POR DEFECTO
@@ -79,18 +85,38 @@ const submitOrderToPrivateServer = async (order) => {
 
 const reportSuspiciousIP = async (ipData, reason) => { try { await fetch(`${SERVER_URL}/api/report-ip`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip: ipData.ip, reason, geo: ipData.country, detectedAt: new Date().toISOString() }) }); } catch (e) {} };
 
+// --- FUNCIÓN DE ENTREGA AUTOMÁTICA MEJORADA ---
 const processStreamingPurchase = async (finalOrder) => {
     const streamingItems = finalOrder.rawItems.filter(item => item.providerId && item.providerId > 0);
+    
     if (streamingItems.length > 0) {
         const accountsDelivered = [];
+        let deliverySuccess = false;
+
         for (const item of streamingItems) {
             try {
                 const response = await fetch(`${SERVER_URL}/api/purchase-streaming`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_id: item.providerId }) });
                 const result = await response.json();
-                if (result.success && result.data) accountsDelivered.push({ title: item.title, ...result.data });
+                if (result.success && result.data) {
+                    accountsDelivered.push({ title: item.title, ...result.data });
+                    deliverySuccess = true;
+                }
             } catch (error) { console.error(`Error auto-streaming:`, error); }
         }
-        if (accountsDelivered.length > 0) { finalOrder.fullData.streamingAccounts = accountsDelivered; finalOrder.fullData.streamingAccount = accountsDelivered[0]; }
+
+        if (deliverySuccess) {
+             finalOrder.fullData.streamingAccounts = accountsDelivered;
+             finalOrder.fullData.streamingAccount = accountsDelivered[0];
+             finalOrder.status = "ENTREGADO AUTOMÁTICAMENTE";
+             finalOrder.deliveryStatus = "SUCCESS";
+        } else {
+             // El pago es real, pero falló el proveedor de streaming
+             finalOrder.status = "PAGADO (Pendiente Entrega Manual)"; 
+             finalOrder.deliveryStatus = "FAILED_PROVIDER";
+             finalOrder.fullData.deliveryNote = "El pago fue verificado correctamente, pero hubo un error conectando con el proveedor de cuentas. Contacte soporte para entrega manual.";
+        }
+    } else {
+        finalOrder.status = "VERIFICADO (Procesando)";
     }
     return finalOrder;
 };
@@ -162,13 +188,33 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
 const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }) => {
     const [transactionId, setTransactionId] = useState('');
     const [status, setStatus] = useState('idle'); 
-    const handleVerify = async () => { if (!transactionId) { alert("ID inválido"); return; } setStatus('verifying'); try { const response = await fetch(`${SERVER_URL}/api/verify-binance-pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: transactionId, amount: finalTotal.toFixed(2) }) }); const result = await response.json(); if (result.success) { setStatus('success'); setTimeout(() => onVerified(transactionId), 2000); } else { alert(result.message); setStatus('idle'); } } catch (error) { alert("Error de conexión"); setStatus('idle'); } };
+    
+    const handleVerify = async () => { 
+        if (!transactionId) { alert("ID inválido"); return; } 
+        setStatus('verifying'); 
+        try { 
+            const response = await fetch(`${SERVER_URL}/api/verify-binance-pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: transactionId, amount: finalTotal.toFixed(2) }) }); 
+            const result = await response.json(); 
+            
+            if (result.success) { 
+                setStatus('success'); 
+                // SOLO PROCEDEMOS SI EL BACKEND CONFIRMA QUE EL PAGO ES REAL
+                setTimeout(() => onVerified(transactionId), 2000); 
+            } else { 
+                alert(result.message); 
+                setStatus('idle'); 
+            } 
+        } catch (error) { 
+            alert("Error de conexión"); 
+            setStatus('idle'); 
+        } 
+    };
 
     return (
         <div className="bg-gray-900 border border-yellow-500/30 rounded-xl p-6 max-w-lg mx-auto animate-fade-in-up relative overflow-hidden">
              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
              <div className="flex justify-between items-start mb-6 relative z-10 border-b border-gray-800 pb-4"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-[#FCD535] rounded-full flex items-center justify-center text-black font-bold text-xl"><Zap size={24} fill="currentColor" /></div><div><h3 className="text-white font-bold text-lg">Binance Pay</h3><p className="text-xs text-gray-400">Verificación Automática</p></div></div></div>
-             {status === 'success' ? <div className="text-center py-10 animate-scale-in"><div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(34,197,94,0.6)]"><Check className="w-10 h-10 text-white" strokeWidth={4} /></div><h4 className="text-2xl font-bold text-white">¡Pago Verificado!</h4></div> : (
+             {status === 'success' ? <div className="text-center py-10 animate-scale-in"><div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(34,197,94,0.6)]"><Check className="w-10 h-10 text-white" strokeWidth={4} /></div><h4 className="text-2xl font-bold text-white">¡Pago Verificado!</h4><p className="text-yellow-500 text-xs mt-2">Procesando entrega automática...</p></div> : (
                 <div className="space-y-6 relative z-10"><div className="bg-gray-800/50 p-4 rounded-lg border border-dashed border-gray-700 text-center"><p className="text-gray-400 text-xs mb-2">Envía exactamente:</p><p className="text-4xl font-mono font-bold text-[#FCD535] mb-2">${finalTotal.toFixed(2)}</p><div className="flex justify-center gap-2 mb-2"><div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><Mail size={12} className="text-yellow-500"/> {contactInfo.binance_email}</div></div><div className="flex justify-center gap-2"><div className="bg-black/40 px-3 py-1.5 rounded border border-gray-600 text-xs font-mono text-white flex items-center gap-2"><QrCode size={12} className="text-yellow-500"/> Pay ID: {contactInfo.binance_pay_id}</div></div></div><div className="space-y-2"><label className="text-sm font-bold text-white">Order ID / ID de Transacción</label><input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Pega aquí el ID (Ej: 423516...)" className="w-full bg-black/50 border border-gray-600 rounded-lg py-3 px-4 text-white font-mono focus:border-[#FCD535] outline-none"/><p className="text-[10px] text-gray-500">El ID que te da Binance tras el pago (18+ dígitos)</p></div><div className="flex gap-3 pt-2"><button onClick={onCancel} className="px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800">Cancelar</button><button onClick={handleVerify} disabled={status === 'verifying' || !transactionId} className="flex-1 bg-[#FCD535] hover:bg-[#E5C02C] text-black font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2">{status === 'verifying' ? <><Loader className="animate-spin" size={20} /> Verificando...</> : "Ya pagué, Verificar"}</button></div></div>
              )}
         </div>
@@ -177,7 +223,38 @@ const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInf
 
 const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, cart, coupon }) => {
     const [status, setStatus] = useState('idle'); const [invoiceId, setInvoiceId] = useState(''); const [approveLink, setApproveLink] = useState('');
-    const handlePayPalPayment = async () => { setStatus('processing'); try { const payload = { items: cart.map(item => ({ id: parseInt(item.id, 10), price: item.price })), couponCode: coupon ? coupon.code : null }; const response = await fetch(`${SERVER_URL}/api/create-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await response.json(); if (data.id) { setInvoiceId(data.id); setApproveLink(data.links.find(l => l.rel === "approve").href); window.open(data.links.find(l => l.rel === "approve").href, '_blank'); setStatus('verifying'); } else throw new Error("Error PayPal"); } catch (error) { alert("Error PayPal: " + error.message); setStatus('idle'); } };
+    
+    // MANEJO SEGURO DE POPUP (Evita bloqueo de navegadores)
+    const handlePayPalPayment = async () => { 
+        setStatus('processing');
+        const newWindow = window.open('', '_blank');
+        if (newWindow) {
+             newWindow.document.write('<div style="background:#000;color:#fff;height:100vh;display:flex;justify-content:center;align-items:center;font-family:sans-serif;"><h1>Conectando con PayPal...</h1></div>');
+        }
+
+        try { 
+            const payload = { items: cart.map(item => ({ id: parseInt(item.id, 10), price: item.price })), couponCode: coupon ? coupon.code : null }; 
+            const response = await fetch(`${SERVER_URL}/api/create-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
+            const data = await response.json(); 
+            
+            if (data.id) { 
+                setInvoiceId(data.id); 
+                const link = data.links.find(l => l.rel === "approve").href;
+                setApproveLink(link); 
+                if (newWindow) {
+                    newWindow.location.href = link;
+                } else {
+                    window.location.href = link; 
+                }
+                setStatus('verifying'); 
+            } else throw new Error("Error PayPal"); 
+        } catch (error) { 
+            if(newWindow) newWindow.close();
+            alert("Error PayPal: " + error.message); 
+            setStatus('idle'); 
+        } 
+    };
+
     const handleVerification = async () => { if (!invoiceId) return; if (isExchange) setStatus('dispersing'); try { const response = await fetch(`${SERVER_URL}/api/capture-and-exchange`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: invoiceId, receiveAddress: exchangeData?.receiveAddress }) }); const result = await response.json(); if (result.success) { setStatus('completed'); onPaymentComplete(invoiceId, result.binanceTxId); } else { alert("Pago fallido: " + result.message); setStatus('verifying'); } } catch (error) { alert("Error conexión"); setStatus('verifying'); } };
 
     return (
@@ -196,6 +273,19 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
   const [isSubmitting, setIsSubmitting] = useState(false); const [acceptedTerms, setAcceptedTerms] = useState(false);
   const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
   const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: `ORD-${Math.floor(100+Math.random()*900)}`, visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
+  
+  // VALIDACIÓN DE PESO (1MB)
+  const handleFileChange = (e, field) => {
+      const file = e.target.files[0];
+      if (file) {
+          if (file.size > MAX_FILE_SIZE_BYTES) {
+              alert("El archivo supera el límite de 1MB. Por favor, comprímelo o sube uno más ligero.");
+              e.target.value = ""; 
+              return;
+          }
+          setProofData({...proofData, [field]: file});
+      }
+  };
 
   return (
     <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
@@ -219,9 +309,9 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
          <form onSubmit={handleFinalSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Nombre" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.name} onChange={e => setProofData({...proofData, name: e.target.value})} /><input type="text" placeholder="Apellido" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.lastName} onChange={e => setProofData({...proofData, lastName: e.target.value})} /></div>
             <div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Cédula/ID" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.idNumber} onChange={e => setProofData({...proofData, idNumber: e.target.value})} /><input type="tel" placeholder="Teléfono" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full" value={proofData.phone} onChange={e => setProofData({...proofData, phone: e.target.value})} /></div>
-            {['facebank', 'pipolpay', 'transfer_usd'].includes(paymentMethod) && <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20 space-y-4"><p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1"><ShieldCheck size={14}/> Verificación de Titular</p><input type="text" placeholder="Cuenta Emisora (Email o Número)" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.issuerAccount || ''} onChange={e => setProofData({...proofData, issuerAccount: e.target.value})} /><label className={`block border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${proofData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500'}`}><input type="file" className="hidden" accept="image/*" onChange={(e) => setProofData({...proofData, idDoc: e.target.files[0]})} />{proofData.idDoc ? <div className="flex flex-col items-center"><FileCheck className="text-green-400 mb-1" size={24}/><p className="text-green-400 text-xs font-bold">Documento Cargado</p><p className="text-gray-500 text-[10px]">{proofData.idDoc?.name}</p></div> : <div className="flex flex-col items-center"><ImageIcon className="text-gray-500 mb-1" size={24}/><p className="text-gray-300 text-xs">Foto Documento Identidad</p><p className="text-[10px] text-red-400 mt-1 font-bold">REQUERIDO (Máx 1MB)</p></div>}</label></div>}
+            {['facebank', 'pipolpay', 'transfer_usd'].includes(paymentMethod) && <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20 space-y-4"><p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1"><ShieldCheck size={14}/> Verificación de Titular</p><input type="text" placeholder="Cuenta Emisora (Email o Número)" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.issuerAccount || ''} onChange={e => setProofData({...proofData, issuerAccount: e.target.value})} /><label className={`block border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${proofData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500'}`}><input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'idDoc')} />{proofData.idDoc ? <div className="flex flex-col items-center"><FileCheck className="text-green-400 mb-1" size={24}/><p className="text-green-400 text-xs font-bold">Documento Cargado</p><p className="text-gray-500 text-[10px]">{proofData.idDoc?.name}</p></div> : <div className="flex flex-col items-center"><ImageIcon className="text-gray-500 mb-1" size={24}/><p className="text-gray-300 text-xs">Foto Documento Identidad</p><p className="text-[10px] text-red-400 mt-1 font-bold">REQUERIDO (Máx 1MB)</p></div>}</label></div>}
             <input type="text" placeholder="Referencia / Comprobante" required className="bg-gray-800 border border-gray-700 rounded p-3 text-white w-full font-mono" value={proofData.refNumber} onChange={e => setProofData({...proofData, refNumber: e.target.value})} />
-            <div className="space-y-2"><label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofData.screenshot ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`}><input type="file" className="hidden" accept="image/*" onChange={(e) => setProofData({...proofData, screenshot: e.target.files[0]})} />{proofData.screenshot ? <div className="flex flex-col items-center text-green-400"><Check size={32} className="mb-2" /><p className="font-bold text-sm">Comprobante Cargado</p><p className="text-xs opacity-70 mb-2">{proofData.screenshot?.name}</p><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setProofData({...proofData, screenshot: null}); }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar imagen</button></div> : <div className="flex flex-col items-center text-gray-400"><ImageIcon size={32} className="mb-2 opacity-50" /><p className="font-bold text-sm text-white">Subir Comprobante de Pago</p><p className="text-xs mt-1 opacity-70">Haz clic para cargar imagen (Máx 1MB)</p><p className="text-[10px] text-red-400 mt-2 font-bold uppercase tracking-wider border border-red-500/30 px-2 py-0.5 rounded">Requerido</p></div>}</label></div>
+            <div className="space-y-2"><label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofData.screenshot ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`}><input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'screenshot')} />{proofData.screenshot ? <div className="flex flex-col items-center text-green-400"><Check size={32} className="mb-2" /><p className="font-bold text-sm">Comprobante Cargado</p><p className="text-xs opacity-70 mb-2">{proofData.screenshot?.name}</p><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setProofData({...proofData, screenshot: null}); }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar imagen</button></div> : <div className="flex flex-col items-center text-gray-400"><ImageIcon size={32} className="mb-2 opacity-50" /><p className="font-bold text-sm text-white">Subir Comprobante de Pago</p><p className="text-xs mt-1 opacity-70">Haz clic para cargar imagen (Máx 1MB)</p><p className="text-[10px] text-red-400 mt-2 font-bold uppercase tracking-wider border border-red-500/30 px-2 py-0.5 rounded">Requerido</p></div>}</label></div>
             <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="terms-checkbox-manual" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" /><label htmlFor="terms-checkbox-manual" className="text-sm text-gray-400">He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.</label></div>
             <button type="submit" disabled={!isFormValid || isSubmitting} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-6 transition-all flex items-center justify-center gap-2 ${isFormValid && !isSubmitting ? 'bg-green-600 hover:bg-green-700 text-white transform hover:scale-[1.02]' : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>{isSubmitting ? <Loader className="animate-spin" /> : (isFormValid ? "REGISTRAR PAGO" : "COMPLETA EL FORMULARIO")}</button>
          </form>
@@ -266,7 +356,8 @@ const SuccessScreen = ({ lastOrder, setView }) => {
             <div className="space-y-3 text-left">
             {lastOrder.rawItems.map((item, i) => { const isExcluded = lastOrder.couponData && lastOrder.couponData.excludedIds && lastOrder.couponData.excludedIds.includes(item.id); return ( <div key={i} className="flex justify-between text-sm text-gray-300"><span>{item.title}</span><div className="text-right"><span className="text-gray-400">${item.price.toFixed(2)}</span>{isExcluded && <span className="text-[9px] text-red-400 block">*Sin descuento</span>}</div></div> ); })}
             <div className="pt-3 border-t border-gray-700 mt-2">{lastOrder.couponData ? ( <><div className="flex justify-between text-sm text-green-400 mb-1"><span>Cupón ({lastOrder.couponData.code}):</span><span>-{lastOrder.couponData.percent}%</span></div><div className="flex justify-between text-white font-bold text-lg mt-2 pt-2 border-t border-gray-800"><span>Total Pagado:</span><span className="text-green-400">${lastOrder.total}</span></div></> ) : ( <div className="flex justify-between text-white font-bold text-lg"><span>Total:</span><span className="text-green-400">${lastOrder.total}</span></div> )}</div>
-            {lastOrder.fullData?.streamingAccount && ( <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left"><p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p><div className="space-y-1 font-mono text-sm"><div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div><div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>{lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}</div></div> )}
+            {lastOrder.fullData?.streamingAccount && ( <div className="mt-4 bg-gray-800 border border-indigo-500/50 p-4 rounded-lg text-left animate-fade-in-up"><p className="text-indigo-400 text-sm font-bold flex items-center gap-2 mb-2"><Key size={16} /> Tu Cuenta Nueva:</p><div className="space-y-1 font-mono text-sm"><div className="flex justify-between"><span className="text-gray-400">Usuario:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.email || lastOrder.fullData.streamingAccount.user || "Ver detalle"}</span></div><div className="flex justify-between"><span className="text-gray-400">Clave:</span><span className="text-white select-all">{lastOrder.fullData.streamingAccount.password || lastOrder.fullData.streamingAccount.pass || "****"}</span></div>{lastOrder.fullData.streamingAccount.message && (<p className="text-xs text-gray-500 mt-2 italic">{lastOrder.fullData.streamingAccount.message}</p>)}</div></div> )}
+            {lastOrder.deliveryStatus === "FAILED_PROVIDER" && (<div className="mt-4 bg-yellow-900/20 border border-yellow-500/50 p-4 rounded-lg text-left"><p className="text-yellow-500 text-xs font-bold flex items-center gap-2"><AlertTriangle size={14} /> Atención:</p><p className="text-gray-300 text-xs mt-1">{lastOrder.fullData.deliveryNote}</p></div>)}
             {lastOrder.paymentMethod === 'binance_api' && (<div className="mt-2 bg-yellow-500/10 border border-yellow-500/50 p-2 rounded text-center text-xs text-yellow-500 font-mono">Verificado por Binance API</div>)}
             </div>
         </div>
@@ -278,7 +369,20 @@ const SuccessScreen = ({ lastOrder, setView }) => {
 
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy }) => {
   const idDocRef = useRef(null); const isBinance = paymentMethod === 'binance'; const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { if (file.size > 500 * 1024) { alert("El documento es demasiado pesado (Máx 500KB). Por favor comprímelo."); e.target.value = ""; return; } setPaypalData({ ...paypalData, idDoc: file }); } };
+  
+  // VALIDACIÓN ARCHIVO 1MB
+  const handleFileChange = (e) => { 
+      const file = e.target.files[0]; 
+      if (file) { 
+          if (file.size > MAX_FILE_SIZE_BYTES) { 
+              alert("El archivo supera el límite de 1MB."); 
+              e.target.value = "";
+              return; 
+          } 
+          setPaypalData({ ...paypalData, idDoc: file }); 
+      } 
+  };
+
   const handleSubmit = (e) => { e.preventDefault(); if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { alert("Por favor completa todos los campos de texto."); return; } if (!isBinance && !paypalData.idDoc) { alert("Debes cargar la foto de tu documento de identidad para continuar."); return; } setCheckoutStep(2); };
   const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc) && acceptedTerms;
 
@@ -290,7 +394,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
         <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
         <div className="grid grid-cols-2 gap-4"><div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div><div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div></div>
         <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
-        {!isBinance && ( <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4"><label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label><div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} onClick={() => idDocRef.current.click()}><input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleFileChange} />{paypalData.idDoc ? ( <div className="flex flex-col items-center text-green-400"><FileCheck size={32} className="mb-2" /><p className="font-bold text-sm">Documento Cargado</p><p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p><button type="button" onClick={(e) => { e.stopPropagation(); setPaypalData({...paypalData, idDoc: null}); if(idDocRef.current) idDocRef.current.value = ""; }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar archivo</button></div> ) : ( <div className="flex flex-col items-center text-gray-400"><ImageIcon size={32} className="mb-2 opacity-50" /><p className="font-bold text-sm text-white">Subir Foto Documento ID</p><p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 500KB)</p></div> )}</div></div> )}
+        {!isBinance && ( <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4"><label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label><div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} onClick={() => idDocRef.current.click()}><input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleFileChange} />{paypalData.idDoc ? ( <div className="flex flex-col items-center text-green-400"><FileCheck size={32} className="mb-2" /><p className="font-bold text-sm">Documento Cargado</p><p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p><button type="button" onClick={(e) => { e.stopPropagation(); setPaypalData({...paypalData, idDoc: null}); if(idDocRef.current) idDocRef.current.value = ""; }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar archivo</button></div> ) : ( <div className="flex flex-col items-center text-gray-400"><ImageIcon size={32} className="mb-2 opacity-50" /><p className="font-bold text-sm text-white">Subir Foto Documento ID</p><p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 1MB)</p></div> )}</div></div> )}
         <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="terms-checkbox-paypal" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" /><label htmlFor="terms-checkbox-paypal" className="text-sm text-gray-400">He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.</label></div>
         <button type="submit" disabled={!isFormValid} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all ${isFormValid ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>Continuar al Pago <ArrowRight size={20} /></button>
       </form>
@@ -346,8 +450,70 @@ export default function App() {
   const rawTotal = cart.reduce((acc, item) => acc + item.price, 0);
   const finalTotal = calculateTotal(cart, coupon);
 
-  const handleCheckoutStart = async () => { setIsProcessing(true); setTimeout(() => { setCheckoutStep(0); setView('checkout'); setIsCartOpen(false); setIsProcessing(false); }, 500); };
-  const handleBinanceSuccess = async (transactionId) => { const randomId = Math.floor(100 + Math.random() * 900); let automatedOrder = { orderId: `ORD-${randomId}`, visualId: `ORD-${randomId}`, user: `${paypalData.firstName} ${paypalData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'FACTURADO (Binance Verified)', date: new Date().toISOString(), rawItems: cart.map(({ icon, ...rest }) => rest), paymentMethod: 'binance_api', tasa: 0, montoBs: 0, totalBs: "0.00", amountBs: 0, couponData: coupon ? { code: coupon.code, percent: coupon.percent, excludedIds: coupon.excludedIds } : null, fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: transactionId, contactPhone: paypalData.phone } }; automatedOrder = await processStreamingPurchase(automatedOrder); await submitOrderToPrivateServer(automatedOrder); setLastOrder(automatedOrder); setCart([]); setCheckoutStep(3); };
+  // --- LÓGICA DE REDIRECCIÓN AUTOMÁTICA EXCHANGE -> PAYPAL ---
+  const handleCheckoutStart = async () => { 
+      setIsProcessing(true); 
+      // Detectamos si hay servicios "Exchange" en el carrito
+      const hasExchangeItem = cart.some(i => i.category === 'Exchange');
+      
+      setTimeout(() => { 
+          if (hasExchangeItem) {
+              setPaymentMethod('paypal'); // Forzamos PayPal
+              setCheckoutStep(1); // Saltamos la selección (vamos directo al form)
+          } else {
+              setPaymentMethod(null);
+              setCheckoutStep(0); 
+          }
+          setView('checkout'); 
+          setIsCartOpen(false); 
+          setIsProcessing(false); 
+      }, 500); 
+  };
+  
+  // --- MANEJO ROBUSTO DE ÉXITO DE BINANCE Y ENTREGA ---
+  const handleBinanceSuccess = async (transactionId) => { 
+      const randomId = Math.floor(100 + Math.random() * 900); 
+      let automatedOrder = { 
+          orderId: `ORD-${randomId}`, 
+          visualId: `ORD-${randomId}`, 
+          user: `${paypalData.firstName} ${paypalData.lastName}`, 
+          items: cart.map(i => i.title).join(', '), 
+          total: finalTotal.toFixed(2), 
+          status: 'VERIFICADO (Procesando...)', 
+          date: new Date().toISOString(), 
+          rawItems: cart.map(({ icon, ...rest }) => rest), 
+          paymentMethod: 'binance_api', 
+          tasa: 0, montoBs: 0, totalBs: "0.00", amountBs: 0, 
+          couponData: coupon ? { code: coupon.code, percent: coupon.percent, excludedIds: coupon.excludedIds } : null, 
+          fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: transactionId, contactPhone: paypalData.phone } 
+      }; 
+      
+      try {
+          // 1. INTENTO DE ENTREGA AUTOMÁTICA
+          try {
+              automatedOrder = await processStreamingPurchase(automatedOrder);
+          } catch (streamingError) {
+              console.error("Error en entrega automática:", streamingError);
+              automatedOrder.status = "PAGADO (Fallo Entrega Auto)";
+              automatedOrder.deliveryStatus = "FAILED_SYSTEM";
+              automatedOrder.fullData.deliveryNote = "Error de sistema al conectar con proveedor. Entregar manualmente.";
+          }
+
+          // 2. GUARDADO DE ORDEN (CRÍTICO: SIEMPRE SE EJECUTA)
+          const saveSuccess = await submitOrderToPrivateServer(automatedOrder); 
+          
+          if (saveSuccess) {
+              setLastOrder(automatedOrder); 
+              setCart([]); 
+              setCheckoutStep(3); 
+          } else {
+              alert(`PAGO RECIBIDO PERO ERROR AL GUARDAR.\n\nTu ID de pago es: ${transactionId}\nPor favor toma una captura de pantalla y contáctanos por WhatsApp.`);
+          }
+      } catch (e) {
+          console.error("Error fatal en checkout:", e);
+          alert("Ocurrió un error inesperado. Si ya pagaste, contáctanos con tu comprobante.");
+      }
+  };
 
   return (
     <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans flex flex-col">

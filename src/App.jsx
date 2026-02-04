@@ -14,13 +14,6 @@ const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa";
 // --- CONTENIDO DEL MANUAL (EMBEBIDO PARA DESCARGA) ---
 const BOT_MANUAL_TEXT = `MANUAL DE COMANDOS MAESTRO - TECNO-BOT IA 3.0
 
-ZONA OWNER (SOLO PARA TI)
-1. !ignore @admin: "Castiga" a un admin ignorando sus comandos.
-2. !unignore @admin: Levanta el castigo.
-3. !horario [on/off]: Activa cierre automático (11:30 PM - 08:00 AM).
-4. !vip @usuario: Hace inmune al Anti-Link.
-5. !global [mensaje]: Anuncio masivo.
-
 ZONA DE ADMINISTRACIÓN
 6. !warn @usuario: Strike (3 strikes = expulsión).
 7. !unwarn @usuario: Quita strike.

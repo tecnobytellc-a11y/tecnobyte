@@ -5,11 +5,49 @@ import {
   Smartphone, User, Check, Upload, X, Lock, 
   Globe, Zap, Trash2, Eye, RefreshCw,
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
-  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle
+  Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle, Link as LinkIcon
 } from 'lucide-react';
 
-const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
+const SERVER_URL = "https://mi-bot-latino.onrender.com"; 
 const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa"; 
+
+// --- CONTENIDO DEL MANUAL (EMBEBIDO PARA DESCARGA) ---
+const BOT_MANUAL_TEXT = `MANUAL DE COMANDOS MAESTRO - TECNO-BOT IA 3.0
+
+ZONA OWNER (SOLO PARA TI)
+1. !ignore @admin: "Castiga" a un admin ignorando sus comandos.
+2. !unignore @admin: Levanta el castigo.
+3. !horario [on/off]: Activa cierre automático (11:30 PM - 08:00 AM).
+4. !vip @usuario: Hace inmune al Anti-Link.
+5. !global [mensaje]: Anuncio masivo.
+
+ZONA DE ADMINISTRACIÓN
+6. !warn @usuario: Strike (3 strikes = expulsión).
+7. !unwarn @usuario: Quita strike.
+8. !ban @usuario: Expulsa inmediatamente.
+9. !antilink [ban | borrar | off]: Defensa contra enlaces.
+10. !cerrar / !abrir: Cierra o abre el chat.
+11. !promover / !degradar: Da o quita rango admin.
+
+ZONA DE GESTIÓN
+12. !nombre [texto]: Cambia asunto del grupo.
+13. !desc [texto]: Cambia descripción.
+14. !revoke: Restablece enlace de invitación.
+15. !link: Obtiene enlace actual.
+16. !invocar: Etiqueta invisible a todos.
+17. !todos: Etiqueta visible.
+
+ZONA DE UTILIDAD
+18. !admins: Etiqueta admins.
+19. !reporte [texto]: Mensaje al owner.
+20. !perfil: Ficha de usuario.
+21. !ping / !uptime: Estado del bot.
+
+ZONA PÚBLICA (JUEGOS)
+!encuesta, !ppt, !pareja, !gay, !slot, !letra, !calc, !dado, !8ball
+
+SEGURIDAD AUTOMÁTICA
+Anti-Privado: Bloquea a quienes escriben al privado del bot.`;
 
 const MAX_FILE_SIZE_MB = 1;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -17,7 +55,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ICON_MAP = {
     'MessageSquare': MessageSquare, 'CreditCard': CreditCard, 'RefreshCw': RefreshCw,
     'Gamepad2': Gamepad2, 'Zap': Zap, 'Tv': Tv, 'Music': Music, 'Smartphone': Smartphone,
-    'Globe': Globe, 'Lock': Lock
+    'Globe': Globe, 'Lock': Lock, 'Bot': Bot
 };
 
 const DynamicIcon = ({ name, className }) => {
@@ -112,6 +150,17 @@ const processStreamingPurchase = async (finalOrder) => {
     return finalOrder;
 };
 
+const downloadFile = (content, filename, type) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 const BlockedScreen = () => ( <div className="blocked-screen font-sans"><div className="max-w-md p-8 bg-[#111] border-2 border-red-600 rounded-2xl text-center shadow-[0_0_50px_rgba(220,38,38,0.5)] animate-scale-in"><AlertTriangle size={64} className="text-red-600 mx-auto mb-6 animate-pulse"/><h1 className="text-3xl font-bold text-white mb-2 tracking-widest font-orbitron">ACCESO DENEGADO</h1><p className="text-gray-400 mb-4 text-sm">Su dirección IP ha sido marcada como sospechosa.</p></div></div> );
 
 const LegalModal = ({ isOpen, onClose, title, content }) => {
@@ -192,108 +241,20 @@ const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInf
     );
 };
 
-const CardAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }) => {
-    const [memoId] = useState(Math.floor(10000000 + Math.random() * 90000000).toString());
-    const [isChecking, setIsChecking] = useState(false);
-    const [copySuccess, setCopySuccess] = useState('');
-
-    useEffect(() => {
-        const interval = setInterval(async () => {
-            if (isChecking) return;
-            setIsChecking(true);
-            try {
-                const response = await fetch(`${SERVER_URL}/api/verify-binance-deposit`, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ memo: memoId, amount: finalTotal.toFixed(2) }) 
-                });
-                const result = await response.json();
-                if (result.success) {
-                    clearInterval(interval);
-                    onVerified(result.txId || memoId);
-                }
-            } catch (e) {}
-            setIsChecking(false);
-        }, 10000);
-        return () => clearInterval(interval);
-    }, [memoId, finalTotal, onVerified]);
-
-    const handleCopy = (text, label) => {
-        navigator.clipboard.writeText(text);
-        setCopySuccess(label);
-        setTimeout(() => setCopySuccess(''), 2000);
-    };
-
-    return (
-        <div className="bg-gray-900 border border-cyan-500/30 rounded-xl p-6 max-w-lg mx-auto animate-fade-in-up relative overflow-hidden">
-             <div className="flex justify-between items-start mb-6 relative z-10 border-b border-gray-800 pb-4">
-                 <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold"><CreditCard size={20} /></div>
-                     <div><h3 className="text-white font-bold text-lg">Tarjeta Universal</h3><p className="text-xs text-gray-400">Pago automático vía depósito</p></div>
-                 </div>
-             </div>
-             
-             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30 mb-6">
-                 <p className="text-sm text-cyan-300 font-bold mb-2">INSTRUCCIONES DE PAGO:</p>
-                 <p className="text-xs text-gray-300 leading-relaxed mb-2">
-                     Para pagar con tarjeta (Visa, Master, etc.) en cualquier moneda (Bs, Pesos, USD), realiza un envío de USDT a la siguiente dirección de Binance. 
-                     Puedes usar <b>Binance Pay</b>, <b>Zinli (Comprar Cripto)</b>, o cualquier exchange.
-                 </p>
-                 <p className="text-xs text-yellow-400 font-bold bg-yellow-900/20 p-2 rounded border border-yellow-600/30 text-center">
-                     ⚠️ IMPORTANTE: DEBES INCLUIR EL MEMO/TAG O EL PAGO NO SE ACREDITARÁ.
-                 </p>
-             </div>
-
-             <div className="space-y-4">
-                 <div>
-                     <label className="text-xs text-gray-400 block mb-1">Monto Exacto (USDT)</label>
-                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
-                         <span className="text-xl font-mono font-bold text-white">${finalTotal.toFixed(2)}</span>
-                         <button onClick={() => handleCopy(finalTotal.toFixed(2), 'Monto')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
-                     </div>
-                 </div>
-                 
-                 <div>
-                     <label className="text-xs text-gray-400 block mb-1">Dirección de Depósito (BEP20 / BSC)</label>
-                     <div className="flex items-center justify-between bg-black/40 p-3 rounded border border-gray-700">
-                         <span className="text-xs font-mono text-gray-300 break-all">{contactInfo.deposit_address}</span>
-                         <button onClick={() => handleCopy(contactInfo.deposit_address, 'Address')} className="text-gray-500 hover:text-white"><Copy size={16}/></button>
-                     </div>
-                 </div>
-
-                 <div className="relative">
-                     <label className="text-xs text-cyan-400 font-bold block mb-1">MEMO / TAG (OBLIGATORIO)</label>
-                     <div className="flex items-center justify-between bg-cyan-900/10 p-4 rounded border border-cyan-500">
-                         <span className="text-2xl font-mono font-bold text-white tracking-widest">{memoId}</span>
-                         <button onClick={() => handleCopy(memoId, 'MEMO')} className="text-cyan-500 hover:text-white"><Copy size={20}/></button>
-                     </div>
-                     {copySuccess && <div className="absolute top-0 right-0 -mt-6 bg-green-500 text-black text-[10px] font-bold px-2 py-1 rounded animate-fade-in-up">¡{copySuccess} Copiado!</div>}
-                 </div>
-             </div>
-
-             <div className="mt-8 text-center">
-                 <div className="flex items-center justify-center gap-2 text-gray-400 text-xs animate-pulse">
-                     <Loader className="animate-spin" size={14} /> Esperando depósito...
-                 </div>
-                 <button onClick={onCancel} className="mt-4 text-gray-500 text-xs hover:text-white underline">Cancelar Operación</button>
-             </div>
-        </div>
-    );
-};
-
-const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, cart, coupon, isCardMode }) => {
+const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, exchangeData, cart, coupon }) => {
     const [status, setStatus] = useState('idle'); const [invoiceId, setInvoiceId] = useState(''); const [approveLink, setApproveLink] = useState('');
     
     // MANEJO SEGURO DE POPUP (Evita bloqueo de navegadores)
     const handlePayPalPayment = async () => { 
         setStatus('processing');
+        // Abrir ventana inmediatamente para evitar bloqueos del navegador
         const newWindow = window.open('', '_blank');
         if (newWindow) {
-             newWindow.document.write(`<div style="background:#000;color:#fff;height:100vh;display:flex;justify-content:center;align-items:center;font-family:sans-serif;"><h1>${isCardMode ? 'Cargando formulario de Tarjeta...' : 'Conectando con PayPal...'}</h1></div>`);
+             newWindow.document.write(`<div style="background:#000;color:#fff;height:100vh;display:flex;justify-content:center;align-items:center;font-family:sans-serif;"><h1>Conectando con PayPal...</h1></div>`);
         }
 
         try { 
-            const payload = { items: cart.map(item => ({ id: parseInt(item.id, 10), price: item.price })), couponCode: coupon ? coupon.code : null, isCard: isCardMode }; 
+            const payload = { items: cart.map(item => ({ id: parseInt(item.id, 10), price: item.price })), couponCode: coupon ? coupon.code : null }; 
             const response = await fetch(`${SERVER_URL}/api/create-order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
             const data = await response.json(); 
             
@@ -319,8 +280,8 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
 
     return (
         <div className="bg-gray-900 border border-indigo-500/30 rounded-xl p-6 max-w-md mx-auto animate-fade-in-up">
-            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">{isCardMode ? <CreditCard className="h-8 w-8 text-cyan-400" /> : <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-8" />}<span className="text-white font-bold text-lg">{isCardMode ? 'Pago con Tarjeta' : 'Checkout Seguro'}</span></div>
-            {status === 'idle' && <div className="space-y-4"><div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20"><p className="text-gray-300 text-sm mb-2">Resumen de Pago:</p><p className="text-3xl font-bold text-white">${finalTotal.toFixed(2)}</p>{isExchange && <div className="mt-2 text-xs text-yellow-500 flex items-center gap-1"><RefreshCw size={10} /> Incluye dispersión automática a Binance</div>}</div><button onClick={handlePayPalPayment} className={`w-full font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] ${isCardMode ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : 'bg-[#FFC439] hover:bg-[#F4BB35] text-blue-900'}`}>{isCardMode ? "Ingresar Datos de Tarjeta" : "Pagar con PayPal"}</button><p className="text-[10px] text-gray-500 text-center">Serás redirigido al portal seguro de PayPal.</p></div>}
+            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-8" /><span className="text-white font-bold text-lg">Checkout Seguro</span></div>
+            {status === 'idle' && <div className="space-y-4"><div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20"><p className="text-gray-300 text-sm mb-2">Resumen de Pago:</p><p className="text-3xl font-bold text-white">${finalTotal.toFixed(2)}</p>{isExchange && <div className="mt-2 text-xs text-yellow-500 flex items-center gap-1"><RefreshCw size={10} /> Incluye dispersión automática a Binance</div>}</div><button onClick={handlePayPalPayment} className={`w-full font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] bg-[#FFC439] hover:bg-[#F4BB35] text-blue-900`}>Pagar con PayPal</button><p className="text-[10px] text-gray-500 text-center">Serás redirigido al portal seguro de PayPal.</p></div>}
             {status === 'processing' && <div className="text-center py-8"><Loader className="w-12 h-12 text-[#003087] animate-spin mx-auto mb-4" /><p className="text-white font-bold">Iniciando Transacción...</p><p className="text-xs text-gray-400">Creando factura en PayPal...</p></div>}
             {status === 'verifying' && <div className="space-y-6 text-center"><div className="w-16 h-16 bg-blue-500/20 rounded-full mx-auto border border-blue-500/50 flex items-center justify-center"><CreditCard className="w-8 h-8 text-blue-500" /></div><div><h4 className="text-white font-bold text-xl">Confirmar Pago</h4><p className="text-indigo-400 font-mono text-sm mt-1">Orden: {invoiceId}</p><p className="text-gray-400 text-xs mt-2 px-4">Hemos abierto una pestaña segura. Completa el pago y luego haz clic abajo.</p>{approveLink && <a href={approveLink} target="_blank" rel="noopener noreferrer" className="text-xs text-yellow-500 underline block mt-1">¿No se abrió? Clic aquí</a>}</div><div className="bg-gray-800 p-4 rounded-lg text-left"><button onClick={handleVerification} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded text-sm animate-pulse-green shadow-lg">Ya realicé el pago</button></div></div>}
             {status === 'dispersing' && <div className="text-center py-8 space-y-4"><div className="relative w-16 h-16 mx-auto"><div className="absolute inset-0 border-4 border-yellow-500 rounded-full animate-spin border-t-transparent"></div><img src="https://cryptologos.cc/logos/binance-coin-bnb-logo.png" className="absolute inset-0 w-8 h-8 m-auto animate-pulse" alt="Binance" /></div><div><p className="text-white font-bold">Verificando y Enviando...</p><p className="text-xs text-yellow-500">Conectando con Binance API...</p></div><div className="w-full bg-gray-800 rounded-full h-1.5 mt-4"><div className="bg-yellow-500 h-1.5 rounded-full animate-[width_3s_ease-out_forwards]" style={{width: '90%'}}></div></div></div>}
@@ -381,8 +342,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
 
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy }) => {
   const idDocRef = useRef(null); 
-  // CORREGIDO: Aseguramos que isBinance sea booleano y cubra tanto Binance puro como Tarjeta (que usa el motor de Binance)
-  const isBinance = (paymentMethod === 'binance' || paymentMethod === 'card_deposit'); 
+  const isBinance = (paymentMethod === 'binance'); 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   // VALIDACIÓN ARCHIVO 1MB
@@ -403,14 +363,13 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
-      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay / Tarjeta' : 'Facturación'}</h2>
+      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
       <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
         <div className="grid grid-cols-2 gap-4"><div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div><div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div></div>
         <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
         
-        {/* CORREGIDO: Renderizado condicional seguro y CON ESTILOS ORIGINALES RESTAURADOS */}
         {!isBinance && ( 
             <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
                 <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
@@ -453,9 +412,6 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
           <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group"><div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div><div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span></button>
           <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span></button>
           
-          {/* NUEVO BOTÓN: TARJETA UNIVERSAL (ESTILO IDÉNTICO A LOS DEMÁS) */}
-          <button onClick={() => { setPaymentMethod('card_deposit'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-cyan-600 to-blue-700 rounded-xl border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden"><div className="absolute top-0 right-0 bg-white text-blue-800 text-[10px] font-bold px-2 py-0.5">AUTO</div><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-cyan-600"><CreditCard /></div><span className="font-bold text-white text-center text-sm">Tarjeta Débito/Crédito (Visa/Master)</span></button>
-
           <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span></button>
           <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span></button>
           <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span></button>
@@ -469,13 +425,16 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
 
 const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart, cart, coupon, contactInfo, paymentMethod }) => {
     return (
-        <PayPalAutomatedCheckout finalTotal={cartTotal} paypalData={paypalData} onPaymentComplete={(orderId) => { setLastOrder({ orderId: orderId, total: cartTotal.toFixed(2), items: "PayPal Order", paymentMethod: 'paypal_api', fullData: paypalData, rawItems: [] }); setCart([]); setCheckoutStep(3); }} isExchange={false} cart={cart} coupon={coupon} isCardMode={paymentMethod === 'card'} />
+        <PayPalAutomatedCheckout finalTotal={cartTotal} paypalData={paypalData} onPaymentComplete={(orderId) => { setLastOrder({ orderId: orderId, total: cartTotal.toFixed(2), items: "PayPal Order", paymentMethod: 'paypal_api', fullData: paypalData, rawItems: [] }); setCart([]); setCheckoutStep(3); }} isExchange={false} cart={cart} coupon={coupon} />
     );
 };
 
 export default function App() {
-  const [view, setView] = useState('home'); const [cart, setCart] = useState([]); const [isCartOpen, setIsCartOpen] = useState(false); const [activeCategory, setActiveCategory] = useState('All'); const [lastOrder, setLastOrder] = useState(null); const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); const [checkoutStep, setCheckoutStep] = useState(0); const [paymentMethod, setPaymentMethod] = useState(null); const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', idDoc: null }); const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null }); const [isProcessing, setIsProcessing] = useState(false); const [isBlocked, setIsBlocked] = useState(false); const [showTerms, setShowTerms] = useState(false); const [showPrivacy, setShowPrivacy] = useState(false); const [coupon, setCoupon] = useState(null); const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); const [services, setServices] = useState([]); const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+  const [view, setView] = useState('home'); const [cart, setCart] = useState([]); const [isCartOpen, setIsCartOpen] = useState(false); const [activeCategory, setActiveCategory] = useState('All'); const [lastOrder, setLastOrder] = useState(null); const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); const [checkoutStep, setCheckoutStep] = useState(0); const [paymentMethod, setPaymentMethod] = useState(null); const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', idDoc: null, groupLink: '' }); const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null }); const [isProcessing, setIsProcessing] = useState(false); const [isBlocked, setIsBlocked] = useState(false); const [showTerms, setShowTerms] = useState(false); const [showPrivacy, setShowPrivacy] = useState(false); const [coupon, setCoupon] = useState(null); const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); const [services, setServices] = useState([]); const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [contactInfo, setContactInfo] = useState(DEFAULT_CONTACT_INFO); const [legalInfo, setLegalInfo] = useState({ terms: "Cargando...", privacy: "Cargando..." }); const [socialLinks, setSocialLinks] = useState({ tiktok: "#", instagram: "#", facebook: "#" });
+
+  // Detectar si hay servicios que requieren link en el carrito
+  const requiresGroupLink = cart.some(item => item.requiresLink);
 
   const isExchangeAvailable = (() => { const now = new Date(); const venDate = new Date(now.toLocaleString("en-US", {timeZone: "America/Caracas"})); const day = venDate.getDay(); return day >= 1 && day <= 4; })();
 
@@ -517,6 +476,14 @@ export default function App() {
 
   const handleCheckoutStart = async () => { 
       setIsProcessing(true); 
+      // Verificar si hay link si el producto lo requiere
+      if (requiresGroupLink && (!paypalData.groupLink || !paypalData.groupLink.includes('chat.whatsapp.com'))) {
+          setIsProcessing(false);
+          alert("Por favor ingresa un enlace válido de Grupo de WhatsApp antes de continuar.");
+          setIsCartOpen(true);
+          return;
+      }
+
       const hasExchangeItem = cart.some(i => i.category === 'Exchange');
       setTimeout(() => { 
           if (hasExchangeItem) {
@@ -546,7 +513,7 @@ export default function App() {
           paymentMethod: 'binance_api', 
           tasa: 0, montoBs: 0, totalBs: "0.00", amountBs: 0, 
           couponData: coupon ? { code: coupon.code, percent: coupon.percent, excludedIds: coupon.excludedIds } : null, 
-          fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: transactionId, contactPhone: paypalData.phone } 
+          fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: transactionId, contactPhone: paypalData.phone, groupLink: paypalData.groupLink } 
       }; 
       try {
           try { automatedOrder = await processStreamingPurchase(automatedOrder); } 
@@ -571,8 +538,8 @@ export default function App() {
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
               <div className="flex justify-center mb-8"><div className="flex items-center gap-4"><div onClick={() => { if (checkoutStep > 0 && checkoutStep < 3) { setCheckoutStep(0); setPaymentMethod(null); }}} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}>1</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div></div></div>
               {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={setCoupon} coupon={coupon} removeCoupon={() => setCoupon(null)} />}
-              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'card_deposit') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod === 'card_deposit' ? 'binance' : paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />}
-              {checkoutStep === 2 && ( (paymentMethod === 'paypal') ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} paymentMethod={paymentMethod} /> : (paymentMethod === 'binance' ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : (paymentMethod === 'card_deposit' ? <CardAutomatedCheckout finalTotal={finalTotal} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />)) )}
+              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />}
+              {checkoutStep === 2 && ( (paymentMethod === 'paypal') ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} paymentMethod={paymentMethod} /> : (paymentMethod === 'binance' ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />) )}
               {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
           </div>
           ) : (
@@ -588,7 +555,27 @@ export default function App() {
           )}
       </main>
       <footer className="bg-black/90 border-t border-gray-800 text-gray-400 py-12"><div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8"><div><h4 className="text-white font-orbitron font-bold text-xl mb-4">TECNOBYTE</h4><p className="text-sm">Innovación y seguridad en cada transacción. Tu aliado digital de confianza.</p></div><div><h4 className="text-white font-bold mb-4">Contacto</h4><ul className="space-y-2 text-sm"><li className="flex items-center gap-2"><Mail size={16}/> {contactInfo.email}</li><li className="flex items-center gap-2"><Phone size={16}/> {contactInfo.whatsapp_display}</li></ul></div><div><h4 className="text-white font-bold mb-4">Síguenos</h4><div className="flex gap-4"><a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors"><Facebook /></a><a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors"><Instagram /></a><a href={socialLinks.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors"><TikTokIcon /></a></div></div><div><h4 className="text-white font-bold mb-4">Legal</h4><ul className="space-y-2 text-sm"><li className="cursor-pointer hover:text-white transition-colors" onClick={() => setShowTerms(true)}>Términos y Condiciones</li><li className="cursor-pointer hover:text-white transition-colors" onClick={() => setShowPrivacy(true)}>Política de Privacidad</li></ul></div></div><div className="text-center mt-12 text-xs text-gray-600">© 2024 TecnoByte LLC. Todos los derechos reservados.</div></footer>
-      {isCartOpen && ( <div className="fixed inset-0 z-50 flex justify-end"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div><div className="relative w-full max-w-md bg-gray-900 h-full shadow-2xl border-l border-gray-800 p-6 flex flex-col animate-scale-in"><div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4"><h2 className="text-2xl font-bold text-white">Tu Carrito</h2><button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button></div><div className="flex-1 overflow-y-auto space-y-4">{cart.length === 0 ? <div className="text-center text-gray-500 mt-10">Tu carrito está vacío</div> : cart.map((item, idx) => ( <div key={idx} className="bg-gray-800/50 p-4 rounded-lg"><div className="flex justify-between items-center"><div><h4 className="text-white font-medium">{item.title}</h4><p className="text-sm text-cyan-400">${item.price.toFixed(2)}</p></div><button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button></div>{item.exchangeData && item.type === 'usdt' && <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">Destino: {item.exchangeData.receiveAddress} ({item.exchangeData.receiveType})</p>}</div> ))}</div><div className="mt-6 border-t border-gray-800 pt-4">{coupon ? ( <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Descuento ({coupon.code}):</span><span className="text-green-400 font-bold">-{coupon.percent}%</span></div> ) : null}<div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${finalTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div></div></div> )}
+      {isCartOpen && ( <div className="fixed inset-0 z-50 flex justify-end"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div><div className="relative w-full max-w-md bg-gray-900 h-full shadow-2xl border-l border-gray-800 p-6 flex flex-col animate-scale-in"><div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4"><h2 className="text-2xl font-bold text-white">Tu Carrito</h2><button onClick={() => setIsCartOpen(false)}><X className="text-gray-400 hover:text-white" /></button></div><div className="flex-1 overflow-y-auto space-y-4">
+        {cart.length === 0 ? <div className="text-center text-gray-500 mt-10">Tu carrito está vacío</div> : cart.map((item, idx) => ( 
+            <div key={idx} className="bg-gray-800/50 p-4 rounded-lg">
+                <div className="flex justify-between items-center"><div><h4 className="text-white font-medium">{item.title}</h4><p className="text-sm text-cyan-400">${item.price.toFixed(2)}</p></div><button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button></div>
+                {item.exchangeData && item.type === 'usdt' && <p className="text-[10px] text-yellow-500 mt-2 bg-yellow-900/10 p-1 rounded">Destino: {item.exchangeData.receiveAddress} ({item.exchangeData.receiveType})</p>}
+            </div> 
+        ))}
+        {requiresGroupLink && (
+            <div className="mt-4 p-4 bg-indigo-900/10 border border-indigo-500/30 rounded-lg animate-fade-in-up">
+                <label className="text-xs text-indigo-300 font-bold mb-2 flex items-center gap-2"><LinkIcon size={14} /> Enlace de Grupo (Requerido para el Bot)</label>
+                <input 
+                    type="text" 
+                    placeholder="https://chat.whatsapp.com/..." 
+                    className="w-full bg-black/40 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none"
+                    value={paypalData.groupLink || ''}
+                    onChange={(e) => setPaypalData({...paypalData, groupLink: e.target.value})}
+                />
+                <p className="text-[10px] text-gray-400 mt-1">El bot se unirá a este grupo automáticamente tras el pago.</p>
+            </div>
+        )}
+      </div><div className="mt-6 border-t border-gray-800 pt-4">{coupon ? ( <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Descuento ({coupon.code}):</span><span className="text-green-400 font-bold">-{coupon.percent}%</span></div> ) : null}<div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${finalTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div></div></div> )}
       <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Términos y Condiciones" content={legalInfo.terms} />
       <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Política de Privacidad y Aviso Legal" content={legalInfo.privacy} />
     </div>

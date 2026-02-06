@@ -411,7 +411,7 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
   );
 };
 
-const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy }) => {
+const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy, cart }) => {
   const idDocRef = useRef(null); 
   const isBinance = (paymentMethod === 'binance'); 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -429,7 +429,31 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
       } 
   };
 
-  const handleSubmit = (e) => { e.preventDefault(); if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { alert("Por favor completa todos los campos de texto."); return; } if (!isBinance && !paypalData.idDoc) { alert("Debes cargar la foto de tu documento de identidad para continuar."); return; } setCheckoutStep(2); };
+  const handleSubmit = (e) => { 
+      e.preventDefault(); 
+      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { 
+          alert("Por favor completa todos los campos de texto."); 
+          return; 
+      } 
+      if (!isBinance && !paypalData.idDoc) { 
+          alert("Debes cargar la foto de tu documento de identidad para continuar."); 
+          return; 
+      } 
+
+      // --- 🛡️ VALIDACIÓN ADMIN BOT (NUEVO) ---
+      const hasBot = cart.some(item => item.id === 20 || item.title === 'Admin. Bot');
+      if (hasBot) {
+          const link = paypalData.groupLink;
+          if (!link || !link.includes('chat.whatsapp.com')) {
+              alert("⚠️ ALERTA:\n\nPara comprar el 'Admin. Bot' es OBLIGATORIO ingresar un enlace de grupo de WhatsApp válido.\n\nPor favor, pégalo en el recuadro azul que apareció en el formulario.");
+              return; 
+          }
+      }
+      // ----------------------------------------------
+
+      setCheckoutStep(2); 
+  };
+  
   const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc) && acceptedTerms;
 
   return (
@@ -462,6 +486,41 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                     )}
                 </div>
             </div> 
+        )}
+
+        {/* 🤖 MÓDULO INTELIGENTE: ADMIN BOT (INYECCIÓN DE CÓDIGO) */}
+        {cart.some(item => item.id === 20 || item.title === 'Admin. Bot') && (
+            <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl animate-fadeIn">
+                <div className="flex items-center gap-2 mb-2">
+                    <Bot className="text-blue-400" size={20} />
+                    <h3 className="text-sm font-bold text-blue-100">Configuración del Bot</h3>
+                </div>
+                
+                <p className="text-[11px] text-gray-300 mb-3 leading-relaxed">
+                    Para activar el <strong>Admin Bot</strong>, necesitamos el enlace de invitación de tu grupo.
+                    <span className="block text-blue-300 mt-1">🚀 El bot se unirá automáticamente al confirmar el pago.</span>
+                </p>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Enlace del Grupo (WhatsApp)</label>
+                    <div className="relative">
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                        <input
+                            type="text"
+                            placeholder="https://chat.whatsapp.com/..."
+                            className="w-full bg-black/40 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg py-2.5 pl-10 pr-3 text-white text-sm outline-none transition-all placeholder:text-gray-600"
+                            value={paypalData.groupLink || ''}
+                            onChange={(e) => setPaypalData({ ...paypalData, groupLink: e.target.value })}
+                        />
+                    </div>
+                    {/* Mensaje de error condicional */}
+                    {paypalData.groupLink && !paypalData.groupLink.includes('chat.whatsapp.com') && (
+                        <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
+                            <AlertTriangle size={10} /> Enlace no válido. Debe contener "chat.whatsapp.com"
+                        </p>
+                    )}
+                </div>
+            </div>
         )}
 
         <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="terms-checkbox-paypal" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" /><label htmlFor="terms-checkbox-paypal" className="text-sm text-gray-400">He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.</label></div>
@@ -609,7 +668,7 @@ export default function App() {
           <div className="pt-24 px-4 sm:px-6 lg:px-8">
               <div className="flex justify-center mb-8"><div className="flex items-center gap-4"><div onClick={() => { if (checkoutStep > 0 && checkoutStep < 3) { setCheckoutStep(0); setPaymentMethod(null); }}} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}>1</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div></div></div>
               {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={setCoupon} coupon={coupon} removeCoupon={() => setCoupon(null)} />}
-              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />}
+              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} cart={cart} />}
               {checkoutStep === 2 && ( (paymentMethod === 'paypal') ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} paymentMethod={paymentMethod} /> : (paymentMethod === 'binance' ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />) )}
               {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
           </div>

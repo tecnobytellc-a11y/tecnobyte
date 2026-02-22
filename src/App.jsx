@@ -364,7 +364,7 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
 const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, exchangeRate, coupon, contactInfo, openTerms, openPrivacy }) => {
   const [isSubmitting, setIsSubmitting] = useState(false); const [acceptedTerms, setAcceptedTerms] = useState(false);
   const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
-  const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: `ORD-${Math.floor(100+Math.random()*900)}`, visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
+  const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: 'ORD-' + Date.now().toString().slice(-4) + Math.floor(Math.random()*100)}`, visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
   
   const handleFileChange = (e, field) => {
       const file = e.target.files[0];
@@ -555,7 +555,37 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
 
 const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastOrder, setCart, cart, coupon, contactInfo, paymentMethod }) => {
     return (
-        <PayPalAutomatedCheckout finalTotal={cartTotal} paypalData={paypalData} onPaymentComplete={(orderId) => { setLastOrder({ orderId: orderId, total: cartTotal.toFixed(2), items: "PayPal Order", paymentMethod: 'paypal_api', fullData: paypalData, rawItems: [] }); setCart([]); setCheckoutStep(3); }} isExchange={false} cart={cart} coupon={coupon} />
+        <PayPalAutomatedCheckout 
+            finalTotal={cartTotal} 
+            paypalData={paypalData} 
+            isExchange={cart.some(i => i.category === 'Exchange')}
+            exchangeData={cart.find(i => i.category === 'Exchange')?.exchangeData}
+            cart={cart} 
+            coupon={coupon}
+            onPaymentComplete={async (orderId, binanceTxId) => { 
+                // AHORA SÍ GUARDAMOS LA ORDEN EN EL PANEL
+                const randomId = Math.floor(100 + Math.random() * 900); 
+                const orderData = { 
+                    orderId: `ORD-${randomId}`, 
+                    visualId: `ORD-${randomId}`, 
+                    user: `${paypalData.firstName} ${paypalData.lastName}`, 
+                    items: cart.map(i => i.title).join(', '), 
+                    total: cartTotal.toFixed(2), 
+                    status: cart.some(i => i.category === 'Exchange') ? 'COMPLETADO (Exchange)' : 'VERIFICADO (Pagado)', 
+                    date: new Date().toISOString(), 
+                    rawItems: cart.map(({ icon, ...rest }) => rest), 
+                    paymentMethod: 'paypal_api', 
+                    couponData: coupon, 
+                    fullData: { ...paypalData, refNumber: orderId, binanceTxId } 
+                };
+                
+                await submitOrderToPrivateServer(orderData); // Guardamos en BD
+                
+                setLastOrder(orderData); 
+                setCart([]); 
+                setCheckoutStep(3); 
+            }} 
+        />
     );
 };
 

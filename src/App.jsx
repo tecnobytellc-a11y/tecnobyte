@@ -559,6 +559,282 @@ const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastO
     );
 };
 
+const SuccessScreen = ({ lastOrder, setView }) => {
+    // Lógica del botón de WhatsApp
+    const handleWhatsApp = () => {
+        const orderText = lastOrder?.orderId ? ` Mi número de orden es ${lastOrder.orderId}.` : '';
+        const text = encodeURIComponent(`Hola equipo de TecnoByte, tengo un problema con mi compra.${orderText}`);
+        window.open(`https://wa.me/19047400467?text=${text}`, '_blank');
+    };
+
+    // Lógica nativa para generar el PDF de la factura
+    const handleDownloadPDF = () => {
+        const printWindow = window.open('', '_blank');
+        const orderId = lastOrder?.orderId || 'N/A';
+        const date = lastOrder?.date ? new Date(lastOrder.date).toLocaleString('es-VE') : new Date().toLocaleString('es-VE');
+        const user = lastOrder?.user || 'Cliente';
+        const email = lastOrder?.fullData?.email || 'N/A';
+        const phone = lastOrder?.fullData?.phone || 'N/A';
+        const method = lastOrder?.paymentMethod || 'N/A';
+        
+        const rawItems = lastOrder?.rawItems || [];
+        const subtotal = rawItems.reduce((acc, item) => acc + item.price, 0);
+        const hasCoupon = !!lastOrder?.couponData;
+        const discountAmount = hasCoupon ? subtotal - parseFloat(lastOrder.total) : 0;
+        
+        // Plantilla HTML de la Factura (Diseño Oscuro estilo TecnoByte)
+        const html = `
+          <html>
+            <head>
+              <title>Factura TecnoByte - ${orderId}</title>
+              <style>
+                @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600&display=swap');
+                body { font-family: 'Inter', sans-serif; background-color: #0a0a12; color: #ffffff; padding: 40px; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .container { max-width: 800px; margin: 0 auto; background: #11111a; border: 1px solid #4f46e5; border-radius: 12px; padding: 40px; box-sizing: border-box; }
+                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2d2d3b; padding-bottom: 20px; margin-bottom: 30px; }
+                .logo { font-family: 'Orbitron', sans-serif; font-size: 32px; color: #4f46e5; font-weight: 900; letter-spacing: 2px; }
+                .invoice-title { font-size: 24px; color: #fff; font-weight: 600; text-align: right; letter-spacing: 1px; }
+                .grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                .col { width: 48%; }
+                .label { font-size: 11px; color: #8b8b9f; text-transform: uppercase; margin-bottom: 4px; font-weight: 600; letter-spacing: 1px; }
+                .value { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+                th { background: #1a1a24; color: #8b8b9f; text-align: left; padding: 14px; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #2d2d3b; }
+                td { padding: 14px; border-bottom: 1px solid #2d2d3b; font-size: 14px; }
+                .totals { width: 320px; margin-left: auto; }
+                .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #a1a1aa; }
+                .totals-row.discount { color: #4ade80; }
+                .totals-row.grand { border-top: 2px solid #4f46e5; font-size: 18px; font-weight: bold; color: #4f46e5; margin-top: 10px; padding-top: 15px; }
+                .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #8b8b9f; border-top: 1px solid #2d2d3b; padding-top: 20px; line-height: 1.6; }
+                .highlight { color: #22d3ee; font-weight: 600; }
+                @media print {
+                    body { background-color: #0a0a12 !important; }
+                    .container { border: 1px solid #4f46e5 !important; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <div>
+                    <div class="logo">TECNOBYTE</div>
+                    <div style="font-size: 12px; color: #8b8b9f; margin-top: 4px;">TecnoByte LLC</div>
+                  </div>
+                  <div>
+                    <div class="invoice-title">FACTURA DIGITAL</div>
+                    <div class="label" style="text-align: right; margin-top: 5px; color: #22d3ee;">ORDEN #${orderId}</div>
+                  </div>
+                </div>
+                
+                <div class="grid">
+                  <div class="col">
+                    <div class="label">Facturado a:</div>
+                    <div class="value">${user}</div>
+                    <div class="label">Correo Electrónico:</div>
+                    <div class="value">${email}</div>
+                    <div class="label">Teléfono / WhatsApp:</div>
+                    <div class="value">${phone}</div>
+                  </div>
+                  <div class="col" style="text-align: right;">
+                    <div class="label">Fecha de Emisión:</div>
+                    <div class="value">${date}</div>
+                    <div class="label">Método de Pago:</div>
+                    <div class="value" style="text-transform: uppercase;">${method.replace('_', ' ')}</div>
+                    <div class="label">Estado de la Orden:</div>
+                    <div class="value" style="color: #4ade80;">PAGADO / COMPLETADO</div>
+                  </div>
+                </div>
+
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Descripción del Servicio / Producto</th>
+                      <th style="text-align: right;">Precio (USD)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${rawItems.map(item => `
+                      <tr>
+                        <td><strong>${item.title}</strong><br><span style="font-size: 11px; color: #8b8b9f; text-transform: uppercase;">${item.category || ''}</span></td>
+                        <td style="text-align: right; font-family: monospace; font-size: 15px;">$${item.price.toFixed(2)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+
+                <div class="totals">
+                  <div class="totals-row">
+                    <span>Subtotal:</span>
+                    <span style="font-family: monospace;">$${subtotal.toFixed(2)}</span>
+                  </div>
+                  ${hasCoupon ? `
+                  <div class="totals-row discount">
+                    <span>Cupón Canjeado (${lastOrder.couponData.code} -${lastOrder.couponData.percent}%):</span>
+                    <span style="font-family: monospace;">-$${discountAmount.toFixed(2)}</span>
+                  </div>
+                  ` : ''}
+                  <div class="totals-row grand">
+                    <span>TOTAL PAGADO:</span>
+                    <span style="font-family: monospace;">$${parseFloat(lastOrder?.total || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div class="footer">
+                  <p>Si tienes alguna duda o reclamo sobre esta factura, comunícate con nosotros:</p>
+                  <p>WhatsApp: <span class="highlight">+1 (904) 740-0467</span> | Correos: <span class="highlight">support@tecnobyte.lat</span> / <span class="highlight">reclamos@tecnobyte.lat</span></p>
+                  <p style="margin-top: 15px;">Gracias por confiar en los servicios digitales de TecnoByte LLC.</p>
+                </div>
+              </div>
+              <script>
+                // Dispara la ventana de impresión/guardado PDF apenas carga el documento
+                window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+              </script>
+            </body>
+          </html>
+        `;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
+    if (!lastOrder) return null;
+
+    const rawItems = lastOrder.rawItems || [];
+    const subtotal = rawItems.reduce((acc, item) => acc + item.price, 0);
+
+    return (
+        <div className="max-w-3xl mx-auto py-12 px-4 animate-scale-in">
+            {/* Encabezado Visual */}
+            <div className="text-center mb-10">
+                <div className="w-20 h-20 bg-green-500/10 border-2 border-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
+                    <Check size={40} className="text-green-500" strokeWidth={3} />
+                </div>
+                <h2 className="text-4xl font-extrabold text-white mb-2 font-orbitron tracking-wide">
+                    ¡COMPRA EXITOSA!
+                </h2>
+                <p className="text-gray-400 text-lg">
+                    Tu orden ha sido registrada y procesada correctamente en nuestra base de datos.
+                </p>
+            </div>
+
+            {/* Tarjeta de Resumen en Pantalla */}
+            <div className="bg-gray-900 border border-indigo-500/30 rounded-2xl overflow-hidden shadow-2xl mb-8">
+                {/* Info Orden */}
+                <div className="bg-indigo-900/40 border-b border-indigo-500/30 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-1">Número de Orden</p>
+                        <p className="text-white font-mono text-2xl font-bold">{lastOrder.orderId}</p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                        <p className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-1">Fecha de Procesamiento</p>
+                        <p className="text-white text-sm">{new Date(lastOrder.date).toLocaleString('es-VE')}</p>
+                    </div>
+                </div>
+
+                {/* Grid Cliente y Pago */}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-gray-800">
+                    <div className="space-y-4">
+                        <h4 className="text-white font-bold flex items-center gap-2 border-b border-gray-800 pb-2">
+                            <User size={18} className="text-cyan-400" /> Datos del Cliente
+                        </h4>
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase tracking-wider">Nombre Completo</p>
+                            <p className="text-gray-200 text-sm font-medium">{lastOrder.user}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase tracking-wider">Contacto</p>
+                            <p className="text-gray-200 text-sm">{lastOrder.fullData?.email || 'No registrado'} <br/> {lastOrder.fullData?.phone || 'No registrado'}</p>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <h4 className="text-white font-bold flex items-center gap-2 border-b border-gray-800 pb-2">
+                            <CreditCard size={18} className="text-cyan-400" /> Detalles de Pago
+                        </h4>
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase tracking-wider">Método Utilizado</p>
+                            <p className="text-gray-200 text-sm uppercase">{lastOrder.paymentMethod.replace('_', ' ')}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase tracking-wider">Estado Actual</p>
+                            <p className="text-green-400 text-sm font-bold bg-green-900/20 inline-block px-2 py-1 rounded border border-green-800 mt-1">{lastOrder.status}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Lista de Productos Comprados */}
+                <div className="p-6 bg-black/20">
+                    <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                        <ShoppingCart size={18} className="text-cyan-400" /> Artículos Comprados
+                    </h4>
+                    <div className="space-y-3 mb-6">
+                        {rawItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-gray-800/50 p-3 rounded-lg border border-gray-700/50">
+                                <div>
+                                    <p className="text-gray-200 text-sm font-medium">{item.title}</p>
+                                    {item.category && <p className="text-gray-500 text-[10px] uppercase">{item.category}</p>}
+                                </div>
+                                <p className="text-white font-mono">${item.price.toFixed(2)}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Desglose de Totales */}
+                    <div className="border-t border-gray-800 pt-4 flex flex-col items-end space-y-2">
+                        <div className="flex justify-between w-full max-w-sm text-sm">
+                            <span className="text-gray-400">Subtotal:</span>
+                            <span className="text-gray-200 font-mono">${subtotal.toFixed(2)}</span>
+                        </div>
+                        {lastOrder.couponData && (
+                            <div className="flex justify-between w-full max-w-sm text-sm text-green-400 bg-green-900/10 p-2 rounded">
+                                <span>Cupón Aplicado ({lastOrder.couponData.code} -{lastOrder.couponData.percent}%):</span>
+                                <span className="font-mono">-${(subtotal - parseFloat(lastOrder.total)).toFixed(2)}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between w-full max-w-sm text-xl font-bold mt-2 pt-3 border-t border-gray-700">
+                            <span className="text-white">TOTAL PAGADO:</span>
+                            <span className="text-cyan-400 font-mono">${lastOrder.total}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Botones Solicitados */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button 
+                    onClick={handleDownloadPDF}
+                    className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg group"
+                >
+                    <Download size={20} className="text-cyan-400 group-hover:-translate-y-1 transition-transform" />
+                    Descargar Factura
+                </button>
+
+                <button 
+                    onClick={handleWhatsApp}
+                    className="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-green-900/20 group"
+                >
+                    <MessageCircle size={20} className="group-hover:scale-110 transition-transform" />
+                    Hablar con Nosotros
+                </button>
+            </div>
+
+            {/* Botón para resetear e ir al inicio */}
+            <div className="mt-8 text-center">
+                <button 
+                    onClick={() => {
+                        setView('home');
+                        window.scrollTo(0, 0);
+                        setTimeout(() => window.location.reload(), 100); 
+                    }} 
+                    className="text-gray-500 hover:text-white hover:underline text-sm transition-colors"
+                >
+                    ← Volver a la Tienda
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export default function App() {
   const [view, setView] = useState('home'); const [cart, setCart] = useState([]); const [isCartOpen, setIsCartOpen] = useState(false); const [activeCategory, setActiveCategory] = useState('All'); const [lastOrder, setLastOrder] = useState(null); const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); const [checkoutStep, setCheckoutStep] = useState(0); const [paymentMethod, setPaymentMethod] = useState(null); const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', idDoc: null, groupLink: '' }); const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null }); const [isProcessing, setIsProcessing] = useState(false); const [isBlocked, setIsBlocked] = useState(false); const [showTerms, setShowTerms] = useState(false); const [showPrivacy, setShowPrivacy] = useState(false); const [coupon, setCoupon] = useState(null); const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); const [services, setServices] = useState([]); const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [contactInfo, setContactInfo] = useState(DEFAULT_CONTACT_INFO); const [legalInfo, setLegalInfo] = useState({ terms: "Cargando...", privacy: "Cargando..." }); const [socialLinks, setSocialLinks] = useState({ tiktok: "#", instagram: "#", facebook: "#" });

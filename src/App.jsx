@@ -8,7 +8,7 @@ import {
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle, Link as LinkIcon
 } from 'lucide-react';
 
-const SERVER_URL = "https://mi-bot-latino.onrender.com"; 
+const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
 const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa"; 
 
 // --- CONTENIDO DEL MANUAL (EMBEBIDO PARA DESCARGA) ---

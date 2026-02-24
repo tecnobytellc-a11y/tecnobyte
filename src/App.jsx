@@ -711,7 +711,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
 
                 <div class="footer">
                   <p>Si tienes alguna duda o reclamo sobre esta factura, comunícate con nosotros:</p>
-                  <p>WhatsApp: <span class="highlight">+1 (904) 740-0467</span> | Correos: <span class="highlight">support@tecnobyte.lat</span> / <span class="highlight">reclamos@tecnobyte.lat</span></p>
+                  <p>WhatsApp: <span class="highlight">+1 (904) 740-0467</span> | Correos: <span class="highlight">soporte@tecnobyte.lat</span> / <span class="highlight">reclamos@tecnobyte.lat</span></p>
                   <p style="margin-top: 15px;">Gracias por confiar en los servicios digitales de TecnoByte LLC.</p>
                 </div>
               </div>

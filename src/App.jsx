@@ -563,11 +563,12 @@ const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastO
             cart={cart} 
             coupon={coupon}
             onPaymentComplete={async (orderId, binanceTxId) => { 
-                // AHORA SÍ GUARDAMOS LA ORDEN EN EL PANEL
-                const randomId = Math.floor(100 + Math.random() * 900); 
+                // 🛡️ GENERADOR DE ID PERFECTO (Anti-Colisiones)
+                const uniqueId = 'ORD-' + Date.now().toString().slice(-4) + Math.floor(Math.random() * 100); 
+                
                 const orderData = { 
-                    orderId: `ORD-${randomId}`, 
-                    visualId: `ORD-${randomId}`, 
+                    orderId: uniqueId, 
+                    visualId: uniqueId, 
                     user: `${paypalData.firstName} ${paypalData.lastName}`, 
                     items: cart.map(i => i.title).join(', '), 
                     total: cartTotal.toFixed(2), 
@@ -579,7 +580,8 @@ const AutomatedFlowWrapper = ({ cartTotal, setCheckoutStep, paypalData, setLastO
                     fullData: { ...paypalData, refNumber: orderId, binanceTxId } 
                 };
                 
-                await submitOrderToPrivateServer(orderData); // Guardamos en BD
+                // 🛡️ GUARDAMOS LA ORDEN DE PAYPAL EN LA BASE DE DATOS
+                await submitOrderToPrivateServer(orderData); 
                 
                 setLastOrder(orderData); 
                 setCart([]); 

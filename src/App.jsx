@@ -362,9 +362,9 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
 };
 
 const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, exchangeRate, coupon, contactInfo, openTerms, openPrivacy }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false); const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
-  const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: 'ORD-' + Date.now().toString().slice(-4) + Math.floor(Math.random()*100), visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
+  const [isSubmitting, setIsSubmitting] = useState(false); const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.refNumber && proofData.screenshot && acceptedTerms;
+  const handleFinalSubmit = async (e) => { e.preventDefault(); if(!acceptedTerms) return alert("Acepta términos"); setIsSubmitting(true); let screenshotBase64 = null, idDocBase64 = null; try { if (proofData.screenshot) screenshotBase64 = await convertToBase64(proofData.screenshot); if (proofData.idDoc) idDocBase64 = await convertToBase64(proofData.idDoc); } catch(e) { return setIsSubmitting(false); } const orderData = { orderId: 'ORD-' + Date.now().toString().slice(-4) + Math.floor(Math.random()*100), visualId: `ORD-NEW`, user: `${proofData.name} ${proofData.lastName}`, items: cart.map(i => i.title).join(', '), total: finalTotal.toFixed(2), status: 'PENDIENTE POR ENTREGAR', amountBs: (finalTotal * exchangeRate).toFixed(2), date: new Date().toISOString(), rawItems: cart.map(({icon,...r})=>r), paymentMethod, exchangeRateUsed: exchangeRate, couponData: coupon, fullData: { ...proofData, screenshot: screenshotBase64, idDoc: idDocBase64, contactPhone: proofData.phone } }; if(await submitOrderToPrivateServer(orderData)) { setLastOrder(orderData); setCart([]); setCheckoutStep(3); } setIsSubmitting(false); };
   
   const handleFileChange = (e, field) => {
       const file = e.target.files[0];
@@ -532,8 +532,38 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
 
 const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, applyCoupon, coupon, removeCoupon }) => {
     const [couponInput, setCouponInput] = useState(''); const [couponError, setCouponError] = useState(''); const [isValidating, setIsValidating] = useState(false);
-    const handleApplyCoupon = async () => { if(!couponInput.trim()) return; setIsValidating(true); setCouponError(''); setTimeout(async () => { try { const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: couponInput.toUpperCase() }) }); if (res.ok) { const data = await res.json(); if(data.success) { applyCoupon(data.coupon); setCouponInput(''); } else { setCouponError(data.message || "Cupón inválido"); } } else { setCouponError("Error de conexión"); } } catch(e) { setCouponError("Error validando cupón"); } setIsValidating(false); }, 800); };
+    const handleApplyCoupon = async () => { 
+    if(!couponInput.trim()) return; 
+    setIsValidating(true); setCouponError(''); 
+    
+    // Generar o recuperar ID único del dispositivo del usuario
+    let deviceId = localStorage.getItem('tecnobyte_device_id');
+    if (!deviceId) {
+        deviceId = 'DEV-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem('tecnobyte_device_id', deviceId);
+    }
 
+    setTimeout(async () => { 
+        try { 
+            const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                // AQUÍ ENVIAMOS EL CÓDIGO Y EL DEVICE ID PARA CONTAR USOS
+                body: JSON.stringify({ code: couponInput.toUpperCase(), deviceId: deviceId }) 
+            }); 
+            if (res.ok) { 
+                const data = await res.json(); 
+                if(data.success) { 
+                    applyCoupon(data.coupon); setCouponInput(''); 
+                } else { 
+                    setCouponError(data.message || "Cupón inválido o límite de usos alcanzado"); 
+                } 
+            } else { setCouponError("Error de conexión"); } 
+        } catch(e) { setCouponError("Error validando cupón"); } 
+        setIsValidating(false); 
+    }, 800); 
+};
+  
     return (
       <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
         <div className="mb-8 p-4 bg-indigo-900/10 rounded-xl border border-indigo-500/30"><h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Ticket size={16} className="text-yellow-400"/> ¿Tienes un cupón?</h3><div className="flex gap-2"><input type="text" value={couponInput} onChange={e => { setCouponInput(e.target.value); if (couponError) setCouponError(''); }} placeholder="Ingresa tu código aquí" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white uppercase text-sm focus:border-indigo-500 outline-none" disabled={!!coupon}/><button onClick={handleApplyCoupon} disabled={isValidating || !couponInput || !!coupon} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors disabled:opacity-50">{isValidating ? <Loader className="animate-spin" size={14}/> : 'APLICAR'}</button></div>{couponError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1"><AlertTriangle size={12}/> {couponError}</p>}{coupon && <div className="mt-3 bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex justify-between items-center animate-scale-in"><div className="flex items-center gap-2"><div className="bg-green-500 text-black p-1 rounded-full"><Check size={12} strokeWidth={4}/></div><div><p className="text-green-400 text-sm font-bold">¡Cupón Aplicado!</p><p className="text-gray-400 text-xs">{coupon.code} - {coupon.percent}% de Descuento</p></div></div><button onClick={removeCoupon} className="text-red-400 hover:text-white text-xs underline">Quitar</button></div>}</div>
@@ -908,7 +938,7 @@ export default function App() {
   const addToCart = (service) => { setCart([...cart, service]); setIsCartOpen(true); };
   const removeFromCart = (index) => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart); };
   const filteredServices = activeCategory === 'All' ? services : services.filter(s => s.category === activeCategory);
-  const calculateTotal = (cartItems, appliedCoupon) => cartItems.reduce((acc, item) => { if (appliedCoupon && appliedCoupon.excludedIds && appliedCoupon.excludedIds.includes(item.id)) return acc + item.price; if (appliedCoupon) return acc + (item.price * (1 - appliedCoupon.percent / 100)); return acc + item.price; }, 0);
+  const calculateTotal = (cartItems, appliedCoupon) => Math.max(0, cartItems.reduce((acc, item) => { if (appliedCoupon && appliedCoupon.excludedIds && appliedCoupon.excludedIds.includes(item.id)) return acc + item.price; if (appliedCoupon && appliedCoupon.discountType !== 'fixed') return acc + (item.price * (1 - (appliedCoupon.percent || appliedCoupon.discountValue) / 100)); return acc + item.price; }, 0) - (appliedCoupon && appliedCoupon.discountType === 'fixed' ? parseFloat(appliedCoupon.discountValue) : 0));
   const rawTotal = cart.reduce((acc, item) => acc + item.price, 0);
   const finalTotal = calculateTotal(cart, coupon);
 

@@ -532,37 +532,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
 
 const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, applyCoupon, coupon, removeCoupon }) => {
     const [couponInput, setCouponInput] = useState(''); const [couponError, setCouponError] = useState(''); const [isValidating, setIsValidating] = useState(false);
-    const handleApplyCoupon = async () => { 
-    if(!couponInput.trim()) return; 
-    setIsValidating(true); setCouponError(''); 
-    
-    // Generar o recuperar ID único del dispositivo del usuario
-    let deviceId = localStorage.getItem('tecnobyte_device_id');
-    if (!deviceId) {
-        deviceId = 'DEV-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-        localStorage.setItem('tecnobyte_device_id', deviceId);
-    }
-
-    setTimeout(async () => { 
-        try { 
-            const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                // AQUÍ ENVIAMOS EL CÓDIGO Y EL DEVICE ID PARA CONTAR USOS
-                body: JSON.stringify({ code: couponInput.toUpperCase(), deviceId: deviceId }) 
-            }); 
-            if (res.ok) { 
-                const data = await res.json(); 
-                if(data.success) { 
-                    applyCoupon(data.coupon); setCouponInput(''); 
-                } else { 
-                    setCouponError(data.message || "Cupón inválido o límite de usos alcanzado"); 
-                } 
-            } else { setCouponError("Error de conexión"); } 
-        } catch(e) { setCouponError("Error validando cupón"); } 
-        setIsValidating(false); 
-    }, 800); 
-};
+    const handleApplyCoupon = async () => { if(!couponInput.trim()) return; setIsValidating(true); setCouponError(''); setTimeout(async () => { try { const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: couponInput.toUpperCase(), deviceId: localStorage.getItem('tecnobyte_device_id') || (()=>{let id='DEV-'+Math.random().toString(36).substr(2,9)+Date.now().toString(36);localStorage.setItem('tecnobyte_device_id',id);return id;})() }) }); if (res.ok) { const data = await res.json(); if(data.success) { applyCoupon(data.coupon); setCouponInput(''); } else { setCouponError(data.message || "Cupón inválido"); } } else { setCouponError("Error de conexión"); } } catch(e) { setCouponError("Error validando cupón"); } setIsValidating(false); }, 800); };
   
     return (
       <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">

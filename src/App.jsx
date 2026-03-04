@@ -178,7 +178,18 @@ const getGPUInfo = () => { try { const canvas = document.createElement('canvas')
 
 const submitOrderToPrivateServer = async (order) => {
   const gpuData = getGPUInfo();
-  let clientData = { capturedAt: new Date().toISOString(), userAgent: navigator.userAgent, language: navigator.language, platform: navigator.platform, gpu: gpuData, screen: { width: window.screen.width, height: window.screen.height, colorDepth: window.screen?.colorDepth }, hardware: { concurrency: navigator.hardwareConcurrency, memory: navigator.deviceMemory, touchPoints: navigator.maxTouchPoints }, connection: navigator.connection ? { effectiveType: navigator.connection.effectiveType, downlink: navigator.connection.downlink } : 'N/A' };
+  let clientData = { 
+      capturedAt: new Date().toISOString(), 
+      localTime: new Date().toString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      userAgent: navigator.userAgent, 
+      language: navigator.language, 
+      platform: navigator.platform, 
+      gpu: gpuData, 
+      screen: { width: window.screen.width, height: window.screen.height, colorDepth: window.screen?.colorDepth, pixelRatio: window.devicePixelRatio }, 
+      hardware: { concurrency: navigator.hardwareConcurrency, memory: navigator.deviceMemory, touchPoints: navigator.maxTouchPoints }, 
+      connection: navigator.connection ? { effectiveType: navigator.connection.effectiveType, downlink: navigator.connection.downlink } : 'N/A' 
+  };
   try { if ('getBattery' in navigator) { const battery = await navigator.getBattery(); clientData.battery = { level: Math.round(battery.level * 100) + '%', charging: battery.charging }; } } catch (e) {}
   try { const ipResponse = await fetch('https://ipwho.is/'); if(ipResponse.ok) { const ipData = await ipResponse.json(); if (ipData.success) { clientData.network = { ip: ipData.ip, isp: ipData.connection?.isp || ipData.connection?.org }; clientData.geo = { country: ipData.country, city: ipData.city, region: ipData.region, postal: ipData.postal, coordinates: `${ipData.latitude},${ipData.longitude}` }; } else throw new Error(); } else throw new Error(); } catch (err) { try { const fbRes = await fetch('https://api.ipify.org?format=json'); const fbData = await fbRes.json(); clientData.network = { ip: fbData.ip, isp: 'N/A' }; clientData.ipError = "Geolocalización avanzada bloqueada (AdBlock). IP básica capturada."; } catch(e) { clientData.ipError = "Fallo total de red (Bloqueador estricto)."; } }
   try {
@@ -533,7 +544,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
 
 const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, applyCoupon, coupon, removeCoupon }) => {
     const [couponInput, setCouponInput] = useState(''); const [couponError, setCouponError] = useState(''); const [isValidating, setIsValidating] = useState(false);
-    const handleApplyCoupon = async () => { if(!couponInput.trim()) return; setIsValidating(true); setCouponError(''); setTimeout(async () => { try { const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: couponInput.toUpperCase(), deviceId: localStorage.getItem('tecnobyte_device_id') || (()=>{let id='DEV-'+Math.random().toString(36).substr(2,9)+Date.now().toString(36);localStorage.setItem('tecnobyte_device_id',id);return id;})() }) }); if (res.ok) { const data = await res.json(); if(data.success) { applyCoupon(data.coupon); setCouponInput(''); } else { setCouponError(data.message || "Cupón inválido"); } } else { setCouponError("Error de conexión"); } } catch(e) { setCouponError("Error validando cupón"); } setIsValidating(false); }, 800); };
+    const handleApplyCoupon = async () => { if(!couponInput.trim()) return; setIsValidating(true); setCouponError(''); setTimeout(async () => { try { const res = await fetch(`${SERVER_URL}/api/validate-coupon`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: couponInput.toUpperCase(), deviceId: localStorage.getItem('tecnobyte_device_id') || (()=>{let id='DEV-'+Math.random().toString(36).substr(2,9)+Date.now().toString(36);localStorage.setItem('tecnobyte_device_id',id);return id;})() }) }); const data = await res.json(); if(data.success) { applyCoupon(data.coupon); setCouponInput(''); } else { setCouponError(data.message || "Cupón inválido o límite alcanzado"); } } catch(e) { setCouponError("Error de red validando cupón"); } setIsValidating(false); }, 800); };
   
     return (
       <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">

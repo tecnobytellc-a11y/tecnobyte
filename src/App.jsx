@@ -638,7 +638,13 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                 body { font-family: 'Inter', sans-serif; background-color: #0a0a12; color: #ffffff; padding: 40px; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 .container { max-width: 800px; margin: 0 auto; background: #11111a; border: 1px solid #4f46e5; border-radius: 12px; padding: 40px; box-sizing: border-box; }
                 .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2d2d3b; padding-bottom: 20px; margin-bottom: 30px; }
-                .logo { font-family: 'Orbitron', sans-serif; font-size: 32px; color: #4f46e5; font-weight: 900; letter-spacing: 2px; }
+                
+                /* --- NUEVOS ESTILOS DEL LOGO Y LA LUZ --- */
+                .logo-container { position: relative; display: inline-block; margin-bottom: 5px; }
+                .logo-glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40%; height: 40%; background: transparent; box-shadow: 0 0 30px 15px rgba(255, 255, 255, 0.8), 0 0 60px 30px rgba(0, 150, 255, 0.6); border-radius: 50%; z-index: 1; }
+                .logo-img { position: relative; z-index: 2; max-height: 45px; width: auto; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+                /* ---------------------------------------- */
+
                 .invoice-title { font-size: 24px; color: #fff; font-weight: 600; text-align: right; letter-spacing: 1px; }
                 .grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
                 .col { width: 48%; }
@@ -663,7 +669,11 @@ const SuccessScreen = ({ lastOrder, setView }) => {
               <div class="container">
                 <div class="header">
                   <div>
-                    <div class="logo">TECNOBYTE</div>
+                    <div class="logo-container">
+                      <div class="logo-glow"></div>
+                      <img class="logo-img" src="${LOGO_FACTURA_BASE64}" alt="TecnoByte Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                      <div style="display: none; font-family: 'Orbitron', sans-serif; font-size: 32px; color: #4f46e5; font-weight: 900; letter-spacing: 2px; position: relative; z-index: 2;">TECNOBYTE</div>
+                    </div>
                     <div style="font-size: 12px; color: #8b8b9f; margin-top: 4px;">TecnoByte LLC</div>
                   </div>
                   <div>
@@ -715,7 +725,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                   </div>
                   ${hasCoupon ? `
                   <div class="totals-row discount">
-                    <span>Cupón Canjeado (${lastOrder.couponData.code} -${lastOrder.couponData.percent}%):</span>
+                    <span>Cupón Canjeado (${lastOrder.couponData.code} -${(lastOrder.couponData.discountType || lastOrder.couponData.type) === 'fixed' ? '$' : ''}${lastOrder.couponData.discountValue || lastOrder.couponData.amount || lastOrder.couponData.percent || lastOrder.couponData.value}${(lastOrder.couponData.discountType || lastOrder.couponData.type) !== 'fixed' ? '%' : ''}):</span>
                     <span style="font-family: monospace;">-$${discountAmount.toFixed(2)}</span>
                   </div>
                   ` : ''}
@@ -742,7 +752,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         printWindow.document.write(html);
         printWindow.document.close();
     };
-
+  
     if (!lastOrder) return null;
 
     const rawItems = lastOrder.rawItems || [];

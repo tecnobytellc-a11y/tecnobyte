@@ -264,7 +264,68 @@ const LegalModal = ({ isOpen, onClose, title, content }) => {
   );
 };
 
-const Navbar = ({ cartCount, onOpenCart, setView }) => ( <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.3)]"><div className="max-w-7xl mx-auto px-4"><div className="flex items-center justify-between h-20"><div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}><div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-indigo-400 shadow-lg group"><img src="unnamed.png" alt="TB" className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=TB&background=4f46e5&color=fff"; }} /></div><span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-500 font-orbitron">TECNOBYTE</span></div><div className="relative group cursor-pointer" onClick={onOpenCart}><ShoppingCart className="w-7 h-7 text-gray-300 group-hover:text-cyan-400 transition-colors" />{cartCount > 0 && <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cartCount}</span>}</div></div></div></nav> );
+const Navbar = ({ cartCount, onOpenCart, setView }) => ( 
+  <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
+    <div className="max-w-7xl mx-auto px-4">
+      <div className="flex items-center justify-between h-20">
+        
+        {/* --- NUEVO LOGO FLOTANTE CON LUZ Y PARTÍCULAS --- */}
+        <div className="relative flex items-center justify-start cursor-pointer group h-16 w-48 sm:w-56" onClick={() => setView('home')}>
+            <style>{`
+                @keyframes spaceRain {
+                    0% { transform: translateY(-15px) scale(0.5); opacity: 0; box-shadow: 0 0 0px rgba(255,255,255,0); }
+                    20% { opacity: 0.9; box-shadow: 0 0 8px rgba(0, 200, 255, 0.9); }
+                    80% { opacity: 0.9; box-shadow: 0 0 8px rgba(0, 200, 255, 0.9); }
+                    100% { transform: translateY(50px) scale(0.2); opacity: 0; box-shadow: 0 0 0px rgba(255,255,255,0); }
+                }
+                .particle { position: absolute; top: 0; width: 3px; height: 3px; background: #ffffff; border-radius: 50%; pointer-events: none; z-index: 20; }
+                .p-1 { left: 15%; animation: spaceRain 2.2s infinite linear 0.1s; }
+                .p-2 { left: 45%; animation: spaceRain 2.7s infinite linear 0.8s; }
+                .p-3 { left: 75%; animation: spaceRain 2.4s infinite linear 0.4s; }
+                .p-4 { left: 30%; animation: spaceRain 2.9s infinite linear 1.2s; }
+                .p-5 { left: 60%; animation: spaceRain 2.1s infinite linear 0.3s; }
+                .p-6 { left: 85%; animation: spaceRain 2.5s infinite linear 0.7s; }
+                @keyframes floatLogo { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+                .animate-float-logo { animation: floatLogo 4s ease-in-out infinite; }
+            `}</style>
+
+            {/* Capa 1: Aura de Luz (Glow pulsante trasero) */}
+            <div className="absolute inset-0 bg-blue-600/30 blur-xl rounded-full animate-pulse transition-all duration-500 group-hover:bg-indigo-500/50 group-hover:blur-2xl"></div>
+
+            {/* Contenedor con efecto de Flotación */}
+            <div className="relative z-10 w-full h-full animate-float-logo flex items-center justify-start">
+                
+                {/* LOGO PNG: Asegúrate de que tu imagen se llame "logo.png" en tu GitHub */}
+                <img 
+                    src="logo.png" 
+                    alt="TecnoByte Logo" 
+                    className="max-h-full max-w-full object-contain filter drop-shadow-[0_0_12px_rgba(255,255,255,0.8)] transition-transform duration-300 group-hover:scale-105"
+                    onError={(e) => { e.target.onerror = null; e.target.src = "unnamed.png"; }}
+                />
+                
+                {/* Capa de Partículas Espaciales cayendo sobre el logo */}
+                <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none z-20" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)' }}>
+                    <div className="particle p-1"></div>
+                    <div className="particle p-2"></div>
+                    <div className="particle p-3"></div>
+                    <div className="particle p-4"></div>
+                    <div className="particle p-5"></div>
+                    <div className="particle p-6"></div>
+                </div>
+            </div>
+        </div>
+        {/* -------------------------------------------------------- */}
+
+        {/* TU CARRITO DE COMPRAS ORIGINAL (Intacto) */}
+        <div className="relative group cursor-pointer" onClick={onOpenCart}>
+          <ShoppingCart className="w-7 h-7 text-gray-300 group-hover:text-cyan-400 transition-colors" />
+          {cartCount > 0 && <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cartCount}</span>}
+        </div>
+
+      </div>
+    </div>
+  </nav> 
+);
 
 const Hero = ({ exchangeRate }) => {
   const [date, setDate] = useState(new Date());

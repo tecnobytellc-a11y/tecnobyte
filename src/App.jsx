@@ -698,6 +698,11 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy, cart }) => {
   const idDocRef = useRef(null); 
   const isBinance = (paymentMethod === 'binance'); 
+  const isTarjeta = (paymentMethod === 'tarjeta');
+  
+  // AQUÍ ESTÁ LA MAGIA: Exigimos foto siempre, EXCEPTO si es Binance o Tarjeta
+  const requiresIdImage = !isBinance && !isTarjeta; 
+  
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   // VALIDACIÓN ARCHIVO 1MB
@@ -715,11 +720,13 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
 
   const handleSubmit = (e) => { 
       e.preventDefault(); 
-      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone) { 
+      // AHORA EXIGIMOS QUE EL CAMPO DE CÉDULA (idNumber) ESTÉ LLENO
+      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone || !paypalData.idNumber) { 
           alert("Por favor completa todos los campos de texto."); 
           return; 
       } 
-      if (!isBinance && !paypalData.idDoc) { 
+      // VERIFICAMOS LA FOTO SOLO SI EL MÉTODO LO REQUIERE (Ej: PayPal)
+      if (requiresIdImage && !paypalData.idDoc) { 
           alert("Debes cargar la foto de tu documento de identidad para continuar."); 
           return; 
       } 
@@ -738,18 +745,38 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
       setCheckoutStep(2); 
   };
   
-  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && (isBinance || paypalData.idDoc) && acceptedTerms;
+  // EL BOTÓN SOLO SE ACTIVA SI LA CÉDULA ESTÁ PUESTA Y LA FOTO (SI APLICA) TAMBIÉN
+  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && paypalData.idNumber && (!requiresIdImage || paypalData.idDoc) && acceptedTerms;
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
-      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><span className={`${isBinance ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'} text-xs py-1 px-2 rounded`}>API</span> Configuración de {isBinance ? 'Binance Pay' : 'Facturación'}</h2>
+      <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+        <span className={`${isBinance ? 'bg-yellow-500 text-black' : (isTarjeta ? 'bg-cyan-500 text-black' : 'bg-indigo-600 text-white')} text-xs py-1 px-2 rounded`}>API</span> 
+        Configuración de {isBinance ? 'Binance Pay' : (isTarjeta ? 'Tarjeta' : 'Facturación')}
+      </h2>
       <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
-        <div className="grid grid-cols-2 gap-4"><div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div><div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div></div>
-        <div><label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label><input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.phone} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} /></div>
+        <div><label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label><input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email || ''} onChange={e => setPaypalData({...paypalData, email: e.target.value})} /></div>
         
-        {!isBinance && ( 
+        <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName || ''} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
+            <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName || ''} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+            <div>
+                {/* --- NUEVO CAMPO DE CÉDULA --- */}
+                <label className="block text-gray-300 text-sm mb-1">Cédula / Documento</label>
+                <input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="V-12345678" value={paypalData.idNumber || ''} onChange={e => setPaypalData({...paypalData, idNumber: e.target.value})} />
+            </div>
+            <div>
+                <label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label>
+                <input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="+584120000000" value={paypalData.phone || ''} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} />
+            </div>
+        </div>
+        
+        {/* LA FOTO DEL DOCUMENTO AHORA SOLO APARECE SI requiresIdImage ES TRUE */}
+        {requiresIdImage && ( 
             <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
                 <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
                 <div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} onClick={() => idDocRef.current && idDocRef.current.click()}>
@@ -808,7 +835,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
         )}
 
         <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="terms-checkbox-paypal" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" /><label htmlFor="terms-checkbox-paypal" className="text-sm text-gray-400">He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.</label></div>
-        <button type="submit" disabled={!isFormValid} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all ${isFormValid ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white') : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>Continuar al Pago <ArrowRight size={20} /></button>
+        <button type="submit" disabled={!isFormValid} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all ${isFormValid ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : (isTarjeta ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white')) : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>Continuar al Pago <ArrowRight size={20} /></button>
       </form>
     </div>
   );

@@ -501,7 +501,7 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
     );
 };
 
-const PayPalCardProcessor = ({ cart, coupon, onPaymentSuccess }) => {
+const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrder, setCart, setCheckoutStep }) => {
     const [sdkReady, setSdkReady] = React.useState(false);
     const [isProcessing, setIsProcessing] = React.useState(false);
 
@@ -523,50 +523,99 @@ const PayPalCardProcessor = ({ cart, coupon, onPaymentSuccess }) => {
 
     React.useEffect(() => {
         if (sdkReady && window.paypal) {
-            document.getElementById('paypal-card-container').innerHTML = '';
+            const container = document.getElementById('paypal-card-container');
+            if (container) container.innerHTML = ''; 
+            
             window.paypal.Buttons({
-                fundingSource: window.paypal.FUNDING.CARD, // Fuerza a mostrar SOLO tarjetas
+                fundingSource: window.paypal.FUNDING.CARD,
+                style: {
+                    layout: 'vertical', // Fuerza a centrar todo
+                    color: 'black',
+                    shape: 'rect',
+                    label: 'pay'
+                },
                 createOrder: async () => {
-                    setIsProcessing(true);
+                    // AQUÍ ESTABA EL ERROR: Ya no bloqueamos la pantalla aquí para dejarte teclear
                     try {
                         const res = await fetch(`${SERVER_URL}/api/create-order`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ items: cart, couponCode: coupon?.code })
                         });
-                        const data = await res.json(); return data.id; 
-                    } catch (error) { setIsProcessing(false); alert("Error con el banco."); throw error; }
+                        const data = await res.json(); 
+                        return data.id; 
+                    } catch (error) { alert("Error conectando al banco."); throw error; }
                 },
                 onApprove: async (data, actions) => {
+                    setIsProcessing(true); // Bloqueamos la pantalla SOLO cuando ya pusiste la tarjeta y se está cobrando
                     try {
                         const res = await fetch(`${SERVER_URL}/api/capture-paypal-order`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ orderId: data.orderID })
                         });
                         const captureData = await res.json();
-                        if (captureData.success) { onPaymentSuccess(captureData.captureData); } 
-                        else { alert("Pago rechazado: " + captureData.message); }
+                        if (captureData.success) { 
+                            const uniqueId = 'ORD-' + Date.now().toString().slice(-4) + Math.floor(Math.random() * 100); 
+                            const orderData = { 
+                                orderId: uniqueId, 
+                                visualId: uniqueId, 
+                                user: `${paypalData.firstName} ${paypalData.lastName}`, 
+                                items: cart.map(i => i.title).join(', '), 
+                                total: finalTotal.toFixed(2), 
+                                status: 'VERIFICADO (Pagado)', 
+                                date: new Date().toISOString(), 
+                                rawItems: cart.map(({ icon, ...rest }) => rest), 
+                                paymentMethod: 'tarjeta_credito_debito', 
+                                couponData: coupon, 
+                                fullData: { ...paypalData, refNumber: data.orderID } 
+                            };
+                            await submitOrderToPrivateServer(orderData);
+                            setLastOrder(orderData);
+                            setCart([]);
+                            setCheckoutStep(3);
+                        } 
+                        else { alert("Pago rechazado por el banco: " + captureData.message); }
                     } catch (error) { alert("Error verificando el pago."); } 
                     finally { setIsProcessing(false); }
                 },
-                onError: (err) => { setIsProcessing(false); alert("Error procesando la tarjeta."); },
-                onCancel: () => { setIsProcessing(false); }
+                onError: (err) => { alert("Error procesando la tarjeta. Verifica que los datos sean correctos."); },
+                onCancel: () => { /* Si el usuario cierra el formulario, no hacemos nada */ }
             }).render("#paypal-card-container");
         }
     }, [sdkReady, cart, coupon]);
 
     return (
-        <div className="bg-gray-800 p-6 rounded-xl border border-indigo-500/50 w-full relative mt-4 shadow-[0_0_15px_rgba(79,70,229,0.2)]">
-            {isProcessing && (
-                <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl">
-                    <Loader className="animate-spin text-cyan-400 mb-2" size={32} />
-                    <p className="text-white font-bold text-sm animate-pulse">Procesando pago seguro...</p>
+        <div className="bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 max-w-lg mx-auto animate-fade-in-up">
+            <div className="bg-gray-800 p-6 rounded-xl border border-cyan-500/50 w-full relative shadow-[0_0_15px_rgba(6,182,212,0.2)] overflow-hidden">
+                {isProcessing && (
+                    <div className="absolute inset-0 bg-gray-900/90 backdrop-blur-md z-50 flex flex-col items-center justify-center">
+                        <Loader className="animate-spin text-cyan-400 mb-4" size={48} />
+                        <p className="text-white font-bold text-lg animate-pulse">Procesando pago...</p>
+                        <p className="text-gray-400 text-xs mt-2">Por favor, no cierres esta ventana.</p>
+                    </div>
+                )}
+                <h4 className="text-white font-bold mb-2 flex items-center justify-center gap-2 text-xl">
+                    <CreditCard size={24} className="text-cyan-400" /> Pagar con Tarjeta
+                </h4>
+                <p className="text-center text-gray-400 mb-6 text-sm">Total a cobrar: <strong className="text-white">${finalTotal.toFixed(2)} USD</strong></p>
+                
+                {!sdkReady ? (
+                    <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-500" size={32} /></div>
+                ) : (
+                    // SOLUCIÓN ESTÉTICA: Un contenedor blanco limpio como un Punto de Venta
+                    <div className="bg-white p-3 sm:p-5 rounded-xl shadow-inner min-h-[220px] w-full flex flex-col justify-center items-center">
+                        <div id="paypal-card-container" className="w-full"></div>
+                    </div>
+                )}
+                
+                <div className="mt-6 pt-4 border-t border-gray-700 text-center">
+                    <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
+                        <ShieldCheck size={14} className="text-green-400" /> Transacción encriptada. Ningún dato se guarda en TecnoByte.
+                    </p>
                 </div>
-            )}
-            <h4 className="text-white font-bold mb-4 flex items-center gap-2">
-                <CreditCard size={20} className="text-cyan-400" /> Pagar con Tarjeta
-            </h4>
-            {!sdkReady ? <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-500" /></div> : <div id="paypal-card-container" className="min-h-[150px] relative z-0"></div>}
-            <div className="mt-4 pt-4 border-t border-gray-700 text-center"><p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><ShieldCheck size={14} className="text-green-400" /> Transacción encriptada. Ningún dato se guarda en TecnoByte.</p></div>
+            </div>
+            <div className="mt-4 text-center">
+                <button onClick={() => setCheckoutStep(1)} className="text-gray-500 hover:text-white text-sm transition-colors">← Volver a mis datos</button>
+            </div>
         </div>
     );
 };
@@ -751,10 +800,10 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
         <h2 className="text-2xl font-bold text-white mb-6 text-center">Selecciona Método de Pago</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
-          <button onClick={() => { setPaymentMethod('tarjeta'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-cyan-400 flex flex-col items-center gap-3 relative overflow-hidden group"><div className="absolute top-0 right-0 bg-cyan-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">NUEVO</div><div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center text-cyan-400"><CreditCard /></div><span className="font-bold text-white">Tarjeta de Crédito</span></button>
-          
+          <button onClick={() => { setPaymentMethod('tarjeta'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-cyan-400 flex flex-col items-center gap-3 relative overflow-hidden group"><div className="absolute top-0 right-0 bg-cyan-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">NUEVO</div><div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center text-cyan-400"><CreditCard /></div><span className="font-bold text-white text-center">Tarjetas de Crédito / Débito</span></button>
           <button onClick={() => { setPaymentMethod('binance'); setCheckoutStep(1); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-400 flex flex-col items-center gap-3 relative overflow-hidden group"><div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">AUTO</div><div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500"><Zap /></div><span className="font-bold text-white">Binance Pay</span></button>
           <button onClick={() => { setPaymentMethod('paypal'); setCheckoutStep(1); }} className="p-6 bg-gradient-to-br from-[#003087] to-[#009cde] rounded-xl border border-indigo-400 shadow-[0_0_15px_rgba(0,156,222,0.3)] hover:scale-105 transition-transform flex flex-col items-center gap-3 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-400 text-[#003087] text-[10px] font-bold px-2 py-0.5">AUTO</div><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#003087]"><CreditCard /></div><span className="font-bold text-white">PayPal API</span></button>
+          
           <button onClick={() => { setPaymentMethod('pagomovil'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500"><Smartphone /></div><span className="font-bold text-white">Pago Móvil</span></button>
           <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500"><Landmark /></div><span className="font-bold text-white">Transf. Bs</span></button>
           <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3"><div className="w-12 h-12 bg-green-700/20 rounded-full flex items-center justify-center text-green-600"><Landmark /></div><span className="font-bold text-white">Transf. USD</span></button>

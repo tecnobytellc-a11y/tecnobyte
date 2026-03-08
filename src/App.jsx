@@ -506,6 +506,14 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
     const [isProcessing, setIsProcessing] = React.useState(false);
     const [isOpeningForm, setIsOpeningForm] = React.useState(false);
 
+    // --- 💰 LÓGICA DE COMISIÓN BANCARIA (2.70% + $0.15) ---
+    const feeAmount = (finalTotal * 0.027) + 0.15;
+    const totalWithFee = finalTotal + feeAmount;
+    
+    // Agregamos la comisión como un ítem extra en el carrito para que se cobre y salga en la factura
+    const cartWithFee = [...cart, { id: 'FEE_CARD', title: 'Comisión Bancaria por Tarjeta (2.70% + $0.15)', price: feeAmount, category: 'Tarifas de Procesamiento' }];
+    // ------------------------------------------------------
+
     React.useEffect(() => {
         const loadPayPalSdk = async () => {
             try {
@@ -545,7 +553,8 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     try {
                         const res = await fetch(`${SERVER_URL}/api/create-order`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ items: cart, couponCode: coupon?.code })
+                            // ENVIAMOS EL CARRITO CON LA COMISIÓN INCLUIDA
+                            body: JSON.stringify({ items: cartWithFee, couponCode: coupon?.code })
                         });
                         const data = await res.json(); 
                         return data.id; 
@@ -565,14 +574,14 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                                 orderId: uniqueId, 
                                 visualId: uniqueId, 
                                 user: `${paypalData.firstName} ${paypalData.lastName}`, 
-                                items: cart.map(i => i.title).join(', '), 
-                                total: finalTotal.toFixed(2), 
+                                items: cartWithFee.map(i => i.title).join(', '), 
+                                total: totalWithFee.toFixed(2), // 👈 GUARDAMOS EL TOTAL CON LA COMISIÓN APLICADA
                                 status: 'VERIFICADO (Pagado)', 
                                 date: new Date().toISOString(), 
-                                rawItems: cart.map(({ icon, ...rest }) => rest), 
+                                rawItems: cartWithFee.map(({ icon, ...rest }) => rest), // 👈 ESTO HARÁ QUE LA COMISIÓN SALGA EN EL PDF
                                 paymentMethod: 'tarjeta_credito_debito', 
                                 couponData: coupon, 
-                                fullData: { ...paypalData, refNumber: data.orderID } 
+                                fullData: { ...paypalData, refNumber: data.orderID, feeApplied: feeAmount.toFixed(2) } 
                             };
                             await submitOrderToPrivateServer(orderData);
                             setLastOrder(orderData);
@@ -613,10 +622,25 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     <h4 className="text-white font-bold mb-1 flex items-center justify-center gap-2 text-xl">
                         <CreditCard size={24} className="text-cyan-400" /> Tarjeta de Crédito / Débito
                     </h4>
-                    <p className="text-gray-400 text-sm">Total a cobrar: <strong className="text-white font-mono">${finalTotal.toFixed(2)} USD</strong></p>
+                    
+                    {/* --- 💰 TABLA DE DESGLOSE VISUAL DE LA COMISIÓN --- */}
+                    <div className="bg-gray-900/60 rounded-xl p-4 my-5 border border-gray-700 text-left">
+                        <div className="flex justify-between text-sm text-gray-400 mb-2">
+                            <span>Subtotal Productos:</span>
+                            <span>${finalTotal.toFixed(2)} USD</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-yellow-500 mb-3 border-b border-gray-700 pb-3">
+                            <span>Comisión Bancaria (2.70% + $0.15):</span>
+                            <span>+${feeAmount.toFixed(2)} USD</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-white uppercase tracking-wider">Total a cobrar:</span>
+                            <span className="text-xl font-bold font-mono text-cyan-400">${totalWithFee.toFixed(2)} USD</span>
+                        </div>
+                    </div>
+                    {/* ------------------------------------------------- */}
                     
                     <div className="flex justify-center items-center gap-3 mt-3">
-                        {/* LOGO DE VISA ARREGLADO */}
                         <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/500px-Visa_Inc._logo.svg.png" alt="Visa" className="h-3" /></div>
                         <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b7/MasterCard_Logo.svg" alt="Mastercard" className="h-4" /></div>
                         <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" className="h-4" /></div>

@@ -765,9 +765,9 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                 .container { max-width: 800px; margin: 0 auto; background: #11111a; border: 1px solid #4f46e5; border-radius: 12px; padding: 40px; box-sizing: border-box; }
                 .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2d2d3b; padding-bottom: 20px; margin-bottom: 30px; }
                 
-                /* --- ESTILOS DEL LOGO BLANCO, GIGANTE Y SIN LUZ --- */
+                /* --- ESTILOS DEL LOGO BLANCO, MEGA GIGANTE Y SIN LUZ --- */
                 .logo-container { position: relative; display: inline-block; margin-bottom: 5px; }
-                .logo-img { position: relative; z-index: 2; max-height: 120px; width: auto; filter: brightness(0) invert(1); }
+                .logo-img { position: relative; z-index: 2; max-height: 180px; max-width: 400px; width: auto; object-fit: contain; filter: brightness(0) invert(1); }
                 /* ---------------------------------------- */
 
                 .invoice-title { font-size: 24px; color: #fff; font-weight: 600; text-align: right; letter-spacing: 1px; }

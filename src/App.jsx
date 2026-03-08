@@ -1278,7 +1278,8 @@ export default function App() {
           paymentMethod: 'binance_api', 
           tasa: 0, montoBs: 0, totalBs: "0.00", amountBs: 0, 
           couponData: coupon ? { code: coupon.code, percent: coupon.percent, excludedIds: coupon.excludedIds } : null, 
-          fullData: { email: paypalData.email, phone: paypalData.phone, refNumber: transactionId, contactPhone: paypalData.phone, groupLink: paypalData.groupLink } 
+          // AQUÍ ESTÁ EL CAMBIO: Se agregó ...paypalData para que incluya la cédula (idNumber) sin borrar lo demás
+          fullData: { ...paypalData, refNumber: transactionId, contactPhone: paypalData.phone } 
       }; 
       try {
           try { automatedOrder = await processStreamingPurchase(automatedOrder); } 

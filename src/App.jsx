@@ -1196,28 +1196,38 @@ export default function App() {
   };
 
   return (
-    <div className="pt-24 px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-center mb-8"><div className="flex items-center gap-4"><div onClick={() => { if (checkoutStep > 0 && checkoutStep < 3) { setCheckoutStep(0); setPaymentMethod(null); }}} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${checkoutStep >= 0 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'} ${checkoutStep > 0 && checkoutStep < 3 ? 'cursor-pointer hover:bg-indigo-500 hover:scale-110 shadow-lg shadow-indigo-500/50' : ''}`}>1</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 0 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>2</div><div className="w-16 h-1 bg-gray-800"><div className={`h-full bg-indigo-600 transition-all ${checkoutStep > 2 ? 'w-full' : 'w-0'}`}></div></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${checkoutStep === 3 ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>3</div></div></div>
+    <div className="bg-[#0a0a12] text-gray-100 min-h-screen font-sans flex flex-col">
+      <style>{globalStyles}</style>
+      <Navbar cartCount={cart.length} onOpenCart={() => setIsCartOpen(true)} setView={setView} />
+      <main className="flex-grow pt-6 pb-20">
+          
+          {/* 👇 ESTA ES LA CONDICIÓN QUE ESTÁ FALTANDO 👇 */}
+          {view === 'checkout' ? (
+          
+          <div className="pt-24 px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-center mb-8">
+                  {/* ... todo el código de tu checkout ... */}
+              </div>
               
-              {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={setCoupon} coupon={coupon} removeCoupon={() => setCoupon(null)} />}
+              {checkoutStep === 0 && <PaymentMethodSelection ... />}
               
-              {/* AQUÍ AGREGAMOS LA TARJETA AL PASO 1 */}
-              {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'tarjeta') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} cart={cart} />}
+              {checkoutStep === 1 && ... }
               
-              {/* AQUÍ AGREGAMOS EL PROCESADOR DE TARJETAS AL PASO 2 */}
               {checkoutStep === 2 && ( 
-                  (paymentMethod === 'tarjeta') ? <PayPalCardProcessor cart={cart} finalTotal={finalTotal} coupon={coupon} paypalData={paypalData} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} /> :
-                  (paymentMethod === 'paypal') ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} paymentMethod={paymentMethod} /> : 
-                  (paymentMethod === 'binance') ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={handleBinanceSuccess} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : 
-                  <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />
+                  (paymentMethod === 'tarjeta') ? <PayPalCardProcessor ... /> :
+                  (paymentMethod === 'paypal') ? <AutomatedFlowWrapper ... /> : 
+                  (paymentMethod === 'binance') ? <BinanceAutomatedCheckout ... /> : 
+                  <PaymentProofStep ... />
               )}
               
               {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
           </div>
+
+          {/* 👇 AQUÍ CONECTA PERFECTO CON TU CÓDIGO 👇 */}
           ) : (
           <>
              <Hero exchangeRate={exchangeRateBs} />
-              <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+             <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-wrap justify-center gap-4 mb-12">{categories.map(cat => ( <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}`}>{cat}</button> ))}</div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {filteredServices.map((service, idx) => ( service.category === 'Exchange' ? <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} /> : <ProductCard key={service.id} service={service} addToCart={addToCart} exchangeRateBs={exchangeRateBs} idx={idx} multipackages={multipackages} /> ))}

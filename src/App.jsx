@@ -504,6 +504,7 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
 const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrder, setCart, setCheckoutStep }) => {
     const [sdkReady, setSdkReady] = React.useState(false);
     const [isProcessing, setIsProcessing] = React.useState(false);
+    const [isOpeningForm, setIsOpeningForm] = React.useState(false); // NUEVO ESTADO PARA EL LOADER DE 3 SEGUNDOS
 
     React.useEffect(() => {
         const loadPayPalSdk = async () => {
@@ -529,13 +530,19 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
             window.paypal.Buttons({
                 fundingSource: window.paypal.FUNDING.CARD,
                 style: {
-                    layout: 'vertical', // Fuerza a centrar todo
+                    layout: 'vertical', 
                     color: 'black',
                     shape: 'rect',
                     label: 'pay'
                 },
+                // AQUÍ ESTÁ LA MAGIA DE LA PANTALLA DE CARGA TEMPORAL
+                onClick: (data, actions) => {
+                    setIsOpeningForm(true);
+                    setTimeout(() => {
+                        setIsOpeningForm(false);
+                    }, 3000); // Desaparece mágicamente a los 3 segundos
+                },
                 createOrder: async () => {
-                    // AQUÍ ESTABA EL ERROR: Ya no bloqueamos la pantalla aquí para dejarte teclear
                     try {
                         const res = await fetch(`${SERVER_URL}/api/create-order`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -546,7 +553,7 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     } catch (error) { alert("Error conectando al banco."); throw error; }
                 },
                 onApprove: async (data, actions) => {
-                    setIsProcessing(true); // Bloqueamos la pantalla SOLO cuando ya pusiste la tarjeta y se está cobrando
+                    setIsProcessing(true); // Pantalla de carga para cuando ya se está cobrando
                     try {
                         const res = await fetch(`${SERVER_URL}/api/capture-paypal-order`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -578,43 +585,64 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     finally { setIsProcessing(false); }
                 },
                 onError: (err) => { alert("Error procesando la tarjeta. Verifica que los datos sean correctos."); },
-                onCancel: () => { /* Si el usuario cierra el formulario, no hacemos nada */ }
+                onCancel: () => { setIsOpeningForm(false); }
             }).render("#paypal-card-container");
         }
     }, [sdkReady, cart, coupon]);
 
     return (
         <div className="bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 max-w-lg mx-auto animate-fade-in-up">
-            <div className="bg-gray-800 p-6 rounded-xl border border-cyan-500/50 w-full relative shadow-[0_0_15px_rgba(6,182,212,0.2)] overflow-hidden">
+            <div className="bg-gray-800 p-6 rounded-xl border border-cyan-500/50 w-full relative shadow-[0_0_20px_rgba(6,182,212,0.15)] overflow-hidden">
+                
+                {/* LOADER 1: Procesando Pago Final */}
                 {isProcessing && (
-                    <div className="absolute inset-0 bg-gray-900/90 backdrop-blur-md z-50 flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-md z-50 flex flex-col items-center justify-center">
                         <Loader className="animate-spin text-cyan-400 mb-4" size={48} />
                         <p className="text-white font-bold text-lg animate-pulse">Procesando pago...</p>
                         <p className="text-gray-400 text-xs mt-2">Por favor, no cierres esta ventana.</p>
                     </div>
                 )}
-                <h4 className="text-white font-bold mb-2 flex items-center justify-center gap-2 text-xl">
-                    <CreditCard size={24} className="text-cyan-400" /> Pagar con Tarjeta
-                </h4>
-                <p className="text-center text-gray-400 mb-6 text-sm">Total a cobrar: <strong className="text-white">${finalTotal.toFixed(2)} USD</strong></p>
+
+                {/* LOADER 2: Abriendo el formulario (3 segundos) */}
+                {isOpeningForm && (
+                    <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-md z-40 flex flex-col items-center justify-center rounded-xl">
+                        <Loader className="animate-spin text-cyan-400 mb-3" size={36} />
+                        <p className="text-white font-bold text-sm animate-pulse">Abriendo entorno bancario...</p>
+                        <p className="text-gray-400 text-[10px] mt-1 flex items-center gap-1"><Lock size={10} className="text-green-400"/> Conexión cifrada de extremo a extremo</p>
+                    </div>
+                )}
+
+                {/* ESTÉTICA PREMIUM: Títulos e Insignias */}
+                <div className="text-center mb-5">
+                    <h4 className="text-white font-bold mb-1 flex items-center justify-center gap-2 text-xl">
+                        <CreditCard size={24} className="text-cyan-400" /> Tarjeta de Crédito / Débito
+                    </h4>
+                    <p className="text-gray-400 text-sm">Total a cobrar: <strong className="text-white font-mono">${finalTotal.toFixed(2)} USD</strong></p>
+                    
+                    {/* Logos de Tarjetas (Trust Badges) */}
+                    <div className="flex justify-center items-center gap-3 mt-3">
+                        <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" className="h-3" /></div>
+                        <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b7/MasterCard_Logo.svg" alt="Mastercard" className="h-4" /></div>
+                        <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" className="h-4" /></div>
+                    </div>
+                </div>
                 
                 {!sdkReady ? (
                     <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-500" size={32} /></div>
                 ) : (
-                    // SOLUCIÓN ESTÉTICA: Un contenedor blanco limpio como un Punto de Venta
-                    <div className="bg-white p-3 sm:p-5 rounded-xl shadow-inner min-h-[220px] w-full flex flex-col justify-center items-center">
-                        <div id="paypal-card-container" className="w-full"></div>
+                    <div className="bg-white p-3 sm:p-5 rounded-xl shadow-inner min-h-[220px] w-full flex flex-col justify-center items-center relative border-2 border-gray-200">
+                        <div id="paypal-card-container" className="w-full relative z-10"></div>
                     </div>
                 )}
                 
                 <div className="mt-6 pt-4 border-t border-gray-700 text-center">
                     <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
-                        <ShieldCheck size={14} className="text-green-400" /> Transacción encriptada. Ningún dato se guarda en TecnoByte.
+                        <ShieldCheck size={14} className="text-green-400" /> Pagos procesados globalmente con tecnología segura.
                     </p>
                 </div>
             </div>
             <div className="mt-4 text-center">
-                <button onClick={() => setCheckoutStep(1)} className="text-gray-500 hover:text-white text-sm transition-colors">← Volver a mis datos</button>
+                <button onClick={() => setCheckoutStep(1)} className="text-gray-500 hover:text-white text-sm transition-colors font-bold tracking-wide">← VOLVER A MIS DATOS</button>
             </div>
         </div>
     );
@@ -933,11 +961,10 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                   <div class="col">
                     <div class="label">Facturado a:</div>
                     <div class="value">${user}</div>
-                    <div class="label">Cédula / Documento:</div>
-                    <div class="value">${idNumber}</div>
                     
                     <div class="label">Cédula / Documento:</div>
                     <div class="value">${idNumber}</div>
+                    
                     <div class="label">Correo Electrónico:</div>
                     <div class="value">${email}</div>
                     <div class="label">Teléfono / WhatsApp:</div>

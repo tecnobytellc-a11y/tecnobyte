@@ -749,6 +749,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         const email = lastOrder?.fullData?.email || 'N/A';
         const phone = lastOrder?.fullData?.phone || 'N/A';
         const method = lastOrder?.paymentMethod || 'N/A';
+        const idNumber = lastOrder?.fullData?.idNumber || 'N/A';
         
         const rawItems = lastOrder?.rawItems || [];
         const subtotal = rawItems.reduce((acc, item) => acc + item.price, 0);
@@ -811,6 +812,8 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                   <div class="col">
                     <div class="label">Facturado a:</div>
                     <div class="value">${user}</div>
+                    <div class="label">Cédula / Documento:</div>
+                    <div class="value">${idNumber}</div>
                     
                     <div class="label">Cédula / Documento:</div>
                     <div class="value">${idNumber}</div>

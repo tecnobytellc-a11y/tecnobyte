@@ -501,6 +501,76 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
     );
 };
 
+const PayPalCardProcessor = ({ cart, coupon, onPaymentSuccess }) => {
+    const [sdkReady, setSdkReady] = React.useState(false);
+    const [isProcessing, setIsProcessing] = React.useState(false);
+
+    React.useEffect(() => {
+        const loadPayPalSdk = async () => {
+            try {
+                const res = await fetch(`${SERVER_URL}/api/get-paypal-client-id`);
+                const { clientId } = await res.json();
+                if (window.paypal) { setSdkReady(true); return; }
+                const script = document.createElement("script");
+                script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&components=buttons,funding-eligibility`;
+                script.async = true;
+                script.onload = () => setSdkReady(true);
+                document.body.appendChild(script);
+            } catch (error) { console.error("Error cargando PayPal:", error); }
+        };
+        loadPayPalSdk();
+    }, []);
+
+    React.useEffect(() => {
+        if (sdkReady && window.paypal) {
+            document.getElementById('paypal-card-container').innerHTML = '';
+            window.paypal.Buttons({
+                fundingSource: window.paypal.FUNDING.CARD, // Fuerza a mostrar SOLO tarjetas
+                createOrder: async () => {
+                    setIsProcessing(true);
+                    try {
+                        const res = await fetch(`${SERVER_URL}/api/create-order`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ items: cart, couponCode: coupon?.code })
+                        });
+                        const data = await res.json(); return data.id; 
+                    } catch (error) { setIsProcessing(false); alert("Error con el banco."); throw error; }
+                },
+                onApprove: async (data, actions) => {
+                    try {
+                        const res = await fetch(`${SERVER_URL}/api/capture-paypal-order`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ orderId: data.orderID })
+                        });
+                        const captureData = await res.json();
+                        if (captureData.success) { onPaymentSuccess(captureData.captureData); } 
+                        else { alert("Pago rechazado: " + captureData.message); }
+                    } catch (error) { alert("Error verificando el pago."); } 
+                    finally { setIsProcessing(false); }
+                },
+                onError: (err) => { setIsProcessing(false); alert("Error procesando la tarjeta."); },
+                onCancel: () => { setIsProcessing(false); }
+            }).render("#paypal-card-container");
+        }
+    }, [sdkReady, cart, coupon]);
+
+    return (
+        <div className="bg-gray-800 p-6 rounded-xl border border-indigo-500/50 w-full relative mt-4 shadow-[0_0_15px_rgba(79,70,229,0.2)]">
+            {isProcessing && (
+                <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl">
+                    <Loader className="animate-spin text-cyan-400 mb-2" size={32} />
+                    <p className="text-white font-bold text-sm animate-pulse">Procesando pago seguro...</p>
+                </div>
+            )}
+            <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                <CreditCard size={20} className="text-cyan-400" /> Pagar con Tarjeta
+            </h4>
+            {!sdkReady ? <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-500" /></div> : <div id="paypal-card-container" className="min-h-[150px] relative z-0"></div>}
+            <div className="mt-4 pt-4 border-t border-gray-700 text-center"><p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><ShieldCheck size={14} className="text-green-400" /> Transacción encriptada. Ningún dato se guarda en TecnoByte.</p></div>
+        </div>
+    );
+};
+
 const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, exchangeRate, coupon, contactInfo, openTerms, openPrivacy }) => {
   const [isSubmitting, setIsSubmitting] = useState(false); const [acceptedTerms, setAcceptedTerms] = useState(false);
   const isFormValid = proofData.name && proofData.lastName && proofData.idNumber && proofData.phone && proofData.email && proofData.refNumber && proofData.screenshot && acceptedTerms;

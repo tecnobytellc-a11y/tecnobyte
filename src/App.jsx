@@ -504,7 +504,7 @@ const PayPalAutomatedCheckout = ({ finalTotal, onPaymentComplete, isExchange, ex
 const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrder, setCart, setCheckoutStep }) => {
     const [sdkReady, setSdkReady] = React.useState(false);
     const [isProcessing, setIsProcessing] = React.useState(false);
-    const [isOpeningForm, setIsOpeningForm] = React.useState(false); // NUEVO ESTADO PARA EL LOADER DE 3 SEGUNDOS
+    const [isOpeningForm, setIsOpeningForm] = React.useState(false);
 
     React.useEffect(() => {
         const loadPayPalSdk = async () => {
@@ -535,12 +535,11 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     shape: 'rect',
                     label: 'pay'
                 },
-                // AQUÍ ESTÁ LA MAGIA DE LA PANTALLA DE CARGA TEMPORAL
                 onClick: (data, actions) => {
                     setIsOpeningForm(true);
                     setTimeout(() => {
                         setIsOpeningForm(false);
-                    }, 3000); // Desaparece mágicamente a los 3 segundos
+                    }, 3000); 
                 },
                 createOrder: async () => {
                     try {
@@ -553,7 +552,7 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     } catch (error) { alert("Error conectando al banco."); throw error; }
                 },
                 onApprove: async (data, actions) => {
-                    setIsProcessing(true); // Pantalla de carga para cuando ya se está cobrando
+                    setIsProcessing(true); 
                     try {
                         const res = await fetch(`${SERVER_URL}/api/capture-paypal-order`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -594,7 +593,6 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
         <div className="bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 max-w-lg mx-auto animate-fade-in-up">
             <div className="bg-gray-800 p-6 rounded-xl border border-cyan-500/50 w-full relative shadow-[0_0_20px_rgba(6,182,212,0.15)] overflow-hidden">
                 
-                {/* LOADER 1: Procesando Pago Final */}
                 {isProcessing && (
                     <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-md z-50 flex flex-col items-center justify-center">
                         <Loader className="animate-spin text-cyan-400 mb-4" size={48} />
@@ -603,7 +601,6 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     </div>
                 )}
 
-                {/* LOADER 2: Abriendo el formulario (3 segundos) */}
                 {isOpeningForm && (
                     <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-md z-40 flex flex-col items-center justify-center rounded-xl">
                         <Loader className="animate-spin text-cyan-400 mb-3" size={36} />
@@ -612,16 +609,15 @@ const PayPalCardProcessor = ({ cart, finalTotal, coupon, paypalData, setLastOrde
                     </div>
                 )}
 
-                {/* ESTÉTICA PREMIUM: Títulos e Insignias */}
                 <div className="text-center mb-5">
                     <h4 className="text-white font-bold mb-1 flex items-center justify-center gap-2 text-xl">
                         <CreditCard size={24} className="text-cyan-400" /> Tarjeta de Crédito / Débito
                     </h4>
                     <p className="text-gray-400 text-sm">Total a cobrar: <strong className="text-white font-mono">${finalTotal.toFixed(2)} USD</strong></p>
                     
-                    {/* Logos de Tarjetas (Trust Badges) */}
                     <div className="flex justify-center items-center gap-3 mt-3">
-                        <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" className="h-3" /></div>
+                        {/* LOGO DE VISA ARREGLADO */}
+                        <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/500px-Visa_Inc._logo.svg.png" alt="Visa" className="h-3" /></div>
                         <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b7/MasterCard_Logo.svg" alt="Mastercard" className="h-4" /></div>
                         <div className="bg-white px-2 py-0.5 rounded shadow-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" className="h-4" /></div>
                     </div>

@@ -368,6 +368,74 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
   );
 };
 
+const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages }) => {
+  const packages = multipackages ? multipackages[service.title] : null;
+  const [selectedPkg, setSelectedPkg] = useState(packages ? packages[0] : null);
+
+  // Asegurarnos de actualizar el paquete si cambian los datos del servidor
+  useEffect(() => {
+    if (packages && packages.length > 0) {
+      setSelectedPkg(packages[0]);
+    }
+  }, [packages]);
+
+  const currentPrice = packages && selectedPkg ? selectedPkg.price : service.price;
+  const currentTitle = packages && selectedPkg ? `${selectedPkg.title} - ${service.title}` : service.title;
+
+  const handleAdd = () => {
+    if (packages && selectedPkg) {
+      addToCart({ ...service, title: currentTitle, price: currentPrice, packageId: selectedPkg.id });
+    } else {
+      addToCart(service);
+    }
+  };
+
+  return (
+    <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
+      <div>
+        <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">
+          <DynamicIcon name={service.icon} />
+        </div>
+        
+        <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
+        <p className="text-gray-400 text-sm mb-4">{service.description}</p>
+        
+        {/* Renderizado condicional del menú desplegable solo si hay paquetes */}
+        {packages && selectedPkg && (
+          <div className="mb-4">
+            <label className="text-xs text-indigo-300 font-bold block mb-2 uppercase tracking-wide">Selecciona un paquete:</label>
+            <select 
+              className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-indigo-500 outline-none cursor-pointer transition-colors hover:border-gray-400"
+              value={selectedPkg.id}
+              onChange={(e) => setSelectedPkg(packages.find(p => p.id === e.target.value))}
+            >
+              {packages.map(pkg => (
+                <option key={pkg.id} value={pkg.id} className="bg-gray-900 text-white">
+                  {pkg.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-800/50">
+        <div className="flex flex-col">
+          <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
+            ${currentPrice.toFixed(2)}
+          </span>
+          <span className="text-xs text-gray-400 font-mono">
+            ≈ {(currentPrice * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+          </span>
+        </div>
+        <button onClick={handleAdd} className="p-3 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all transform hover:scale-105">
+          <ShoppingCart size={20} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }) => {
     const [transactionId, setTransactionId] = useState('');
     const [status, setStatus] = useState('idle'); 
@@ -952,6 +1020,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
 export default function App() {
   const [view, setView] = useState('home'); const [cart, setCart] = useState([]); const [isCartOpen, setIsCartOpen] = useState(false); const [activeCategory, setActiveCategory] = useState('All'); const [lastOrder, setLastOrder] = useState(null); const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); const [checkoutStep, setCheckoutStep] = useState(0); const [paymentMethod, setPaymentMethod] = useState(null); const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', idDoc: null, groupLink: '' }); const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null }); const [isProcessing, setIsProcessing] = useState(false); const [isBlocked, setIsBlocked] = useState(false); const [showTerms, setShowTerms] = useState(false); const [showPrivacy, setShowPrivacy] = useState(false); const [coupon, setCoupon] = useState(null); const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); const [services, setServices] = useState([]); const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [contactInfo, setContactInfo] = useState(DEFAULT_CONTACT_INFO); const [legalInfo, setLegalInfo] = useState({ terms: "Cargando...", privacy: "Cargando..." }); const [socialLinks, setSocialLinks] = useState({ tiktok: "#", instagram: "#", facebook: "#" });
+  const [multipackages, setMultipackages] = useState({});
 
   // Detectar si hay servicios que requieren link en el carrito
   const requiresGroupLink = cart.some(item => item.requiresLink);
@@ -974,7 +1043,7 @@ export default function App() {
             const configRes = await fetch(`${SERVER_URL}/api/get-config`);
             if (configRes.ok) {
                 const config = await configRes.json();
-                if (config.success) { setServices(config.catalog); setContactInfo(config.contact); setLegalInfo(config.legal); setSocialLinks(config.social); }
+                if (config.success) { setServices(config.catalog); setMultipackages(config.multipackages || {}); setContactInfo(config.contact); setLegalInfo(config.legal); setSocialLinks(config.social); }
             }
         } catch (error) {} finally { setIsLoadingSecurity(false); setIsLoadingCatalog(false); }
     }; init();
@@ -1064,11 +1133,11 @@ export default function App() {
           </div>
           ) : (
           <>
-              <Hero exchangeRate={exchangeRateBs} />
+             <Hero exchangeRate={exchangeRateBs} />
               <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-wrap justify-center gap-4 mb-12">{categories.map(cat => ( <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}`}>{cat}</button> ))}</div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {filteredServices.map((service, idx) => ( service.category === 'Exchange' ? <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} /> : <div key={service.id} className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}><div><div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform"><DynamicIcon name={service.icon} /></div><h3 className="text-xl font-bold text-white mb-2">{service.title}</h3><p className="text-gray-400 text-sm mb-4">{service.description}</p></div><div className="flex items-center justify-between mt-auto"><div className="flex flex-col"><span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">${service.price.toFixed(2)}</span><span className="text-xs text-gray-400 font-mono">≈ {(service.price * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs</span></div><button onClick={() => addToCart(service)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-lg transition-colors"><ShoppingCart size={20} /></button></div></div> ))}
+                  {filteredServices.map((service, idx) => ( service.category === 'Exchange' ? <ExchangeCard key={service.id} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} /> : <ProductCard key={service.id} service={service} addToCart={addToCart} exchangeRateBs={exchangeRateBs} idx={idx} multipackages={multipackages} /> ))}
               </div>
               </div>
           </>

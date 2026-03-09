@@ -7,6 +7,7 @@ import {
   Facebook, Instagram, Mail, Phone, ShieldCheck, LogIn, ChevronDown, Landmark, Building2, Send, FileText, Tv, Music,
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle, Link as LinkIcon
 } from 'lucide-react';
+import SupportCenter from './SupportCenter';
 
 const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
 const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa"; 
@@ -1252,6 +1253,11 @@ export default function App() {
 
   if (isLoadingSecurity || isLoadingCatalog) return <div className="fixed inset-0 bg-[#0a0a12] flex flex-col items-center justify-center z-[100]"><div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div><h2 className="text-white font-orbitron text-xl tracking-widest animate-pulse">CARGANDO TIENDA</h2><p className="text-gray-500 text-xs mt-2 font-mono">Conectando con el servidor...</p></div>;
   if (isBlocked) return <BlockedScreen />;
+
+    // Si la URL es /resoluciones, mostramos el Centro de Soporte y ocultamos la tienda
+  if (window.location.pathname === '/resoluciones') {
+    return <SupportCenter />;
+  }
 
   const categories = ['All', ...new Set(services.map(s => s.category))];
   const addToCart = (service) => { setCart([...cart, service]); setIsCartOpen(true); };

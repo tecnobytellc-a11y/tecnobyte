@@ -61,7 +61,7 @@ export default function SupportCenter() {
       
       // PON AQUÍ LA RUTA DE TU IMAGEN (Ej: 'escudo.png' o 'logo.png')
       // Si la imagen está en tu carpeta public, solo pon el nombre.
-      img.src = 'logo.png'; 
+      img.src = 'favicon.png'; 
       img.crossOrigin = 'Anonymous';
       
       img.onload = () => {

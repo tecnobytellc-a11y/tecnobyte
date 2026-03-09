@@ -248,28 +248,54 @@ export default function SupportCenter() {
       return () => { unsubscribe(); caseUnsub(); };
   }, [chatData]);
 
-  // --- ENVIAR MENSAJE (REAL) ---
+  // --- ENVIAR MENSAJE Y DISPARAR INTELIGENCIA ARTIFICIAL ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim() || !chatData) return;
 
     const textToSend = inputMessage;
-    setInputMessage(''); // Limpiar rápido
+    setInputMessage(''); 
 
     try {
+        // 1. Guarda el mensaje del cliente en Firebase
         await addDoc(collection(db, "support_cases", chatData.id, "messages"), {
             sender: 'user',
             text: textToSend,
             timestamp: serverTimestamp()
         });
-
         await updateDoc(doc(db, "support_cases", chatData.id), {
-            lastMessage: textToSend,
-            updatedAt: serverTimestamp()
+            lastMessage: textToSend, updatedAt: serverTimestamp()
         });
+
+        // 2. Si estás "esperando_admin", dispara la IA
+        if (chatData.status === 'esperando_admin') {
+            
+            // Llama a tu servidor donde está conectada la IA
+            const response = await fetch(`https://api-paypal-secure.vercel.app/api/support/ai-reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    message: textToSend,
+                    context: messages.slice(-2).map(m => `${m.sender}: ${m.text}`).join(' | ')
+                })
+            });
+            
+            const data = await response.json();
+
+            // 3. Guarda la respuesta de la IA en el chat
+            if (data.success && chatData.status === 'esperando_admin') {
+                await addDoc(collection(db, "support_cases", chatData.id, "messages"), {
+                    sender: 'bot',
+                    text: data.reply,
+                    timestamp: serverTimestamp()
+                });
+                await updateDoc(doc(db, "support_cases", chatData.id), {
+                    lastMessage: data.reply, updatedAt: serverTimestamp()
+                });
+            }
+        }
     } catch (error) {
-        console.error(error);
-        alert("Error enviando el mensaje.");
+        console.error("Error enviando mensaje:", error);
     }
   };
 

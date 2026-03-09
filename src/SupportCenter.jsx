@@ -39,6 +39,49 @@ export default function SupportCenter() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
 
+// --- MAGIA: CAMBIAR TÍTULO Y FAVICON A BLANCO SOLO PARA ESTA PÁGINA ---
+  useEffect(() => {
+      // 1. Cambiamos el texto de la pestaña del navegador
+      document.title = "Centro de Resoluciones | TecnoByte LLC";
+      
+      // 2. Buscamos el ícono actual
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+      }
+
+      // 3. Creamos un procesador de imagen invisible (Canvas)
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      // PON AQUÍ LA RUTA DE TU IMAGEN (Ej: 'escudo.png' o 'logo.png')
+      // Si la imagen está en tu carpeta public, solo pon el nombre.
+      img.src = 'logo.png'; 
+      img.crossOrigin = 'Anonymous';
+      
+      img.onload = () => {
+          try {
+              // Dibujamos la imagen original
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              // TRUCO: Reemplazamos todos los colores por BLANCO PURO
+              ctx.globalCompositeOperation = 'source-in';
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Lo aplicamos a la pestaña
+              link.href = canvas.toDataURL('image/png');
+          } catch (e) {
+              console.error("Error cargando el favicon de soporte:", e);
+          }
+      };
+  }, []);
+
   // --- BASE DE DATOS MASIVA DE PREGUNTAS FRECUENTES (FAQ) ACTUALIZADA ---
   const faqCategories = [
     {

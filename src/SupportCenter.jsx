@@ -41,10 +41,8 @@ export default function SupportCenter() {
 
 // --- MAGIA: CAMBIAR TÍTULO Y FAVICON A BLANCO SOLO PARA ESTA PÁGINA ---
   useEffect(() => {
-      // 1. Cambiamos el texto de la pestaña del navegador
       document.title = "Centro de Resoluciones | TecnoByte LLC";
       
-      // 2. Buscamos el ícono actual
       let link = document.querySelector("link[rel~='icon']");
       if (!link) {
           link = document.createElement('link');
@@ -52,22 +50,34 @@ export default function SupportCenter() {
           document.head.appendChild(link);
       }
 
-      // 3. Creamos un procesador de imagen invisible (Canvas)
       const canvas = document.createElement('canvas');
       canvas.width = 64;
       canvas.height = 64;
       const ctx = canvas.getContext('2d');
       const img = new Image();
       
-      // PON AQUÍ LA RUTA DE TU IMAGEN (Ej: 'escudo.png' o 'logo.png')
-      // Si la imagen está en tu carpeta public, solo pon el nombre.
-      img.src = 'favicon.png'; 
+      img.src = 'favicon.png'; // Tu imagen actual
       img.crossOrigin = 'Anonymous';
       
       img.onload = () => {
           try {
-              // Dibujamos la imagen original
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              // --- 🛠️ CONTROLES DE TAMAÑO Y POSICIÓN ---
+              // 1. ZOOM: Aumenta este número para hacerlo más grande (Ej: 1.5, 2.0, 2.5)
+              const zoom = 1.8; 
+              
+              // 2. POSICIÓN: Aumenta este número para bajarlo (Ej: 5, 10, 15)
+              const moverAbajo = 8; 
+              
+              // Calculamos el nuevo tamaño
+              const newWidth = canvas.width * zoom;
+              const newHeight = canvas.height * zoom;
+              
+              // Lo centramos horizontalmente y aplicamos el ajuste vertical
+              const x = (canvas.width - newWidth) / 2;
+              const y = ((canvas.height - newHeight) / 2) + moverAbajo;
+
+              // Dibujamos la imagen con los ajustes
+              ctx.drawImage(img, x, y, newWidth, newHeight);
               
               // TRUCO: Reemplazamos todos los colores por BLANCO PURO
               ctx.globalCompositeOperation = 'source-in';

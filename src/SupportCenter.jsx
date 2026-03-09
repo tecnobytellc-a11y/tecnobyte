@@ -1,20 +1,31 @@
 import React, { useState } from 'react';
-import { MessageCircle, AlertCircle, CheckCircle, Clock, FileText, X, Send, User, Bot, PlusCircle, Search } from 'lucide-react';
+import { MessageCircle, CheckCircle, Clock, FileText, X, Send, User, Bot, PlusCircle, Search } from 'lucide-react';
 
 export default function SupportCenter() {
-  const [activeTab, setActiveTab] = useState('abiertos'); // 'abiertos' o 'cerrados'
+  const [activeTab, setActiveTab] = useState('abiertos');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatStatus, setChatStatus] = useState('bot');
   const [inputMessage, setInputMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [messages, setMessages] = useState([
     { sender: 'bot', text: 'Hola, soy la IA de asistencia de TecnoByte LLC. Puedo ayudarte con tus pedidos o transferirte con un agente humano si hay una controversia. ¿Cuál es tu ID de orden?' }
   ]);
 
-  // Simulador de Casos (Luego lo conectaremos a tu Firebase)
-  const mockCases = [
-    { id: 'PP-R-789012', orderId: 'TB-9821', date: '08 Mar 2026', issue: 'Servicio no recibido', amount: '15.00', status: 'abierto', lastUpdate: 'Esperando respuesta del vendedor' },
-    { id: 'PP-R-654321', orderId: 'TB-7654', date: '01 Mar 2026', issue: 'Error en la entrega', amount: '25.50', status: 'cerrado', lastUpdate: 'Reembolso emitido' },
+  // Simulador de la base de datos de casos del cliente (luego vendrán de Firebase)
+  const clientCases = [
+    { id: 'CASO-9901', orderId: 'TB-9821', date: '08 Mar 2026', issue: 'Servicio no recibido', amount: '15.00', status: 'abiertos', lastUpdate: 'Esperando respuesta de soporte' },
+    { id: 'CASO-9902', orderId: 'TB-9821', date: '08 Mar 2026', issue: 'Duda sobre el método de pago', amount: '15.00', status: 'cerrados', lastUpdate: 'Duda resuelta' },
+    { id: 'CASO-8844', orderId: 'TB-5544', date: '01 Mar 2026', issue: 'Problema de activación', amount: '25.50', status: 'cerrados', lastUpdate: 'Reembolso emitido' },
   ];
+
+  // Lógica de Filtrado: Compara lo que el cliente escribe con el ID de Orden o ID de Caso
+  const filteredCases = clientCases.filter(c => {
+    const matchesTab = c.status === activeTab;
+    const matchesSearch = searchQuery === '' || 
+                          c.orderId.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          c.id.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -33,7 +44,7 @@ export default function SupportCenter() {
   return (
     <div className="min-h-screen bg-[#05050a] text-white font-sans pb-20">
       
-      {/* HEADER TIPO PAYPAL (Barra de Navegación del Centro) */}
+      {/* HEADER TIPO PAYPAL */}
       <div className="bg-[#0a0a12] border-b border-gray-800 px-6 py-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <img src="https://tecnobyte.lat/logo.png" alt="TecnoByte" className="h-8 filter brightness-0 invert" />
@@ -47,30 +58,30 @@ export default function SupportCenter() {
 
       <div className="max-w-6xl mx-auto px-6 mt-10">
         
-        {/* RESUMEN DE LA CUENTA Y BOTÓN DE REPORTAR */}
+        {/* PANEL PRINCIPAL DEL CLIENTE */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#11111a] border border-gray-800 rounded-xl p-6 md:p-8 mb-10 shadow-lg">
           <div>
-            <h2 className="text-2xl md:text-3xl font-black mb-2">Gestiona tus controversias</h2>
-            <p className="text-gray-400 text-sm">Resuelve problemas con tus compras o comunícate directamente con TecnoByte LLC para evitar retenciones.</p>
+            <h2 className="text-2xl md:text-3xl font-black mb-2">Protección al Comprador</h2>
+            <p className="text-gray-400 text-sm">Rastrea el estado de tus reclamos, comunícate con soporte o abre una nueva solicitud de asistencia de forma segura.</p>
           </div>
           <button className="mt-6 md:mt-0 flex items-center gap-2 bg-transparent border-2 border-indigo-500 text-indigo-400 hover:bg-indigo-500 hover:text-white px-6 py-3 rounded-lg font-bold transition-all w-full md:w-auto justify-center">
             <PlusCircle className="w-5 h-5" /> Reportar un Problema
           </button>
         </div>
 
-        {/* MÉTRICAS (Igual que PayPal) */}
+        {/* MÉTRICAS PERSONALES DEL CLIENTE */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-[#11111a] border-l-4 border-indigo-500 rounded-r-xl p-5 border-y border-r border-gray-800">
-            <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Casos Abiertos</div>
-            <div className="text-3xl font-black text-white">1</div>
+            <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Tus Casos Abiertos</div>
+            <div className="text-3xl font-black text-white">{clientCases.filter(c => c.status === 'abiertos').length}</div>
           </div>
           <div className="bg-[#11111a] border-l-4 border-orange-500 rounded-r-xl p-5 border-y border-r border-gray-800">
             <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Requieren tu Acción</div>
             <div className="text-3xl font-black text-white">0</div>
           </div>
           <div className="bg-[#11111a] border-l-4 border-green-500 rounded-r-xl p-5 border-y border-r border-gray-800">
-            <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Casos Cerrados</div>
-            <div className="text-3xl font-black text-white">1</div>
+            <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Tus Casos Cerrados</div>
+            <div className="text-3xl font-black text-white">{clientCases.filter(c => c.status === 'cerrados').length}</div>
           </div>
         </div>
 
@@ -80,25 +91,31 @@ export default function SupportCenter() {
             onClick={() => setActiveTab('abiertos')}
             className={`pb-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${activeTab === 'abiertos' ? 'text-indigo-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            Casos Abiertos
+            Mis Casos Abiertos
             {activeTab === 'abiertos' && <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-500 rounded-t-md"></div>}
           </button>
           <button 
             onClick={() => setActiveTab('cerrados')}
             className={`pb-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${activeTab === 'cerrados' ? 'text-indigo-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            Casos Cerrados
+            Historial
             {activeTab === 'cerrados' && <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-500 rounded-t-md"></div>}
           </button>
         </div>
 
-        {/* BARRA DE BÚSQUEDA */}
+        {/* BARRA DE BÚSQUEDA DEL CLIENTE */}
         <div className="relative mb-6">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
-          <input type="text" placeholder="Buscar por ID de Caso o ID de Orden..." className="w-full bg-[#11111a] border border-gray-800 rounded-lg py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500" />
+          <input 
+            type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filtra tus casos por ID de Orden o ID de Caso..." 
+            className="w-full bg-[#11111a] border border-gray-800 rounded-lg py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
+          />
         </div>
 
-        {/* TABLA DE CASOS */}
+        {/* TABLA DE CASOS DEL CLIENTE */}
         <div className="bg-[#11111a] border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -110,16 +127,16 @@ export default function SupportCenter() {
               </tr>
             </thead>
             <tbody>
-              {mockCases.filter(c => c.status === activeTab).length === 0 ? (
+              {filteredCases.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="p-10 text-center text-gray-500">
                     <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    No tienes casos {activeTab} en este momento.
+                    No se encontraron casos {activeTab} que coincidan con tu búsqueda.
                   </td>
                 </tr>
               ) : (
-                mockCases.filter(c => c.status === activeTab).map((c, i) => (
-                  <tr key={i} className="border-b border-gray-800 hover:bg-[#1a1a24] transition-colors cursor-pointer">
+                filteredCases.map((c, i) => (
+                  <tr key={i} className="border-b border-gray-800 hover:bg-[#1a1a24] transition-colors cursor-pointer" onClick={() => setIsChatOpen(true)}>
                     <td className="p-4">
                       <div className="font-bold text-white text-sm">{c.date}</div>
                       <div className="text-xs text-indigo-400 mt-1">{c.id}</div>
@@ -129,8 +146,8 @@ export default function SupportCenter() {
                     <td className="p-4 text-sm text-white font-mono text-right font-bold">${c.amount} USD</td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        {c.status === 'abierto' ? <Clock className="w-4 h-4 text-orange-400" /> : <CheckCircle className="w-4 h-4 text-green-400" />}
-                        <span className={`text-xs font-bold uppercase ${c.status === 'abierto' ? 'text-orange-400' : 'text-green-400'}`}>
+                        {c.status === 'abiertos' ? <Clock className="w-4 h-4 text-orange-400" /> : <CheckCircle className="w-4 h-4 text-green-400" />}
+                        <span className={`text-xs font-bold uppercase ${c.status === 'abiertos' ? 'text-orange-400' : 'text-green-400'}`}>
                           {c.status}
                         </span>
                       </div>
@@ -144,7 +161,7 @@ export default function SupportCenter() {
         </div>
       </div>
 
-      {/* CAJA DE CHAT FLOTANTE (Igual que antes pero pulida) */}
+      {/* CAJA DE CHAT FLOTANTE */}
       {isChatOpen && (
         <div className="fixed bottom-0 right-0 md:bottom-10 md:right-10 w-full md:w-[400px] h-[100dvh] md:h-[550px] bg-[#11111a] md:border border-indigo-500 md:rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-4 flex justify-between items-center shadow-md">

@@ -1444,7 +1444,7 @@ export default function App() {
     }}
   >
     <img 
-      src="/icon-resoluciones.jpg" /* Ruta a la imagen en la carpeta public */
+      src="/icon-resoluciones.png" /* Ruta a la imagen en la carpeta public */
       alt="Soporte TecnoByte"
       style={{
         width: '100%',

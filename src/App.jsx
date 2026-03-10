@@ -1414,7 +1414,7 @@ export default function App() {
     ¿Necesitas ayuda? ¡Haz clic aquí!
   </div>
 
-  {/* La imagen flotante pura */}
+  {/* La imagen flotante pura y grande */}
   <a 
     href="https://www.tecnobyte.lat/resoluciones" 
     style={{
@@ -1424,26 +1424,25 @@ export default function App() {
     }}
   >
     <img 
-      src="/icon-resoluciones.png" 
+      src="/icon-resoluciones.png" /* Asegúrate de que tu imagen sea .png transparente */
       alt="Soporte TecnoByte"
       style={{
-        width: '85px', /* Imagen más grande */
-        height: '85px',
-        borderRadius: '50%', /* La hace un círculo perfecto */
-        border: '3px solid #ffffff', /* Borde blanco directo a la imagen */
-        boxShadow: '0 8px 25px rgba(0,0,0,0.3)', /* Sombra para que flote */
-        objectFit: 'cover',
+        width: '100px', /* Mucho más grande, como lo pediste */
+        height: '100px',
+        objectFit: 'contain', /* Evita que la imagen se deforme */
         cursor: 'pointer',
+        /* drop-shadow crea la sombra exacta de la silueta de tu PNG */
+        filter: 'drop-shadow(0px 8px 15px rgba(0,0,0,0.3))', 
         transition: 'all 0.3s ease'
       }} 
-      /* Efecto Hover directo en la imagen */
+      /* Efecto Hover que hace que "flote" al pasar el mouse */
       onMouseOver={(e) => {
         e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)';
-        e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.4)';
+        e.currentTarget.style.filter = 'drop-shadow(0px 12px 20px rgba(0,0,0,0.4))';
       }}
       onMouseOut={(e) => {
         e.currentTarget.style.transform = 'scale(1) translateY(0px)';
-        e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.3)';
+        e.currentTarget.style.filter = 'drop-shadow(0px 8px 15px rgba(0,0,0,0.3))';
       }}
     />
   </a>

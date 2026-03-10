@@ -1386,6 +1386,75 @@ export default function App() {
       </div><div className="mt-6 border-t border-gray-800 pt-4">{coupon ? ( <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Descuento ({coupon.code}):</span><span className="text-green-400 font-bold">-{coupon.percent}%</span></div> ) : null}<div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${finalTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div></div></div> )}
       <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Términos y Condiciones" content={legalInfo.terms} />
       <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Política de Privacidad y Aviso Legal" content={legalInfo.privacy} />
+      {/* --- BOTÓN FLOTANTE DE SOPORTE (TECNOBYTE LLC) --- */}
+<div style={{
+  position: 'fixed',
+  bottom: '30px',
+  right: '30px',
+  zIndex: 9999, /* Máxima prioridad para que nada lo tape */
+  display: 'flex',
+  alignItems: 'center',
+  gap: '15px',
+  pointerEvents: 'none' /* El contenedor invisible no atrapa clics raros */
+}}>
+  {/* El recuadrito flotante (Tooltip) */}
+  <div style={{
+    background: '#ffffff',
+    color: '#333333',
+    padding: '10px 20px',
+    borderRadius: '30px',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+    fontSize: '15px',
+    fontWeight: '500',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    whiteSpace: 'nowrap',
+    pointerEvents: 'auto',
+    border: '1px solid #eaeaea'
+  }}>
+    ¿Necesitas ayuda? ¡Haz clic aquí!
+  </div>
+
+  {/* El botón circular */}
+  <a 
+    href="https://www.tecnobyte.lat/resoluciones" 
+    style={{
+      width: '75px',
+      height: '75px',
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      boxShadow: '0 8px 25px rgba(0,0,0,0.2)',
+      transition: 'all 0.3s ease',
+      pointerEvents: 'auto', /* Reactiva clics para el botón */
+      cursor: 'pointer',
+      textDecoration: 'none',
+      border: '4px solid #ffffff', /* Borde blanco para que resalte */
+      backgroundColor: '#000000' /* Fondo negro por defecto si la imagen falla */
+    }}
+    /* Efecto Hover simple con JS inline para GitHub */
+    onMouseOver={(e) => {
+      e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)';
+      e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.3)';
+    }}
+    onMouseOut={(e) => {
+      e.currentTarget.style.transform = 'scale(1) translateY(0px)';
+      e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.2)';
+    }}
+  >
+    <img 
+      src="/icon-resoluciones.jpg" /* Ruta a la imagen en la carpeta public */
+      alt="Soporte TecnoByte"
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        display: 'block'
+      }} 
+    />
+  </a>
+</div>
     </div>
   );
 }

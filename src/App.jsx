@@ -1389,19 +1389,19 @@ export default function App() {
       {/* --- BOTÓN FLOTANTE DE SOPORTE (TECNOBYTE LLC) --- */}
 <div style={{
   position: 'fixed',
-  bottom: '30px',
-  right: '30px',
+  bottom: '20px', /* Más pegado a la esquina inferior */
+  right: '20px',  /* Más pegado a la esquina derecha */
   zIndex: 9999,
   display: 'flex',
   alignItems: 'center',
-  gap: '15px',
+  gap: '8px', /* El recuadrito mucho más cerca de la imagen */
   pointerEvents: 'none'
 }}>
   {/* El recuadrito flotante (Tooltip) */}
   <div style={{
     background: '#ffffff',
     color: '#333333',
-    padding: '10px 20px',
+    padding: '10px 18px',
     borderRadius: '30px',
     boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
     fontSize: '15px',
@@ -1414,7 +1414,7 @@ export default function App() {
     ¿Necesitas ayuda? ¡Haz clic aquí!
   </div>
 
-  {/* La imagen flotante pura y grande */}
+  {/* La imagen flotante GIGANTE y PURA */}
   <a 
     href="https://www.tecnobyte.lat/resoluciones" 
     style={{
@@ -1424,18 +1424,18 @@ export default function App() {
     }}
   >
     <img 
-      src="/icon-resoluciones.png" /* Asegúrate de que tu imagen sea .png transparente */
+      src="/icon-resoluciones.png" /* Recuerda que debe ser .png sin fondo */
       alt="Soporte TecnoByte"
       style={{
-        width: '100px', /* Mucho más grande, como lo pediste */
-        height: '100px',
-        objectFit: 'contain', /* Evita que la imagen se deforme */
+        width: '130px', /* ¡Tamaño inmenso! */
+        height: '130px',
+        objectFit: 'contain', 
         cursor: 'pointer',
-        /* drop-shadow crea la sombra exacta de la silueta de tu PNG */
+        /* drop-shadow crea la sombra sobre la silueta de tu imagen, no hace un cuadro */
         filter: 'drop-shadow(0px 8px 15px rgba(0,0,0,0.3))', 
         transition: 'all 0.3s ease'
       }} 
-      /* Efecto Hover que hace que "flote" al pasar el mouse */
+      /* Efecto Hover para que flote al pasar el mouse */
       onMouseOver={(e) => {
         e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)';
         e.currentTarget.style.filter = 'drop-shadow(0px 12px 20px rgba(0,0,0,0.4))';

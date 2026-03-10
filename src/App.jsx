@@ -1386,67 +1386,6 @@ export default function App() {
       </div><div className="mt-6 border-t border-gray-800 pt-4">{coupon ? ( <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Descuento ({coupon.code}):</span><span className="text-green-400 font-bold">-{coupon.percent}%</span></div> ) : null}<div className="flex justify-between text-xl font-bold text-white mb-4"><span>Total</span><span>${finalTotal.toFixed(2)}</span></div><button disabled={cart.length === 0} onClick={handleCheckoutStart} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex justify-center items-center gap-2">Proceder al Pago <Lock size={18} /></button></div></div></div> )}
       <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Términos y Condiciones" content={legalInfo.terms} />
       <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Política de Privacidad y Aviso Legal" content={legalInfo.privacy} />
-      {/* --- BOTÓN FLOTANTE DE SOPORTE (TECNOBYTE LLC) --- */}
-<div style={{
-  position: 'fixed',
-  bottom: '20px', /* Más pegado a la esquina inferior */
-  right: '20px',  /* Más pegado a la esquina derecha */
-  zIndex: 9999,
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px', /* El recuadrito mucho más cerca de la imagen */
-  pointerEvents: 'none'
-}}>
-  {/* El recuadrito flotante (Tooltip) */}
-  <div style={{
-    background: '#ffffff',
-    color: '#333333',
-    padding: '10px 18px',
-    borderRadius: '30px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
-    fontSize: '15px',
-    fontWeight: '500',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
-    whiteSpace: 'nowrap',
-    pointerEvents: 'auto',
-    border: '1px solid #eaeaea'
-  }}>
-    ¿Necesitas ayuda? ¡Haz clic aquí!
-  </div>
-
-  {/* La imagen flotante GIGANTE y PURA */}
-  <a 
-    href="https://www.tecnobyte.lat/resoluciones" 
-    style={{
-      pointerEvents: 'auto',
-      textDecoration: 'none',
-      display: 'block'
-    }}
-  >
-    <img 
-      src="/icon-resoluciones.png" /* Recuerda que debe ser .png sin fondo */
-      alt="Soporte TecnoByte"
-      style={{
-        width: '130px', /* ¡Tamaño inmenso! */
-        height: '130px',
-        objectFit: 'contain', 
-        cursor: 'pointer',
-        /* drop-shadow crea la sombra sobre la silueta de tu imagen, no hace un cuadro */
-        filter: 'drop-shadow(0px 8px 15px rgba(0,0,0,0.3))', 
-        transition: 'all 0.3s ease'
-      }} 
-      /* Efecto Hover para que flote al pasar el mouse */
-      onMouseOver={(e) => {
-        e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)';
-        e.currentTarget.style.filter = 'drop-shadow(0px 12px 20px rgba(0,0,0,0.4))';
-      }}
-      onMouseOut={(e) => {
-        e.currentTarget.style.transform = 'scale(1) translateY(0px)';
-        e.currentTarget.style.filter = 'drop-shadow(0px 8px 15px rgba(0,0,0,0.3))';
-      }}
-    />
-  </a>
-</div>
     </div>
   );
 }

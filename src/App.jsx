@@ -1391,11 +1391,11 @@ export default function App() {
   position: 'fixed',
   bottom: '30px',
   right: '30px',
-  zIndex: 9999, /* Máxima prioridad para que nada lo tape */
+  zIndex: 9999,
   display: 'flex',
   alignItems: 'center',
   gap: '15px',
-  pointerEvents: 'none' /* El contenedor invisible no atrapa clics raros */
+  pointerEvents: 'none'
 }}>
   {/* El recuadrito flotante (Tooltip) */}
   <div style={{
@@ -1414,44 +1414,37 @@ export default function App() {
     ¿Necesitas ayuda? ¡Haz clic aquí!
   </div>
 
-  {/* El botón circular */}
+  {/* La imagen flotante pura */}
   <a 
     href="https://www.tecnobyte.lat/resoluciones" 
     style={{
-      width: '75px',
-      height: '75px',
-      borderRadius: '50%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-      boxShadow: '0 8px 25px rgba(0,0,0,0.2)',
-      transition: 'all 0.3s ease',
-      pointerEvents: 'auto', /* Reactiva clics para el botón */
-      cursor: 'pointer',
+      pointerEvents: 'auto',
       textDecoration: 'none',
-      border: '4px solid #ffffff', /* Borde blanco para que resalte */
-      backgroundColor: '#000000' /* Fondo negro por defecto si la imagen falla */
-    }}
-    /* Efecto Hover simple con JS inline para GitHub */
-    onMouseOver={(e) => {
-      e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)';
-      e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.3)';
-    }}
-    onMouseOut={(e) => {
-      e.currentTarget.style.transform = 'scale(1) translateY(0px)';
-      e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.2)';
+      display: 'block'
     }}
   >
     <img 
-      src="/icon-resoluciones.png" /* Ruta a la imagen en la carpeta public */
+      src="/icon-resoluciones.png" 
       alt="Soporte TecnoByte"
       style={{
-        width: '100%',
-        height: '100%',
+        width: '85px', /* Imagen más grande */
+        height: '85px',
+        borderRadius: '50%', /* La hace un círculo perfecto */
+        border: '3px solid #ffffff', /* Borde blanco directo a la imagen */
+        boxShadow: '0 8px 25px rgba(0,0,0,0.3)', /* Sombra para que flote */
         objectFit: 'cover',
-        display: 'block'
+        cursor: 'pointer',
+        transition: 'all 0.3s ease'
       }} 
+      /* Efecto Hover directo en la imagen */
+      onMouseOver={(e) => {
+        e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)';
+        e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.4)';
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.transform = 'scale(1) translateY(0px)';
+        e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.3)';
+      }}
     />
   </a>
 </div>

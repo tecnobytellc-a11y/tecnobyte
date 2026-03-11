@@ -375,23 +375,21 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
 const CUSTOM_ICONS = {
   'WhatsApp Number': '/icons/icons8-whatsapp-512.png',
   'Telegram Number': '/icons/icons8-telegram-logo-512.png',
-  'PayPal/Banks Number': '/icons/netflix.png',
+  'PayPal/Banks Number': '/icons/icons8-paypal-logo-512.png',
   'Cambio PayPal a USDT': '/icons/spotify.png',
   'Cambio PayPal a Bs': '/icons/prime.png',
   'Diamantes FF': '/icons/icons8-free-fire-512.png',
   'Robux': '/icons/icons8-roblox-512.png',
   'CPs CODM': '/icons/icons8-call-of-duty-mobile-512.png',
-  'PS Plus Deluxe (1 Mes)': '/icons/freefire.png',
-  'PS Plus Extra (1 Mes)': '/icons/booyah.png',
+  'PS Plus Deluxe (1 Mes)': '/icons/icons8-playstation-512.png',
+  'PS Plus Extra (1 Mes)': '/icons/icons8-playstation-512.png',
   'Amazon Gift Card $10': '/icons/icons8-amazon-512.png',
-  'ChatBot PyME': '/icons/spotify.png',
   'Netflix (1 Mes)': '/icons/icons8-netflix-511.png',
   'HBO Max (Max)': '/icons/icons8-hbo-max-512.png',
   'Disney+ Premium': '/icons/icons8-disney-512.png',
   'Crunchyroll Mega Fan': '/icons/icons8-crunchyroll-512.png',
   'YouTube Premium': '/icons/icons8-youtube-512.png',
-  'Spotify Premium (3 Meses)': '/icons/icons8-spotify-512.png',
-  'Admin. Bot (WhatsApp)': '/icons/roblox.png'
+  'Spotify Premium (3 Meses)': '/icons/icons8-spotify-512.png'
 };
 
 const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages }) => {

@@ -181,14 +181,13 @@ export default function SupportCenter() {
       }
   };
 
-  // --- LÓGICA DE INICIO DE CHAT (REAL) ---
+  // --- LÓGICA DE INICIO DE CHAT (NUEVA: Nace como IA) ---
   const handleStartChat = async (e) => {
       e.preventDefault();
       if(!startForm.orderId || !startForm.email) return alert("Por favor llena ambos campos");
       setIsStartingChat(true);
 
       try {
-          // Obtenemos la IP del cliente usando una API gratuita
           let clientIp = 'Desconocida';
           try {
               const resIp = await fetch('https://api.ipify.org?format=json');
@@ -201,7 +200,7 @@ export default function SupportCenter() {
               userEmail: startForm.email,
               ip: clientIp,
               device: navigator.userAgent,
-              status: 'esperando_admin',
+              status: 'ia_chat', // 🚀 AHORA NACE COMO IA
               adminId: null,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
@@ -211,14 +210,13 @@ export default function SupportCenter() {
           const docRef = await addDoc(collection(db, "support_cases"), newCaseData);
           const caseId = docRef.id;
 
-          // Mensaje automático del bot
+          // Mensaje automático de bienvenida del bot
           await addDoc(collection(db, "support_cases", caseId, "messages"), {
               sender: 'bot',
-              text: `Hola. Soy el asistente virtual de TecnoByte LLC. He notificado a nuestro equipo sobre tu orden ${startForm.orderId}. Un asesor humano te atenderá por aquí en breve. Por favor, describe tu problema detalladamente.`,
+              text: `Hola. Soy TECNO-BOT, el asistente virtual de Inteligencia Artificial de TecnoByte. He registrado tu orden ${startForm.orderId}. ¿En qué te puedo ayudar hoy? Si no logro entenderte, puedes solicitar a un humano en cualquier momento.`,
               timestamp: serverTimestamp()
           });
 
-          // Cargamos el chat localmente
           setChatData({ id: caseId, ...newCaseData });
           setIsStartingChat(false);
       } catch (error) {
@@ -249,6 +247,7 @@ export default function SupportCenter() {
   }, [chatData]);
 
   // --- ENVIAR MENSAJE Y DISPARAR INTELIGENCIA ARTIFICIAL ---
+  // --- ENVIAR MENSAJE AL BOT O AL HUMANO ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim() || !chatData) return;
@@ -257,7 +256,6 @@ export default function SupportCenter() {
     setInputMessage(''); 
 
     try {
-        // 1. Guarda el mensaje del cliente en Firebase
         await addDoc(collection(db, "support_cases", chatData.id, "messages"), {
             sender: 'user',
             text: textToSend,
@@ -267,10 +265,8 @@ export default function SupportCenter() {
             lastMessage: textToSend, updatedAt: serverTimestamp()
         });
 
-        // 2. Si estás "esperando_admin", dispara la IA
-        if (chatData.status === 'esperando_admin') {
-            
-            // Llama a tu servidor donde está conectada la IA
+        // 🚀 SOLO DISPARA LA IA SI EL ESTADO ES "ia_chat"
+        if (chatData.status === 'ia_chat') {
             const response = await fetch(`https://api-paypal-secure.vercel.app/api/support/ai-reply`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -282,8 +278,7 @@ export default function SupportCenter() {
             
             const data = await response.json();
 
-            // 3. Guarda la respuesta de la IA en el chat
-            if (data.success && chatData.status === 'esperando_admin') {
+            if (data.success && chatData.status === 'ia_chat') {
                 await addDoc(collection(db, "support_cases", chatData.id, "messages"), {
                     sender: 'bot',
                     text: data.reply,
@@ -297,6 +292,27 @@ export default function SupportCenter() {
     } catch (error) {
         console.error("Error enviando mensaje:", error);
     }
+  };
+
+  // --- SOLICITAR HUMANO MANUALMENTE ---
+  const handleRequestHuman = async () => {
+      if (!chatData) return;
+      try {
+          // Cambia el estado para que deje de responder el bot y caiga en "Escalados" del Admin
+          await updateDoc(doc(db, "support_cases", chatData.id), {
+              status: 'esperando_admin',
+              updatedAt: serverTimestamp(),
+              lastMessage: 'El cliente ha solicitado un agente humano.'
+          });
+          // Mensaje de sistema informativo
+          await addDoc(collection(db, "support_cases", chatData.id, "messages"), {
+              sender: 'system',
+              text: 'Has solicitado un agente humano. Por favor, mantente en línea mientras transferimos tu caso a un departamento disponible...',
+              timestamp: serverTimestamp()
+          });
+      } catch (error) {
+          console.error(error);
+      }
   };
 
   const openExistingChat = (caseObj) => {
@@ -491,13 +507,30 @@ export default function SupportCenter() {
           
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-4 flex justify-between items-center shadow-md">
             <div className="flex items-center gap-3">
-              {chatData?.status === 'esperando_admin' ? <Bot className="text-white w-7 h-7 bg-white/20 p-1 rounded-full" /> : <User className="text-white w-7 h-7 bg-white/20 p-1 rounded-full" />}
+              {/* AQUÍ INYECTAMOS LA LÓGICA DE LA IMAGEN DE IA Y ADMIN */}
+              {!chatData ? (
+                  <User className="text-white w-7 h-7 bg-white/20 p-1 rounded-full" />
+              ) : (chatData.status === 'ia_chat' || !chatData.status) ? (
+                  <img src="/robot.jpg" alt="IA" className="w-10 h-10 rounded-full border-2 border-green-400 object-cover shadow-[0_0_15px_rgba(34,197,94,0.6)]" />
+              ) : chatData.status === 'esperando_admin' ? (
+                  <Clock className="text-white w-7 h-7 bg-orange-500 p-1 rounded-full animate-pulse" />
+              ) : (
+                  <div className="bg-gradient-to-tr from-purple-500 to-indigo-500 p-1.5 rounded-full shadow-lg border border-purple-300">
+                      <ShieldCheck className="text-white w-5 h-5" />
+                  </div>
+              )}
               <div>
                 <h4 className="font-bold text-sm text-white tracking-wide">
-                    {!chatData ? 'Nuevo Ticket' : chatData.status === 'esperando_admin' ? 'Asistente Virtual' : 'Soporte Humano'}
+                    {!chatData ? 'Nuevo Ticket' : 
+                     (chatData.status === 'ia_chat' || !chatData.status) ? 'TECNO-BOT IA' : 
+                     chatData.status === 'esperando_admin' ? 'Buscando Humano...' : 
+                     'Soporte Especializado'}
                 </h4>
                 <p className="text-xs text-indigo-200">
-                    {!chatData ? 'Identifícate' : chatData.status === 'esperando_admin' ? 'Buscando agente disponible...' : 'Agente Conectado'}
+                    {!chatData ? 'Identifícate' : 
+                     (chatData.status === 'ia_chat' || !chatData.status) ? 'Inteligencia Artificial Activa' : 
+                     chatData.status === 'esperando_admin' ? 'En cola de espera...' : 
+                     'Agente Conectado'}
                 </p>
               </div>
             </div>
@@ -524,7 +557,7 @@ export default function SupportCenter() {
                           <input type="email" required value={startForm.email} onChange={e=>setStartForm({...startForm, email: e.target.value})} placeholder="tu@correo.com" className="w-full bg-[#1a1a24] border border-gray-700 text-white rounded-lg p-3 outline-none focus:border-indigo-500 transition"/>
                       </div>
                       <button type="submit" disabled={isStartingChat} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg mt-4 transition disabled:opacity-50 shadow-lg">
-                          {isStartingChat ? 'Conectando...' : 'Iniciar Conversación Segura'}
+                          {isStartingChat ? 'Conectando con IA...' : 'Iniciar Conversación Segura'}
                       </button>
                   </form>
               </div>
@@ -536,29 +569,56 @@ export default function SupportCenter() {
                         CASO ID: {chatData.id} <br/> Tu IP está registrada.
                     </div>
                     {messages.map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] p-3 text-sm shadow-sm ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' : 'bg-[#1a1a24] border border-gray-700 text-gray-200 rounded-2xl rounded-bl-sm'}`}>
-                          {msg.sender !== 'user' && <span className="block text-[9px] font-bold uppercase text-indigo-400 mb-1">{msg.sender === 'bot' ? 'Soporte IA' : 'Soporte Humano'}</span>}
-                          {msg.text}
-                        </div>
+                      <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : msg.sender === 'system' ? 'justify-center' : 'justify-start'}`}>
+                        {/* LÓGICA DE MENSAJES DE SISTEMA Y DE BOT/HUMANO */}
+                        {msg.sender === 'system' ? (
+                            <div className="text-[10px] text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-full text-center my-2">
+                                {msg.text}
+                            </div>
+                        ) : (
+                            <div className={`max-w-[85%] p-3 text-sm shadow-sm ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' : 'bg-[#1a1a24] border border-gray-700 text-gray-200 rounded-2xl rounded-bl-sm'}`}>
+                              {msg.sender !== 'user' && (
+                                  <span className={`block text-[9px] font-bold uppercase mb-1 ${msg.sender === 'bot' ? 'text-cyan-400' : 'text-purple-400'}`}>
+                                      {msg.sender === 'bot' ? '🤖 TECNO-BOT IA' : '👨‍💻 DEPARTAMENTO DE SOPORTE'}
+                                  </span>
+                              )}
+                              {msg.text}
+                            </div>
+                        )}
                       </div>
                     ))}
                     {messages.length === 0 && <div className="text-center text-xs text-gray-500 mt-10">Conectado. Esperando mensajes...</div>}
                   </div>
                   
-                  {/* CAJA DE TEXTO */}
+                  {/* CAJA DE TEXTO Y CONTROLES */}
                   {chatData.status !== 'cerrado' ? (
-                      <div className="p-3 bg-[#11111a] border-t border-gray-800">
-                        <form onSubmit={handleSendMessage} className="flex gap-2">
-                          <input 
-                            type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
-                            placeholder="Escribe tu mensaje..." 
-                            className="flex-1 bg-[#1a1a24] border border-gray-700 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
-                          />
-                          <button type="submit" className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition transform hover:scale-105">
-                            <Send className="w-5 h-5" />
-                          </button>
-                        </form>
+                      <div className="bg-[#11111a] border-t border-gray-800 flex flex-col">
+                        
+                        {/* BOTÓN PARA SOLICITAR HUMANO (Solo visible si la IA está activa) */}
+                        {(chatData.status === 'ia_chat' || !chatData.status) && (
+                            <div className="p-2 border-b border-gray-800 bg-gray-900/50">
+                                <button 
+                                    onClick={handleRequestHuman}
+                                    className="w-full bg-gray-800 hover:bg-orange-600 border border-gray-700 hover:border-orange-500 text-gray-300 hover:text-white py-1.5 rounded text-xs font-bold transition flex justify-center items-center gap-2"
+                                >
+                                    <User size={14} /> Solicitar Asesor Humano
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="p-3">
+                            <form onSubmit={handleSendMessage} className="flex gap-2">
+                              <input 
+                                type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
+                                placeholder={chatData.status === 'esperando_admin' ? "Esperando a un agente..." : "Escribe tu mensaje..."}
+                                disabled={chatData.status === 'esperando_admin'}
+                                className="flex-1 bg-[#1a1a24] border border-gray-700 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
+                              />
+                              <button type="submit" disabled={chatData.status === 'esperando_admin'} className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100">
+                                <Send className="w-5 h-5" />
+                              </button>
+                            </form>
+                        </div>
                       </div>
                   ) : (
                       <div className="p-4 bg-[#11111a] border-t border-gray-800 text-center text-xs text-gray-500 font-bold flex flex-col items-center gap-1">
@@ -569,6 +629,3 @@ export default function SupportCenter() {
           )}
         </div>
       )}
-    </div>
-  );
-}

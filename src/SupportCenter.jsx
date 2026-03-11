@@ -507,13 +507,23 @@ export default function SupportCenter() {
           
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-4 flex justify-between items-center shadow-md">
             <div className="flex items-center gap-3">
-              {chatData?.status === 'esperando_admin' ? <Bot className="text-white w-7 h-7 bg-white/20 p-1 rounded-full" /> : <User className="text-white w-7 h-7 bg-white/20 p-1 rounded-full" />}
+              {!chatData ? (
+                  <User className="text-white w-7 h-7 bg-white/20 p-1 rounded-full" />
+              ) : (chatData.status === 'ia_chat' || !chatData.status) ? (
+                  <img src="/robot.jpg" alt="IA" className="w-10 h-10 rounded-full border-2 border-green-400 object-cover shadow-[0_0_15px_rgba(34,197,94,0.6)]" />
+              ) : chatData.status === 'esperando_admin' ? (
+                  <Clock className="text-white w-7 h-7 bg-orange-500 p-1 rounded-full animate-pulse" />
+              ) : (
+                  <div className="bg-gradient-to-tr from-purple-500 to-indigo-500 p-1.5 rounded-full shadow-lg border border-purple-300">
+                      <ShieldCheck className="text-white w-5 h-5" />
+                  </div>
+              )}
               <div>
                 <h4 className="font-bold text-sm text-white tracking-wide">
-                    {!chatData ? 'Nuevo Ticket' : chatData.status === 'esperando_admin' ? 'Asistente Virtual' : 'Soporte Humano'}
+                    {!chatData ? 'Nuevo Ticket' : (chatData.status === 'ia_chat' || !chatData.status) ? 'TECNO-BOT IA' : chatData.status === 'esperando_admin' ? 'Buscando Humano...' : 'Soporte Especializado'}
                 </h4>
                 <p className="text-xs text-indigo-200">
-                    {!chatData ? 'Identifícate' : chatData.status === 'esperando_admin' ? 'Buscando agente disponible...' : 'Agente Conectado'}
+                    {!chatData ? 'Identifícate' : (chatData.status === 'ia_chat' || !chatData.status) ? 'Inteligencia Artificial Activa' : chatData.status === 'esperando_admin' ? 'En cola de espera...' : 'Agente Conectado'}
                 </p>
               </div>
             </div>
@@ -552,29 +562,55 @@ export default function SupportCenter() {
                         CASO ID: {chatData.id} <br/> Tu IP está registrada.
                     </div>
                     {messages.map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] p-3 text-sm shadow-sm ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' : 'bg-[#1a1a24] border border-gray-700 text-gray-200 rounded-2xl rounded-bl-sm'}`}>
-                          {msg.sender !== 'user' && <span className="block text-[9px] font-bold uppercase text-indigo-400 mb-1">{msg.sender === 'bot' ? 'Soporte IA' : 'Soporte Humano'}</span>}
-                          {msg.text}
-                        </div>
+                      <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : msg.sender === 'system' ? 'justify-center' : 'justify-start'}`}>
+                        {msg.sender === 'system' ? (
+                            <div className="text-[10px] text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-full text-center my-2">
+                                {msg.text}
+                            </div>
+                        ) : (
+                            <div className={`max-w-[85%] p-3 text-sm shadow-sm ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' : 'bg-[#1a1a24] border border-gray-700 text-gray-200 rounded-2xl rounded-bl-sm'}`}>
+                              {msg.sender !== 'user' && (
+                                  <span className={`block text-[9px] font-bold uppercase mb-1 ${msg.sender === 'bot' ? 'text-cyan-400' : 'text-purple-400'}`}>
+                                      {msg.sender === 'bot' ? '🤖 TECNO-BOT IA' : '👨‍💻 DEPARTAMENTO DE SOPORTE'}
+                                  </span>
+                              )}
+                              {msg.text}
+                            </div>
+                        )}
                       </div>
                     ))}
                     {messages.length === 0 && <div className="text-center text-xs text-gray-500 mt-10">Conectado. Esperando mensajes...</div>}
                   </div>
                   
-                  {/* CAJA DE TEXTO */}
+                  {/* CAJA DE TEXTO Y CONTROLES */}
                   {chatData.status !== 'cerrado' ? (
-                      <div className="p-3 bg-[#11111a] border-t border-gray-800">
-                        <form onSubmit={handleSendMessage} className="flex gap-2">
-                          <input 
-                            type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
-                            placeholder="Escribe tu mensaje..." 
-                            className="flex-1 bg-[#1a1a24] border border-gray-700 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
-                          />
-                          <button type="submit" className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition transform hover:scale-105">
-                            <Send className="w-5 h-5" />
-                          </button>
-                        </form>
+                      <div className="bg-[#11111a] border-t border-gray-800 flex flex-col">
+                        
+                        {/* BOTÓN PARA SOLICITAR HUMANO (Solo visible si la IA está activa) */}
+                        {(chatData.status === 'ia_chat' || !chatData.status) && (
+                            <div className="p-2 border-b border-gray-800 bg-gray-900/50">
+                                <button 
+                                    onClick={handleRequestHuman}
+                                    className="w-full bg-gray-800 hover:bg-orange-600 border border-gray-700 hover:border-orange-500 text-gray-300 hover:text-white py-1.5 rounded text-xs font-bold transition flex justify-center items-center gap-2"
+                                >
+                                    <User size={14} /> Solicitar Asesor Humano
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="p-3">
+                            <form onSubmit={handleSendMessage} className="flex gap-2">
+                              <input 
+                                type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
+                                placeholder={chatData.status === 'esperando_admin' ? "Esperando a un agente..." : "Escribe tu mensaje..."}
+                                disabled={chatData.status === 'esperando_admin'}
+                                className="flex-1 bg-[#1a1a24] border border-gray-700 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
+                              />
+                              <button type="submit" disabled={chatData.status === 'esperando_admin'} className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100">
+                                <Send className="w-5 h-5" />
+                              </button>
+                            </form>
+                        </div>
                       </div>
                   ) : (
                       <div className="p-4 bg-[#11111a] border-t border-gray-800 text-center text-xs text-gray-500 font-bold flex flex-col items-center gap-1">

@@ -942,13 +942,13 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
           
           {/* TRANSF. BS - Agrandado (w-20) Y VOLVIDO BLANCO (brightness-0 invert) */}
           <button onClick={() => { setPaymentMethod('transfer_bs'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-400 flex flex-col items-center gap-3 group">
-            <img src="/icons/transf_bs.png" alt="Transf. Bs" className="w-20 h-20 object-contain brightness-0 invert drop-shadow-[0_4px_10px_rgba(255,255,255,0.1)] transition-transform duration-300 group-hover:scale-110" />
+            <img src="/icons/transf.png" alt="Transf. Bs" className="w-20 h-20 object-contain brightness-0 invert drop-shadow-[0_4px_10px_rgba(255,255,255,0.1)] transition-transform duration-300 group-hover:scale-110" />
             <span className="font-bold text-white">Transf. Bs</span>
           </button>
           
           {/* TRANSF. USD - Agrandado (w-20) Y VOLVIDO BLANCO (brightness-0 invert) */}
           <button onClick={() => { setPaymentMethod('transfer_usd'); setCheckoutStep(2); }} className="p-6 bg-gray-800 rounded-xl border border-gray-700 hover:border-green-600 flex flex-col items-center gap-3 group">
-            <img src="/icons/transf_usd.png" alt="Transf. USD" className="w-20 h-20 object-contain brightness-0 invert drop-shadow-[0_4px_10px_rgba(255,255,255,0.1)] transition-transform duration-300 group-hover:scale-110" />
+            <img src="/icons/transf.png" alt="Transf. USD" className="w-20 h-20 object-contain brightness-0 invert drop-shadow-[0_4px_10px_rgba(255,255,255,0.1)] transition-transform duration-300 group-hover:scale-110" />
             <span className="font-bold text-white">Transf. USD</span>
           </button>
           

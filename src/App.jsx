@@ -369,6 +369,31 @@ const ExchangeCard = ({ service, addToCart, exchangeRate, isAvailable }) => {
   );
 };
 
+// --- MAPEO DE ICONOS PERSONALIZADOS ---
+// Coloca el nombre exacto de tus productos a la izquierda y la ruta de la imagen a la derecha.
+// Puedes cambiar estos nombres luego como necesites.
+const CUSTOM_ICONS = {
+  'WhatsApp Number': '/icons/icons8-whatsapp-512.png',
+  'Telegram Number': '/icons/icons8-telegram-logo-512.png',
+  'PayPal/Banks Number': '/icons/netflix.png',
+  'Cambio PayPal a USDT': '/icons/spotify.png',
+  'Cambio PayPal a Bs': '/icons/prime.png',
+  'Diamantes FF': '/icons/icons8-free-fire-512.png',
+  'Robux': '/icons/icons8-roblox-512.png',
+  'CPs CODM': '/icons/icons8-call-of-duty-mobile-512.png',
+  'PS Plus Deluxe (1 Mes)': '/icons/freefire.png',
+  'PS Plus Extra (1 Mes)': '/icons/booyah.png',
+  'Amazon Gift Card $10': '/icons/icons8-amazon-512.png',
+  'ChatBot PyME': '/icons/spotify.png',
+  'Netflix (1 Mes)': '/icons/icons8-netflix-511.png',
+  'HBO Max (Max)': '/icons/icons8-hbo-max-512.png',
+  'Disney+ Premium': '/icons/icons8-disney-512.png',
+  'Crunchyroll Mega Fan': '/icons/icons8-crunchyroll-512.png'
+  'YouTube Premium': '/icons/icons8-youtube-512.png',
+  'Spotify Premium (3 Meses)': '/icons/icons8-spotify-512.png',
+  'Admin. Bot (WhatsApp)': '/icons/roblox.png'
+};
+
 const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages }) => {
   const packages = multipackages ? multipackages[service.title] : null;
   const [selectedPkg, setSelectedPkg] = useState(packages ? packages[0] : null);
@@ -391,12 +416,25 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
     }
   };
 
+  const customIconUrl = CUSTOM_ICONS[service.title];
+
   return (
     <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 hover:-translate-y-2 transition-all duration-300 group shadow-lg flex flex-col justify-between" style={{ animationDelay: `${idx * 0.05}s` }}>
       <div>
-        <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">
-          <DynamicIcon name={service.icon} />
-        </div>
+        {/* Renderizado condicional del icono o PNG gigante */}
+        {customIconUrl ? (
+          <div className="flex justify-start mb-6">
+            <img 
+              src={customIconUrl}
+              alt={service.title} 
+              className="w-16 h-16 object-contain drop-shadow-[0_8px_15px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-110" 
+            />
+          </div>
+        ) : (
+          <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 text-indigo-400 group-hover:text-cyan-400 group-hover:scale-110 transition-transform">
+            <DynamicIcon name={service.icon} />
+          </div>
+        )}
         
         <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
         <p className="text-gray-400 text-sm mb-4">{service.description}</p>
@@ -436,7 +474,6 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
     </div>
   );
 };
-
 const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }) => {
     const [transactionId, setTransactionId] = useState('');
     const [status, setStatus] = useState('idle'); 

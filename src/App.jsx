@@ -378,7 +378,7 @@ const CUSTOM_ICONS = {
   'PayPal/Banks Number': '/icons/icons8-paypal-logo-512.png',
   'Cambio PayPal a USDT': '/icons/spotify.png',
   'Cambio PayPal a Bs': '/icons/prime.png',
-  'Diamantes FF': '/icons/icons8-free-fire-512.png',
+  'Diamantes FF': '/icons/icons8-free-fire-511.png',
   'Robux': '/icons/icons8-roblox-512.png',
   'CPs CODM': '/icons/icons8-call-of-duty-mobile-512.png',
   'PS Plus Deluxe (1 Mes)': '/icons/icons8-playstation-512.png',

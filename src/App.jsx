@@ -1016,9 +1016,8 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         window.open(`https://wa.me/19047400467?text=${text}`, '_blank');
     };
 
-    // Lógica nativa para generar el PDF de la factura
-    const handleDownloadPDF = () => {
-        const printWindow = window.open('', '_blank');
+    // Lógica nativa para generar el PDF de la factura CON LIBRERÍA LOCAL Y NUEVO DISEÑO
+    const handleDownloadPDF = async () => {
         const orderId = lastOrder?.orderId || 'N/A';
         const date = lastOrder?.date ? new Date(lastOrder.date).toLocaleString('es-VE') : new Date().toLocaleString('es-VE');
         const user = lastOrder?.user || 'Cliente';
@@ -1032,7 +1031,24 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         const hasCoupon = !!lastOrder?.couponData;
         const discountAmount = hasCoupon ? subtotal - parseFloat(lastOrder.total) : 0;
         
-        // Plantilla HTML de la Factura (Diseño Oscuro estilo TecnoByte)
+        // Generamos el QR de forma local
+        let qrBase64 = '';
+        try {
+            qrBase64 = await QRCode.toDataURL(`https://www.tecnobyte.lat/verificar-orden/${orderId}`, {
+                width: 75,
+                margin: 0,
+                color: {
+                    dark: '#000000',
+                    light: '#ffffff'
+                }
+            });
+        } catch (err) {
+            console.error('Error generando el QR local:', err);
+        }
+
+        const printWindow = window.open('', '_blank');
+        
+        // Plantilla HTML de la Factura (Diseño Oscuro con QR y flecha separados)
         const html = `
           <html>
             <head>
@@ -1043,10 +1059,8 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                 .container { max-width: 800px; margin: 0 auto; background: #11111a; border: 1px solid #4f46e5; border-radius: 12px; padding: 40px; box-sizing: border-box; }
                 .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2d2d3b; padding-bottom: 20px; margin-bottom: 30px; }
                 
-                /* --- ESTILOS DEL LOGO BLANCO, MEGA GIGANTE Y ALINEADO --- */
                 .logo-container { position: relative; display: inline-block; margin-bottom: 5px; }
                 .logo-img { position: relative; left: -4px; z-index: 2; max-height: 180px; max-width: 400px; width: auto; object-fit: contain; filter: brightness(0) invert(1); }
-                /* ---------------------------------------- */
 
                 .invoice-title { font-size: 24px; color: #fff; font-weight: 600; text-align: right; letter-spacing: 1px; }
                 .grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
@@ -1079,13 +1093,20 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                     <div style="font-size: 12px; color: #8b8b9f; margin-top: 4px;">TecnoByte LLC</div>
                   </div>
                   
-                  <div style="display: flex; gap: 15px; align-items: center;">
+                  <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 15px;">
                     <div>
                       <div class="invoice-title">FACTURA DIGITAL</div>
                       <div class="label" style="text-align: right; margin-top: 5px; color: #22d3ee;">ORDEN #${orderId}</div>
                     </div>
-                    <div style="background: white; padding: 6px; border-radius: 8px; display: flex; justify-content: center; align-items: center;">
-                      <img src="https://quickchart.io/qr?text=https://www.tecnobyte.lat/verificar-orden/${orderId}&size=80&margin=0" width="80" height="80" alt="QR Verificación" style="display:block;" />
+                    
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div style="text-align: right;">
+                        <div style="color: #4ade80; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">¡Escanea aquí!</div>
+                        <div style="color: #4ade80; font-size: 20px; line-height: 0.8; margin-top: 2px;">➔</div>
+                      </div>
+                      <div style="background: white; padding: 6px; border-radius: 8px; display: flex; justify-content: center; align-items: center;">
+                        <img src="${qrBase64}" width="75" height="75" alt="QR Verificación" style="display:block;" />
+                      </div>
                     </div>
                   </div>
 
@@ -1155,8 +1176,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                 </div>
               </div>
               <script>
-                // Dispara la ventana de impresión/guardado PDF apenas carga el documento y da tiempo al QR
-                window.onload = function() { setTimeout(function(){ window.print(); }, 800); }
+                window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
               </script>
             </body>
           </html>

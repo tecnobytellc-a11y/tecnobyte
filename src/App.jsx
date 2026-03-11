@@ -8,6 +8,9 @@ import {
   Sparkles, Bot, MessageCircle, Loader, ArrowRight, Wallet, QrCode, AlertTriangle, Search, Clock, Key, Copy, Terminal, List, Archive, RefreshCcw, LogOut, Filter, Image as ImageIcon, Download, ExternalLink, FileText as FileTextIcon, Shield, Ticket, Percent, FileCheck, HelpCircle, Link as LinkIcon
 } from 'lucide-react';
 import SupportCenter from './SupportCenter';
+import QRCode from 'qrcode'; // <--- ¡ESTA ES LA LÍNEA MÁGICA QUE FALTABA!
+
+const SERVER_URL = "https://api-paypal-secure.vercel.app";
 
 const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
 const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa"; 
@@ -1016,7 +1019,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         window.open(`https://wa.me/19047400467?text=${text}`, '_blank');
     };
 
-    // Lógica nativa para generar el PDF de la factura CON LIBRERÍA LOCAL Y NUEVO DISEÑO
+    // Lógica nativa para generar el PDF de la factura
     const handleDownloadPDF = async () => {
         const orderId = lastOrder?.orderId || 'N/A';
         const date = lastOrder?.date ? new Date(lastOrder.date).toLocaleString('es-VE') : new Date().toLocaleString('es-VE');
@@ -1031,24 +1034,25 @@ const SuccessScreen = ({ lastOrder, setView }) => {
         const hasCoupon = !!lastOrder?.couponData;
         const discountAmount = hasCoupon ? subtotal - parseFloat(lastOrder.total) : 0;
         
-        // Generamos el QR de forma local
-        let qrBase64 = '';
+        // 🚀 Generador de QR Híbrido (Intenta local, si falla usa API de respaldo segura)
+        let qrImageSrc = '';
         try {
-            qrBase64 = await QRCode.toDataURL(`https://www.tecnobyte.lat/verificar-orden/${orderId}`, {
-                width: 75,
-                margin: 0,
-                color: {
-                    dark: '#000000',
-                    light: '#ffffff'
-                }
-            });
+            if (typeof QRCode !== 'undefined') {
+                qrImageSrc = await QRCode.toDataURL(`https://www.tecnobyte.lat/verificar-orden/${orderId}`, {
+                    width: 75, margin: 0, color: { dark: '#000000', light: '#ffffff' }
+                });
+            } else {
+                throw new Error("Librería qrcode no importada");
+            }
         } catch (err) {
-            console.error('Error generando el QR local:', err);
+            console.error('Usando QR de respaldo:', err);
+            // Fallback infalible si la librería local falla
+            qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://www.tecnobyte.lat/verificar-orden/${orderId}`;
         }
 
         const printWindow = window.open('', '_blank');
         
-        // Plantilla HTML de la Factura (Diseño Oscuro con QR y flecha separados)
+        // Plantilla HTML de la Factura
         const html = `
           <html>
             <head>
@@ -1100,12 +1104,12 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                     </div>
                     
                     <div style="display: flex; align-items: center; gap: 12px;">
-                      <div style="text-align: right;">
-                        <div style="color: #4ade80; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">¡Escanea aquí!</div>
-                        <div style="color: #4ade80; font-size: 20px; line-height: 0.8; margin-top: 2px;">➔</div>
+                      <div style="text-align: right; max-width: 140px;">
+                        <div style="color: #4ade80; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.3;">¡Escanea aquí para saber el estatus de tu orden!</div>
+                        <div style="color: #4ade80; font-size: 20px; line-height: 0.8; margin-top: 6px;">➔</div>
                       </div>
                       <div style="background: white; padding: 6px; border-radius: 8px; display: flex; justify-content: center; align-items: center;">
-                        <img src="${qrBase64}" width="75" height="75" alt="QR Verificación" style="display:block;" />
+                        <img src="${qrImageSrc}" width="75" height="75" alt="QR Verificación" style="display:block;" />
                       </div>
                     </div>
                   </div>
@@ -1176,7 +1180,7 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                 </div>
               </div>
               <script>
-                window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+                window.onload = function() { setTimeout(function(){ window.print(); }, 800); }
               </script>
             </body>
           </html>

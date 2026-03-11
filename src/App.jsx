@@ -10,8 +10,6 @@ import {
 import SupportCenter from './SupportCenter';
 import QRCode from 'qrcode'; // <--- ¡ESTA ES LA LÍNEA MÁGICA QUE FALTABA!
 
-const SERVER_URL = "https://api-paypal-secure.vercel.app";
-
 const SERVER_URL = "https://api-paypal-secure.vercel.app"; 
 const RATE_API_URL = "https://api-secure-server.vercel.app/api/get-tasa"; 
 

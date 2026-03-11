@@ -1078,10 +1078,17 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                     </div>
                     <div style="font-size: 12px; color: #8b8b9f; margin-top: 4px;">TecnoByte LLC</div>
                   </div>
-                  <div>
-                    <div class="invoice-title">FACTURA DIGITAL</div>
-                    <div class="label" style="text-align: right; margin-top: 5px; color: #22d3ee;">ORDEN #${orderId}</div>
+                  
+                  <div style="display: flex; gap: 15px; align-items: center;">
+                    <div>
+                      <div class="invoice-title">FACTURA DIGITAL</div>
+                      <div class="label" style="text-align: right; margin-top: 5px; color: #22d3ee;">ORDEN #${orderId}</div>
+                    </div>
+                    <div style="background: white; padding: 6px; border-radius: 8px; display: flex; justify-content: center; align-items: center;">
+                      <img src="https://quickchart.io/qr?text=https://www.tecnobyte.lat/verificar-orden/${orderId}&size=80&margin=0" width="80" height="80" alt="QR Verificación" style="display:block;" />
+                    </div>
                   </div>
+
                 </div>
                 
                 <div class="grid">
@@ -1142,14 +1149,14 @@ const SuccessScreen = ({ lastOrder, setView }) => {
                 </div>
 
                 <div class="footer">
-                  <p>Si tienes alguna duda o reclamo sobre esta factura, comunícate con nosotros:</p>
+                  <p>Escanea el código QR de arriba para verificar la autenticidad de esta orden.</p>
                   <p>WhatsApp: <span class="highlight">+1 (904) 740-0467</span> | Correos: <span class="highlight">soporte@tecnobyte.lat</span> / <span class="highlight">reclamos@tecnobyte.lat</span></p>
                   <p style="margin-top: 15px;">Gracias por confiar en los servicios digitales de TecnoByte LLC.</p>
                 </div>
               </div>
               <script>
-                // Dispara la ventana de impresión/guardado PDF apenas carga el documento
-                window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+                // Dispara la ventana de impresión/guardado PDF apenas carga el documento y da tiempo al QR
+                window.onload = function() { setTimeout(function(){ window.print(); }, 800); }
               </script>
             </body>
           </html>

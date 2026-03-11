@@ -388,7 +388,7 @@ const CUSTOM_ICONS = {
   'Netflix (1 Mes)': '/icons/icons8-netflix-511.png',
   'HBO Max (Max)': '/icons/icons8-hbo-max-512.png',
   'Disney+ Premium': '/icons/icons8-disney-512.png',
-  'Crunchyroll Mega Fan': '/icons/icons8-crunchyroll-512.png'
+  'Crunchyroll Mega Fan': '/icons/icons8-crunchyroll-512.png',
   'YouTube Premium': '/icons/icons8-youtube-512.png',
   'Spotify Premium (3 Meses)': '/icons/icons8-spotify-512.png',
   'Admin. Bot (WhatsApp)': '/icons/roblox.png'

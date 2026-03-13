@@ -467,13 +467,21 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
             ≈ {(currentPrice * exchangeRateBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
           </span>
         </div>
-        <button onClick={handleAdd} className="p-3 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all transform hover:scale-105">
-          <ShoppingCart size={20} />
+        
+        {/* NUEVO BOTÓN "AGREGAR AL CARRITO" CON ICONO Y [+] */}
+        <button onClick={handleAdd} className="flex items-center gap-2 px-3 py-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all transform hover:scale-105 group/btn">
+          <div className="relative">
+            <ShoppingCart size={18} className="group-hover/btn:scale-95 transition-transform" />
+            <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-black text-[12px] font-extrabold w-4 h-4 flex items-center justify-center rounded-full leading-none border-2 border-indigo-600">+</div>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">Agregar al carrito</span>
         </button>
+
       </div>
     </div>
   );
 };
+
 const BinanceAutomatedCheckout = ({ finalTotal, onVerified, onCancel, contactInfo }) => {
     const [transactionId, setTransactionId] = useState('');
     const [status, setStatus] = useState('idle'); 
@@ -1473,7 +1481,7 @@ export default function App() {
       }
 
   const categories = ['All', ...new Set(services.map(s => s.category))];
-  const addToCart = (service) => { setCart([...cart, service]); setIsCartOpen(true); };
+  const addToCart = (service) => { setCart([...cart, service]); };
   const removeFromCart = (index) => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart); };
   const filteredServices = activeCategory === 'All' ? services : services.filter(s => s.category === activeCategory);
   const calculateTotal = (cartItems, appliedCoupon) => Math.max(0, cartItems.reduce((acc, item) => { if (appliedCoupon && appliedCoupon.excludedIds && appliedCoupon.excludedIds.includes(item.id)) return acc + item.price; if (appliedCoupon && (appliedCoupon.discountType || appliedCoupon.type) !== 'fixed') return acc + (item.price * (1 - (Number(appliedCoupon.percent || appliedCoupon.discountValue || appliedCoupon.value) || 0) / 100)); return acc + item.price; }, 0) - (appliedCoupon && (appliedCoupon.discountType || appliedCoupon.type) === 'fixed' ? (Number(appliedCoupon.discountValue || appliedCoupon.amount || appliedCoupon.value) || 0) : 0));

@@ -468,13 +468,13 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
           </span>
         </div>
         
-        {/* NUEVO BOTÓN "AGREGAR AL CARRITO" CON ICONO Y [+] */}
-        <button onClick={handleAdd} className="flex items-center gap-2 px-3 py-2 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all transform hover:scale-105 group/btn">
+        {/* NUEVO BOTÓN "AGREGAR AL CARRITO" COMPACTO Y SUTIL */}
+        <button onClick={handleAdd} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 rounded-full hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all transform hover:scale-105 group/btn">
           <div className="relative">
-            <ShoppingCart size={18} className="group-hover/btn:scale-95 transition-transform" />
-            <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-black text-[12px] font-extrabold w-4 h-4 flex items-center justify-center rounded-full leading-none border-2 border-indigo-600">+</div>
+            <ShoppingCart size={16} className="group-hover/btn:scale-95 transition-transform" />
+            <div className="absolute -top-1 -right-1 bg-green-500 text-black text-[10px] font-extrabold w-3.5 h-3.5 flex items-center justify-center rounded-full leading-none border border-indigo-600">+</div>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">Agregar al carrito</span>
+          <span className="text-[9px] font-bold uppercase whitespace-nowrap">Agregar al carrito</span>
         </button>
 
       </div>

@@ -410,7 +410,8 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
 
   const handleAdd = () => {
     if (packages && selectedPkg) {
-      addToCart({ ...service, title: currentTitle, price: currentPrice, packageId: selectedPkg.id });
+      // Absorbemos los datos (reloadlyId y faceValue) del paquete seleccionado
+      addToCart({ ...service, ...selectedPkg, title: currentTitle, price: currentPrice, packageId: selectedPkg.id });
     } else {
       addToCart(service);
     }
@@ -1483,10 +1484,10 @@ export default function App() {
               item.category === 'Gift Cards'
           );
 
-          // Si encontró una Gift Card en el pedido, la compra automáticamente
-          if (pinProduct) {
-              const idRecarga = pinProduct.providerId || pinProduct.id; // El ID de Reloadly
-              solicitarPinAutomatico(idRecarga, pinProduct.price, lastOrder.fullData.email);
+         // Si el producto tiene un ID exclusivo de Reloadly, lo compramos
+          if (pinProduct && pinProduct.reloadlyId) {
+              const montoParaReloadly = pinProduct.faceValue || pinProduct.price; 
+              solicitarPinAutomatico(pinProduct.reloadlyId, montoParaReloadly, lastOrder.fullData.email);
           }
       }
   }, [checkoutStep, lastOrder]);

@@ -1435,6 +1435,7 @@ export default function App() {
   const [view, setView] = useState('home'); const [cart, setCart] = useState([]); const [isCartOpen, setIsCartOpen] = useState(false); const [activeCategory, setActiveCategory] = useState('All'); const [lastOrder, setLastOrder] = useState(null); const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); const [checkoutStep, setCheckoutStep] = useState(0); const [paymentMethod, setPaymentMethod] = useState(null); const [paypalData, setPaypalData] = useState({ email: '', firstName: '', lastName: '', phone: '', idDoc: null, groupLink: '' }); const [proofData, setProofData] = useState({ screenshot: null, refNumber: '', name: '', lastName: '', idNumber: '', phone: '', issuerAccount: '', idDoc: null }); const [isProcessing, setIsProcessing] = useState(false); const [isBlocked, setIsBlocked] = useState(false); const [showTerms, setShowTerms] = useState(false); const [showPrivacy, setShowPrivacy] = useState(false); const [coupon, setCoupon] = useState(null); const [isLoadingSecurity, setIsLoadingSecurity] = useState(true); const [services, setServices] = useState([]); const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [contactInfo, setContactInfo] = useState(DEFAULT_CONTACT_INFO); const [legalInfo, setLegalInfo] = useState({ terms: "Cargando...", privacy: "Cargando..." }); const [socialLinks, setSocialLinks] = useState({ tiktok: "#", instagram: "#", facebook: "#" });
   const [multipackages, setMultipackages] = useState({});
+  const [pinGenerado, setPinGenerado] = useState(null);
 
   // Detectar si hay servicios que requieren link en el carrito
   const requiresGroupLink = cart.some(item => item.requiresLink);
@@ -1466,6 +1467,31 @@ export default function App() {
   useEffect(() => { document.title = "TecnoByte | Soluciones Digitales"; let link = document.querySelector("link[rel~='icon']"); if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.getElementsByTagName('head')[0].appendChild(link); } const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64; const ctx = canvas.getContext('2d'); const img = new Image(); img.src = 'unnamed.png'; img.crossOrigin = 'Anonymous'; img.onload = () => { try { ctx.beginPath(); ctx.arc(32, 32, 32, 0, 2 * Math.PI); ctx.clip(); ctx.drawImage(img, 0, 0, 64, 64); link.href = canvas.toDataURL(); } catch (e) {} }; }, []);
   useEffect(() => { const fetchRate = async () => { try { const response = await fetch(RATE_API_CONFIG.url); if (!response.ok) throw new Error('Error tasa'); const data = await response.json(); const newRate = parseFloat(data.rate || data.price || data.tasa || data.value); if (!isNaN(newRate) && newRate > 0) setExchangeRateBs(newRate); } catch (error) {} }; fetchRate(); const intervalId = setInterval(fetchRate, RATE_API_CONFIG.intervalMinutes * 60 * 1000); return () => clearInterval(intervalId); }, []);
 
+  // ==========================================
+  // 🚀 GATILLO AUTOMÁTICO PARA RELOADLY
+  // ==========================================
+  useEffect(() => {
+      // Vigila si llegamos a la pantalla de éxito (Paso 3) y si la orden se pagó en automático
+      if (checkoutStep === 3 && lastOrder && (lastOrder.paymentMethod === 'binance_api' || lastOrder.paymentMethod === 'paypal_api' || lastOrder.paymentMethod === 'tarjeta_credito_debito')) {
+          
+          // Busca si en el carrito hay un producto que requiera PIN (Gift Cards, Robux, etc.)
+          const pinProduct = lastOrder.rawItems.find(item => 
+              item.title.toLowerCase().includes('robux') || 
+              item.title.toLowerCase().includes('amazon') || 
+              item.title.toLowerCase().includes('playstation') || 
+              item.title.toLowerCase().includes('netflix') ||
+              item.category === 'Gift Cards'
+          );
+
+          // Si encontró una Gift Card en el pedido, la compra automáticamente
+          if (pinProduct) {
+              const idRecarga = pinProduct.providerId || pinProduct.id; // El ID de Reloadly
+              solicitarPinAutomatico(idRecarga, pinProduct.price, lastOrder.fullData.email);
+          }
+      }
+  }, [checkoutStep, lastOrder]);
+  // ==========================================
+  
   if (isLoadingSecurity || isLoadingCatalog) return <div className="fixed inset-0 bg-[#0a0a12] flex flex-col items-center justify-center z-[100]"><div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div><h2 className="text-white font-orbitron text-xl tracking-widest animate-pulse">CARGANDO TIENDA</h2><p className="text-gray-500 text-xs mt-2 font-mono">Conectando con el servidor...</p></div>;
   if (isBlocked) return <BlockedScreen />;
 
@@ -1487,6 +1513,36 @@ export default function App() {
   const calculateTotal = (cartItems, appliedCoupon) => Math.max(0, cartItems.reduce((acc, item) => { if (appliedCoupon && appliedCoupon.excludedIds && appliedCoupon.excludedIds.includes(item.id)) return acc + item.price; if (appliedCoupon && (appliedCoupon.discountType || appliedCoupon.type) !== 'fixed') return acc + (item.price * (1 - (Number(appliedCoupon.percent || appliedCoupon.discountValue || appliedCoupon.value) || 0) / 100)); return acc + item.price; }, 0) - (appliedCoupon && (appliedCoupon.discountType || appliedCoupon.type) === 'fixed' ? (Number(appliedCoupon.discountValue || appliedCoupon.amount || appliedCoupon.value) || 0) : 0));
   const rawTotal = cart.reduce((acc, item) => acc + item.price, 0);
   const finalTotal = calculateTotal(cart, coupon);
+
+  // ==========================================
+// 🚀 FUNCIÓN DE COMPRA AUTOMÁTICA RELOADLY
+// ==========================================
+const solicitarPinAutomatico = async (idProducto, precio, correoCliente) => {
+    try {
+        const respuesta = await fetch(`${SERVER_URL}/api/comprar-pin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                productId: idProducto, 
+                amount: precio, 
+                identifier: correoCliente 
+            })
+        });
+        
+        const datos = await respuesta.json();
+        
+        if (datos.success) {
+            // Extraemos el PIN y lo guardamos en la memoria para mostrarlo en pantalla
+            const pinReal = datos.transaccion?.pinDetail?.pin || "PIN-EN-CAMINO-REVISA-CORREO";
+            setPinGenerado(pinReal);
+        } else {
+            console.error("No se pudo generar el PIN automático");
+        }
+    } catch (error) {
+        console.error("Error de conexión con el servidor:", error);
+    }
+};
+// ==========================================
 
   const handleCheckoutStart = async () => { 
       setIsProcessing(true); 
@@ -1568,7 +1624,36 @@ export default function App() {
                   <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />
               )}
               
-              {checkoutStep === 3 && <SuccessScreen lastOrder={lastOrder} setView={setView} />}
+              {checkoutStep === 3 && (
+                  <div className="max-w-3xl mx-auto w-full mb-8">
+                      {/* 🎁 TARJETA DE ENTREGA AUTOMÁTICA DEL PIN */}
+                      {pinGenerado && (
+                          <div className="mt-8 p-6 bg-gray-900/90 border border-cyan-500/80 rounded-2xl backdrop-blur-md shadow-[0_0_40px_rgba(6,182,212,0.3)] text-center animate-scale-in">
+                              <div className="flex justify-center mb-3">
+                                  <Sparkles className="text-cyan-400 animate-pulse" size={36} />
+                              </div>
+                              <h3 className="text-2xl font-bold text-white mb-2 font-orbitron tracking-widest">¡AQUÍ TIENES TU PRODUCTO!</h3>
+                              <p className="text-sm text-gray-400 mb-6">Copia este código y canjéalo inmediatamente en la plataforma oficial:</p>
+                              
+                              <div className="flex items-center justify-center gap-3 bg-black/60 py-4 px-6 rounded-xl border border-gray-700 shadow-inner inline-flex">
+                                  <Key className="text-indigo-400" size={24} />
+                                  <span className="text-3xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 tracking-widest select-all">
+                                      {pinGenerado}
+                                  </span>
+                                  <button 
+                                      onClick={() => navigator.clipboard.writeText(pinGenerado)}
+                                      className="ml-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 hover:text-white border border-gray-600 shadow-md"
+                                      title="Copiar PIN"
+                                  >
+                                      <Copy size={20} />
+                                  </button>
+                              </div>
+                          </div>
+                      )}
+                      
+                      <SuccessScreen lastOrder={lastOrder} setView={setView} />
+                  </div>
+              )}
           </div>
 
           ) : (

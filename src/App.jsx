@@ -405,13 +405,10 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
     }
   }, [packages]);
 
-  const currentPrice = packages && selectedPkg ? selectedPkg.price : service.price;
-  const currentTitle = packages && selectedPkg ? `${selectedPkg.title} - ${service.title}` : service.title;
-
-// --- INICIO MÓDULO RANGO LIBRE ---
+  // --- INICIO MÓDULO RANGO LIBRE ---
   const [customAmount, setCustomAmount] = useState(service.minAmount || 10);
 
-  // 💰 Tu Calculadora de Comisiones (Modifícala como quieras)
+  // 💰 Tu Calculadora de Comisiones
   const calcularPrecioConComision = (montoDeseado) => {
       const monto = parseFloat(montoDeseado) || 0;
       if (monto < 10) return monto + 1.50; // Para montos menores a $10, cobras $1.50 fijo de comisión
@@ -421,6 +418,13 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
 
   const precioFinalCalculado = calcularPrecioConComision(customAmount);
   // --- FIN MÓDULO RANGO LIBRE ---
+
+  // 🛡️ SOLUCIÓN: Calculamos primero y asignamos el precio dependiendo del tipo de producto
+  const currentPrice = service.isCustomAmount 
+    ? precioFinalCalculado 
+    : (packages && selectedPkg ? selectedPkg.price : (service.price || 0));
+    
+  const currentTitle = packages && selectedPkg ? `${selectedPkg.title} - ${service.title}` : service.title;
   
   const handleAdd = () => {
     if (service.isCustomAmount) {

@@ -408,11 +408,34 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
   const currentPrice = packages && selectedPkg ? selectedPkg.price : service.price;
   const currentTitle = packages && selectedPkg ? `${selectedPkg.title} - ${service.title}` : service.title;
 
+// --- INICIO MÓDULO RANGO LIBRE ---
+  const [customAmount, setCustomAmount] = useState(service.minAmount || 10);
+
+  // 💰 Tu Calculadora de Comisiones (Modifícala como quieras)
+  const calcularPrecioConComision = (montoDeseado) => {
+      const monto = parseFloat(montoDeseado) || 0;
+      if (monto < 10) return monto + 1.50; // Para montos menores a $10, cobras $1.50 fijo de comisión
+      if (monto >= 10 && monto <= 50) return monto * 1.15; // De $10 a $50, cobras el 15% de comisión
+      return monto * 1.10; // Más de $50, cobras el 10% de comisión
+  };
+
+  const precioFinalCalculado = calcularPrecioConComision(customAmount);
+  // --- FIN MÓDULO RANGO LIBRE ---
+  
   const handleAdd = () => {
-    if (packages && selectedPkg) {
-      // Absorbemos los datos (reloadlyId y faceValue) del paquete seleccionado
+    if (service.isCustomAmount) {
+      // Lógica para Gift Cards de monto libre (Ej. Amazon)
+      addToCart({
+        ...service,
+        title: `${service.title} de $${customAmount}`, // Ej: "Amazon Gift Card de $15"
+        faceValue: Number(customAmount),               // El monto real para Reloadly
+        price: Number(precioFinalCalculado.toFixed(2)) // Lo que paga el cliente con tu comisión
+      });
+    } else if (packages && selectedPkg) {
+      // Lógica para sub-paquetes (Ej. Free Fire, Robux)
       addToCart({ ...service, ...selectedPkg, title: currentTitle, price: currentPrice, packageId: selectedPkg.id });
     } else {
+      // Lógica para productos normales
       addToCart(service);
     }
   };
@@ -458,6 +481,30 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
           </div>
         )}
       </div>
+
+      {/* 🎛️ MÓDULO VISUAL DE RANGO LIBRE (AMAZON) */}
+        {service.isCustomAmount && (
+            <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
+                <label className="block text-sm text-gray-400 mb-2">
+                    ¿De cuánto quieres la Gift Card? (Entre ${service.minAmount} y ${service.maxAmount})
+                </label>
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl text-cyan-400 font-bold">$</span>
+                    <input 
+                        type="number" 
+                        min={service.minAmount} 
+                        max={service.maxAmount}
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-4 text-white text-xl focus:outline-none focus:border-cyan-500"
+                    />
+                </div>
+                <div className="mt-3 flex justify-between items-center text-sm">
+                    <span className="text-gray-400">Precio final a pagar:</span>
+                    <span className="text-green-400 font-bold">${precioFinalCalculado.toFixed(2)} USD</span>
+                </div>
+            </div>
+        )}
       
       <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-800/50">
         <div className="flex flex-col">

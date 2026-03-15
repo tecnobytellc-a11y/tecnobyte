@@ -1537,8 +1537,11 @@ export default function App() {
 
          // Si el producto tiene un ID exclusivo de Reloadly, lo compramos
           if (pinProduct && pinProduct.reloadlyId) {
-              const montoParaReloadly = pinProduct.faceValue || pinProduct.price; 
-              solicitarPinAutomatico(pinProduct.reloadlyId, montoParaReloadly, lastOrder.fullData.email);
+              const valorTarjeta = pinProduct.faceValue || pinProduct.price; 
+              const precioPagado = pinProduct.price; // Tu precio con la comisión ya sumada
+              
+              // Enviamos todo al servidor para que lo audite
+              solicitarPinAutomatico(pinProduct.reloadlyId, valorTarjeta, precioPagado, lastOrder.fullData.email);
           }
       }
   }, [checkoutStep, lastOrder]);
@@ -1569,14 +1572,15 @@ export default function App() {
   // ==========================================
 // 🚀 FUNCIÓN DE COMPRA AUTOMÁTICA RELOADLY
 // ==========================================
-const solicitarPinAutomatico = async (idProducto, precio, correoCliente) => {
+const solicitarPinAutomatico = async (idProducto, valorTarjeta, precioPagado, correoCliente) => {
     try {
         const respuesta = await fetch(`${SERVER_URL}/api/comprar-pin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 productId: idProducto, 
-                amount: precio, 
+                amount: valorTarjeta,     // El faceValue para Reloadly (Ej: $15)
+                precioPagado: precioPagado, // Lo que el cliente pagó en tu web (Ej: $17.25)
                 identifier: correoCliente 
             })
         });

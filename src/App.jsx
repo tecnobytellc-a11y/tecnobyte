@@ -384,7 +384,7 @@ const CUSTOM_ICONS = {
   'CPs CODM': '/icons/icons8-call-of-duty-mobile-512.png',
   'PS Plus Deluxe (1 Mes)': '/icons/icons8-playstation-512.png',
   'PS Plus Extra (1 Mes)': '/icons/icons8-playstation-512.png',
-  'Amazon Gift Card $10': '/icons/icons8-amazon-512.png',
+  'Amazon Gift Card': '/icons/icons8-amazon-512.png',
   'Netflix (1 Mes)': '/icons/icons8-netflix-511.png',
   'Amazon Prime Video': '/icons/icons8-amazon-prime-video-511.png',
   'HBO Max (Max)': '/icons/icons8-hbo-max-512.png',

@@ -411,9 +411,9 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
   // 💰 Tu Calculadora de Comisiones
   const calcularPrecioConComision = (montoDeseado) => {
       const monto = parseFloat(montoDeseado) || 0;
-      if (monto < 10) return monto + 1.50; // Para montos menores a $10, cobras $1.50 fijo de comisión
-      if (monto >= 10 && monto <= 50) return monto * 1.15; // De $10 a $50, cobras el 15% de comisión
-      return monto * 1.10; // Más de $50, cobras el 10% de comisión
+      if (monto < 10) return monto + 0.14;
+      if (monto >= 10 && monto <= 50) return monto * 1.02;
+      return monto * 1.015;
   };
 
   const precioFinalCalculado = calcularPrecioConComision(customAmount);

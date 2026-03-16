@@ -1682,30 +1682,39 @@ const solicitarPinAutomatico = async (idProducto, valorTarjeta, precioPagado, co
               
               {checkoutStep === 3 && (
                   <div className="max-w-3xl mx-auto w-full mb-8">
-                      {/* 🎁 TARJETA DE ENTREGA AUTOMÁTICA DEL PIN */}
-                      {pinGenerado && (
-                          <div className="mt-8 p-6 bg-gray-900/90 border border-cyan-500/80 rounded-2xl backdrop-blur-md shadow-[0_0_40px_rgba(6,182,212,0.3)] text-center animate-scale-in">
-                              <div className="flex justify-center mb-3">
-                                  <Sparkles className="text-cyan-400 animate-pulse" size={36} />
-                              </div>
-                              <h3 className="text-2xl font-bold text-white mb-2 font-orbitron tracking-widest">¡AQUÍ TIENES TU PRODUCTO!</h3>
-                              <p className="text-sm text-gray-400 mb-6">Copia este código y canjéalo inmediatamente en la plataforma oficial:</p>
-                              
-                              <div className="flex items-center justify-center gap-3 bg-black/60 py-4 px-6 rounded-xl border border-gray-700 shadow-inner inline-flex">
-                                  <Key className="text-indigo-400" size={24} />
-                                  <span className="text-3xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 tracking-widest select-all">
-                                      {pinGenerado}
-                                  </span>
-                                  <button 
-                                      onClick={() => navigator.clipboard.writeText(pinGenerado)}
-                                      className="ml-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 hover:text-white border border-gray-600 shadow-md"
-                                      title="Copiar PIN"
-                                  >
-                                      <Copy size={20} />
-                                  </button>
-                              </div>
-                          </div>
-                      )}
+                     {/* 🎁 TARJETA DE ENTREGA AUTOMÁTICA DEL PIN */}
+        {pinGenerado && (
+            <div className="mt-8 p-6 bg-gray-900/90 border border-cyan-500/80 rounded-2xl backdrop-blur-md shadow-[0_0_40px_rgba(6,182,212,0.3)] text-center animate-scale-in">
+                <div className="flex justify-center mb-3">
+                    <Sparkles className="text-cyan-400 animate-pulse" size={36} />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2 font-orbitron tracking-widest">¡AQUÍ TIENES TU PRODUCTO!</h3>
+                <p className="text-sm text-gray-400 mb-6">Copia este código y canjéalo inmediatamente en la plataforma oficial:</p>
+
+                {/* ========================================================= */}
+                {/* 🚨 AQUÍ INYECTAS LA ADVERTENCIA DE NO RECARGAR LA PÁGINA */}
+                {/* ========================================================= */}
+                <div className="bg-red-900/40 border-l-4 border-red-500 p-3 mb-6 text-left rounded max-w-lg mx-auto">
+                    <p className="text-red-400 font-bold text-sm uppercase animate-pulse">
+                        ⚠️ ¡NO CIERRES NI RECARGUES ESTA PÁGINA!
+                    </p>
+                    <p className="text-red-300 text-xs mt-1">
+                        Por tu seguridad, este enlace se autodestruirá. Copia tu código inmediatamente. Si sales de esta pantalla, no podrás volver a verlo.
+                    </p>
+                </div>
+                {/* ========================================================= */}
+
+                <div className="flex items-center justify-center gap-3 bg-black/60 py-4 px-6 rounded-xl border border-gray-700 shadow-inner inline-flex">
+                    <Key className="text-indigo-400" size={24} />
+                    <span className="text-3xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 tracking-widest select-all">
+                        {pinGenerado}
+                    </span>
+                    <button onClick={() => navigator.clipboard.writeText(pinGenerado)} className="ml-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 hover:text-white border border-gray-600 shadow-md" title="Copiar PIN" >
+                        <Copy size={20} />
+                    </button>
+                </div>
+            </div>
+        )}
                       
                       <SuccessScreen lastOrder={lastOrder} setView={setView} />
                   </div>

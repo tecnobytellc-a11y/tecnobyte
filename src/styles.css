@@ -1,0 +1,48 @@
+/* Estilos base para asegurar el modo oscuro */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+color-scheme: dark;
+}
+
+body {
+margin: 0;
+background-color: #0b0e14;
+color: #f3f4f6;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
+/* Efecto de brillo para los títulos */
+.text-glow {
+text-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+}
+
+/* Personalización de la barra de desplazamiento (Scrollbar) */
+::-webkit-scrollbar {
+width: 8px;
+}
+
+::-webkit-scrollbar-track {
+background: #0b0e14;
+}
+
+::-webkit-scrollbar-thumb {
+background: #1f2937;
+border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+background: #374151;
+}
+
+/* Animaciones suaves para las tarjetas */
+.product-card {
+transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.product-card:hover {
+transform: translateY(-8px);
+}

@@ -19,6 +19,8 @@ const Register = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showKycPrompt, setShowKycPrompt] = useState(false); // Controla si mostramos la invitación de Didit
+    const [userUid, setUserUid] = useState(null); // Guarda el ID secreto del usuario
     const navigate = useNavigate();
 
     const handleRegister = async (e) => {
@@ -27,7 +29,6 @@ const Register = () => {
         setError('');
 
         try {
-            // Empaquetamos ABSOLUTAMENTE TODO lo que el usuario escribió
             const datosDelFormulario = {
                 nombre_real: nombre,
                 apellido_real: apellido,
@@ -37,10 +38,13 @@ const Register = () => {
                 origen_registro: "formulario_completo"
             };
 
-            // Disparamos la función que crea la cuenta y extrae la IP/Dispositivo
-            await registrarConPerfilSeguro(email, password, datosDelFormulario);
+            // Disparamos la función y RECUPERAMOS el usuario creado
+            const usuarioCreado = await registrarConPerfilSeguro(email, password, datosDelFormulario);
             
-            navigate('/perfil'); 
+            // Guardamos su ID y mostramos la pantalla de Didit
+            setUserUid(usuarioCreado.uid);
+            setShowKycPrompt(true); 
+
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
                 setError('Este correo ya está registrado. Intenta iniciar sesión.');
@@ -48,6 +52,29 @@ const Register = () => {
                 setError('Error de seguridad al crear la cuenta. Verifica los datos.');
             }
         } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // --- LÓGICA OPCIONAL KYC (DIDIT) ---
+    const handleStartKYC = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            // Llamamos al "puente" de tu servidor
+            const response = await axios.post('https://TU_URL_DE_VERCEL.vercel.app/api/kyc/generate-session', {
+                vendorData: userUid
+            });
+            
+            if (response.data.success) {
+                // Si el servidor nos da luz verde, lo mandamos al escáner de Didit
+                window.location.href = response.data.verificationUrl;
+            } else {
+                setError('No se pudo conectar con el escáner de seguridad.');
+                setIsLoading(false);
+            }
+        } catch (err) {
+            setError('Error de conexión. Intenta hacer el KYC desde tu perfil más tarde.');
             setIsLoading(false);
         }
     };

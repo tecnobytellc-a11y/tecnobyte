@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff, User, ArrowRight, ShieldCheck, Phone, Hash } f
 import { Link, useNavigate } from 'react-router-dom';
 // --- INYECCIÓN DE SEGURIDAD BANCARIA ---
 import { registrarConPerfilSeguro, loginConGoogle } from './firebase'; 
+import axios from 'axios';
 
 const Register = () => {
     // Todos los estados para recolectar la información del usuario

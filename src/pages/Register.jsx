@@ -62,7 +62,7 @@ const Register = () => {
         setError('');
         try {
             // Llamamos al "puente" de tu servidor
-            const response = await axios.post('https://TU_URL_DE_VERCEL.vercel.app/api/kyc/generate-session', {
+            const response = await axios.post('https://api-paypal-secure.vercel.app/api/kyc/generate-session', {
                 vendorData: userUid
             });
             

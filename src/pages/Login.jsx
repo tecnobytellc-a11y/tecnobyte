@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Bot, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 // --- INYECCIÓN DE SEGURIDAD (Conectado a tu archivo Firebase) ---
-import { loginConCorreo, loginConGoogle } from './firebase'; // Ajusta la ruta ('../../') según dónde guardaste firebase.js
+import { loginConCorreo, loginConGoogle, recuperarContrasenaEmail } from './firebase'; // Ajusta la ruta ('../../') según dónde guardaste firebase.js
 
 const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -37,6 +37,26 @@ const Login = () => {
             navigate('/perfil');
         } catch (err) {
             setError('Error al iniciar sesión con Google. Intenta de nuevo.');
+        }
+    };
+
+    // Lógica real para recuperar contraseña
+    const handleRecuperarPassword = async (e) => {
+        e.preventDefault(); // Evita que la página salte
+        if (!email) {
+            setError('Guerrero, escribe tu correo en la casilla de arriba primero para enviarte el enlace.');
+            return;
+        }
+        
+        setIsLoading(true);
+        setError('');
+        try {
+            await recuperarContrasenaEmail(email);
+            alert('¡Enlace enviado! Revisa tu bandeja de entrada o la carpeta de Spam.');
+        } catch (err) {
+            setError('Error: Verifica que el correo esté bien escrito o registrado.');
+        } finally {
+            setIsLoading(false);
         }
     };
 

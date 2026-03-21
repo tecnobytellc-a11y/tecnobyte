@@ -37,14 +37,14 @@ const Register = () => {
                 gamertag: username,
                 origen_registro: "formulario_completo"
             };
-
-            // Disparamos la función y RECUPERAMOS el usuario creado
+            
+           // Disparamos la función y RECUPERAMOS el usuario creado
             const usuarioCreado = await registrarConPerfilSeguro(email, password, datosDelFormulario);
             
             // Guardamos su ID y mostramos la pantalla de Didit
             setUserUid(usuarioCreado.uid);
-            setShowKycPrompt(true); 
-
+            setShowKycPrompt(true);
+            
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
                 setError('Este correo ya está registrado. Intenta iniciar sesión.');
@@ -100,6 +100,29 @@ const Register = () => {
                 transition={{ duration: 0.4 }}
                 className="w-full max-w-lg bg-gray-900/70 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-10"
             >
+                {showKycPrompt ? (
+                    <div className="text-center py-6 animate-fade-in">
+                        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
+                            <ShieldCheck size={40} className="text-green-400" />
+                        </div>
+                        <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-wider">¡Expediente Creado!</h3>
+                        <p className="text-gray-400 text-sm mb-6 px-4">
+                            Tu cuenta base está lista. Para desbloquear pagos ultra-rápidos con <strong>PayPal y Facebank</strong>, verifica tu identidad con Didit ahora. (Toma 1 minuto).
+                        </p>
+                        
+                        {error && <div className="mb-4 text-red-400 text-xs font-mono">{error}</div>}
+
+                        <div className="space-y-3">
+                            <button onClick={handleStartKYC} disabled={isLoading} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2">
+                                {isLoading ? "Conectando al Escáner..." : "Verificar Identidad Ahora"}
+                            </button>
+                            <button onClick={() => navigate('/perfil')} disabled={isLoading} className="w-full bg-transparent border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800 py-3 rounded-xl transition-colors font-bold text-sm">
+                                Omitir por ahora (Lo haré al pagar)
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
                 <div className="text-center mb-6">
                     <h2 className="text-3xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500 tracking-wide uppercase">Forja tu Leyenda</h2>
                     <p className="text-gray-400 mt-2 text-sm">Registro de seguridad Nivel 1 requerido.</p>
@@ -252,6 +275,9 @@ const Register = () => {
                     <ShieldCheck size={12} className="text-green-500" />
                     Tus datos están protegidos y monitoreados contra fraude
                 </div>
+            </>
+        )}
+                
             </motion.div>
         </div>
     );

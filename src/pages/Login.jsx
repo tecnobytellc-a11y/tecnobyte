@@ -113,7 +113,9 @@ const Login = () => {
                     <div>
                         <div className="flex justify-between items-center mb-1.5 ml-1 mr-1">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contraseña</label>
-                             <a href="#" onClick={handleRecuperarPassword} className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold tracking-wide transition-colors">¿Olvidaste tu clave?</a>
+                            <a href="#" onClick={handleRecuperarPassword} className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold tracking-wide transition-colors">¿Olvidaste tu clave?</a>
+                        </div>
+                        <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-indigo-400 transition-colors">
                                 <Lock size={18} />
                             </div>

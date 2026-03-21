@@ -29,9 +29,6 @@ const firebaseConfig = {
   measurementId: "G-XC1PJ1PB6W"
 };
 
-// 2. EL BLINDAJE: Si no hay apps inicializadas, la crea. Si ya existe, usa la que ya está.
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

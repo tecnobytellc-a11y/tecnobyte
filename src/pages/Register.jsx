@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight, ShieldCheck, Phone, Hash } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 // --- INYECCIÓN DE SEGURIDAD BANCARIA ---
-import { registrarConPerfilSeguro, loginConGoogle } from '../../firebase'; 
+import { registrarConPerfilSeguro, loginConGoogle } from './firebase'; 
 
 const Register = () => {
     // Todos los estados para recolectar la información del usuario

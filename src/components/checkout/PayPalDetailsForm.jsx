@@ -14,6 +14,45 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
   const requiresIdImage = !isBinance && !isTarjeta; 
   
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // --- INYECCIÓN KYC DIDIT ---
+  const [hasKyc, setHasKyc] = useState(false);
+  const [isLoadingKyc, setIsLoadingKyc] = useState(false);
+  const [userUid, setUserUid] = useState(null);
+
+  useEffect(() => {
+      const checkUserKyc = async () => {
+          const user = auth.currentUser;
+          if (user) {
+              setUserUid(user.uid);
+              const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+              if (userDoc.exists() && userDoc.data().kyc_verificado === true) {
+                  setHasKyc(true);
+              }
+          }
+      };
+      checkUserKyc();
+  }, []);
+
+  const handleStartKYC = async () => {
+      setIsLoadingKyc(true);
+      try {
+          // Llama a tu servidor en Vercel
+          const response = await axios.post('https://api-paypal-secure.vercel.app/api/kyc/generate-session', {
+              vendorData: userUid || "Invitado_Checkout"
+          });
+          if (response.data.success) {
+              window.location.href = response.data.url;
+          } else {
+              alert("No se pudo iniciar Didit.");
+              setIsLoadingKyc(false);
+          }
+      } catch (error) {
+          alert("Error de conexión con el servidor de seguridad.");
+          setIsLoadingKyc(false);
+      }
+  };
+  // ---------------------------
   
   // VALIDACIÓN ARCHIVO 1MB
   const handleFileChange = (e) => { 

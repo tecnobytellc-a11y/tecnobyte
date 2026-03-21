@@ -14,6 +14,7 @@ import {
   TotpMultiFactorGenerator,
   TotpSecret
 } from "firebase/auth";
+import { getFirestore, doc, setDoc } from "firebase/firestore";
 
 // ==========================================
 // 1. CONFIGURACIÓN DEL PROYECTO
@@ -31,6 +32,7 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // ==========================================
@@ -158,6 +160,46 @@ export const confirmar2FAAuthenticator = async (secret, codigoIngresado) => {
     return true; // 2FA activado con éxito
   } catch (error) {
     console.error("Error confirmando TOTP:", error.message);
+    throw error;
+  }
+};
+
+// ==========================================
+// REGISTRO CON EXPEDIENTE DE SEGURIDAD (IP Y DISPOSITIVO)
+// ==========================================
+export const registrarConPerfilSeguro = async (email, password, datosFormulario) => {
+  try {
+    // 1. Obtenemos la IP pública del usuario silenciosamente
+    const respuestaIP = await fetch('https://api.ipify.org?format=json');
+    const datosIP = await respuestaIP.json();
+    const ipUsuario = datosIP.ip;
+
+    // 2. Obtenemos la huella legal del dispositivo
+    const dispositivo = navigator.userAgent;
+    const idioma = navigator.language;
+    
+    // 3. Creamos la cuenta en el sistema de autenticación
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const usuario = userCredential.user;
+
+    // 4. Guardamos TODO el expediente en la Base de Datos (Firestore)
+    await setDoc(doc(db, "usuarios", usuario.uid), {
+      ...datosFormulario, // Aquí se guarda todo lo que escribió en el formulario
+      email: usuario.email,
+      uid: usuario.uid,
+      seguridad: {
+        ip_registro: ipUsuario,
+        dispositivo_registro: dispositivo,
+        idioma_navegador: idioma,
+        fecha_creacion: new Date().toISOString()
+      },
+      rol: "usuario",
+      estado_cuenta: "activa"
+    });
+
+    return usuario;
+  } catch (error) {
+    console.error("Error en Registro Seguro:", error.message);
     throw error;
   }
 };

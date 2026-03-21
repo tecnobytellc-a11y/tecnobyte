@@ -19,13 +19,18 @@ import {
 // 1. CONFIGURACIÓN DEL PROYECTO
 // ==========================================
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyBgqPltYbC8ZSzLszFA1y6FegfHJn91Ozg",
+  authDomain: "tecnobyte-52ae0.firebaseapp.com",
+  databaseURL: "https://tecnobyte-52ae0-default-rtdb.firebaseio.com",
+  projectId: "tecnobyte-52ae0",
+  storageBucket: "tecnobyte-52ae0.firebasestorage.app",
+  messagingSenderId: "727089895868",
+  appId: "1:727089895868:web:0412acf7c812a1f07b73b9",
+  measurementId: "G-XC1PJ1PB6W"
 };
+
+// 2. EL BLINDAJE: Si no hay apps inicializadas, la crea. Si ya existe, usa la que ya está.
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

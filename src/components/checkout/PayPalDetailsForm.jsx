@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { ShieldCheck, FileCheck, ImageIcon, Bot, Link as LinkIcon, AlertTriangle, ArrowRight } from 'lucide-react';
 import { MAX_FILE_SIZE_BYTES } from '../../config/constants';
+import { auth, db } from 'src/pages/firebase'; // Asegúrate de que la ruta sea correcta
+import { doc, getDoc } from 'firebase/firestore';
+import axios from 'axios';
 
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy, cart }) => {
   const idDocRef = useRef(null); 

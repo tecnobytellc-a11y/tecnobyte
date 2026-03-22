@@ -15,6 +15,7 @@ import {
   TotpSecret
 } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // ==========================================
 // 1. CONFIGURACIÓN DEL PROYECTO
@@ -34,6 +35,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+export const storage = getStorage(app);
 
 // ==========================================
 // 2. AUTENTICACIÓN CON GOOGLE

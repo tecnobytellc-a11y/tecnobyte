@@ -15,12 +15,15 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
     }
   }, [packages]);
 
-  // --- INICIO MÓDULO RANGO LIBRE ---
+  // --- INICIO MÓDULO RANGO LIBRE Y RECARGA TNB ---
   const [customAmount, setCustomAmount] = useState(service.minAmount || 10);
+  const [isForFriend, setIsForFriend] = useState(false);
+  const [tnbData, setTnbData] = useState({ friendEmail: '', friendName: '', senderName: '', myEmail: '' });
 
-  // 💰 Tu Calculadora de Comisiones
+  // 💰 Tu Calculadora de Comisiones Blindada
   const calcularPrecioConComision = (montoDeseado) => {
       const monto = parseFloat(montoDeseado) || 0;
+      if (service.isTnbRecharge) return monto; // INYECCIÓN: Sin comisión para recarga directa de saldo TNB
       if (monto < 10) return monto + 0.14;
       if (monto >= 10 && monto <= 50) return monto * 1.02;
       return monto * 1.015;
@@ -30,14 +33,27 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
   // --- FIN MÓDULO RANGO LIBRE ---
 
   // 🛡️ SOLUCIÓN: Calculamos primero y asignamos el precio dependiendo del tipo de producto
-  const currentPrice = service.isCustomAmount 
+  const currentPrice = (service.isCustomAmount || service.isTnbRecharge) 
     ? precioFinalCalculado 
     : (packages && selectedPkg ? selectedPkg.price : (service.price || 0));
     
   const currentTitle = packages && selectedPkg ? `${selectedPkg.title} - ${service.title}` : service.title;
   
   const handleAdd = () => {
-    if (service.isCustomAmount) {
+    if (service.isTnbRecharge) {
+        // INYECCIÓN: Lógica para la Recarga de Saldo TNB
+        if (isForFriend && (!tnbData.friendEmail || !tnbData.friendName)) {
+            alert("Por favor, completa los datos de tu amigo para enviarle la recarga.");
+            return;
+        }
+        addToCart({
+            ...service,
+            title: `Recarga Saldo TNB ($${customAmount})` + (isForFriend ? ` Regalo para ${tnbData.friendName}` : ''),
+            faceValue: Number(customAmount),
+            price: Number(precioFinalCalculado.toFixed(2)),
+            tnbData: { isForFriend, ...tnbData }
+        });
+    } else if (service.isCustomAmount) {
       // Lógica para Gift Cards de monto libre (Ej. Amazon)
       addToCart({
         ...service,
@@ -103,8 +119,50 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
         )}
       </div>
 
+      {/* 🎛️ INYECCIÓN: MÓDULO DE RECARGA TNB (Regalos y Personal) */}
+        {service.isTnbRecharge && (
+            <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-indigo-500/30">
+                <label className="block text-xs text-indigo-300 font-bold mb-2 uppercase tracking-wide">
+                    Monto a recargar (USD):
+                </label>
+                <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl text-cyan-400 font-bold">$</span>
+                    <input 
+                        type="number" 
+                        min={1} 
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                        className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-4 text-white text-xl focus:outline-none focus:border-indigo-500"
+                    />
+                </div>
+                
+                <div className="flex gap-2 mb-4">
+                    <button 
+                        onClick={() => setIsForFriend(false)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${!isForFriend ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                    >Para mí</button>
+                    <button 
+                        onClick={() => setIsForFriend(true)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${isForFriend ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                    >Para un amigo</button>
+                </div>
+
+                {isForFriend ? (
+                    <motion.div initial={{opacity: 0, y: -10}} animate={{opacity: 1, y: 0}} className="space-y-3">
+                        <input type="email" placeholder="Correo de tu amigo" value={tnbData.friendEmail} onChange={e => setTnbData({...tnbData, friendEmail: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-pink-500 outline-none transition-colors" />
+                        <input type="text" placeholder="Nombre de tu amigo" value={tnbData.friendName} onChange={e => setTnbData({...tnbData, friendName: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-pink-500 outline-none transition-colors" />
+                        <input type="text" placeholder="De parte de (Tu Nombre)" value={tnbData.senderName} onChange={e => setTnbData({...tnbData, senderName: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-pink-500 outline-none transition-colors" />
+                    </motion.div>
+                ) : (
+                    <motion.div initial={{opacity: 0, y: -10}} animate={{opacity: 1, y: 0}} className="space-y-3">
+                        <input type="email" placeholder="Tu correo (Obligatorio si no has iniciado sesión)" value={tnbData.myEmail} onChange={e => setTnbData({...tnbData, myEmail: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none transition-colors" />
+                    </motion.div>
+                )}
+            </div>
+        )}
+
       {/* 🎛️ MÓDULO VISUAL DE RANGO LIBRE (AMAZON) */}
-        {service.isCustomAmount && (
+        {service.isCustomAmount && !service.isTnbRecharge && (
             <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
                 <label className="block text-sm text-gray-400 mb-2">
                     ¿De cuánto quieres la Gift Card? (Entre ${service.minAmount} y ${service.maxAmount})

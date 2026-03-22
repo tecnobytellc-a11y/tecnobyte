@@ -4,7 +4,7 @@ import DynamicIcon from '../ui/DynamicIcon';
 import { CUSTOM_ICONS } from '../../config/constants';
 import { motion } from 'framer-motion';
 // INYECCIÓN: Importar auth para verificar sesión
-import { auth } from '../pages/firebase';
+import { auth } from '../../pages/firebase';
 
 const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages }) => {
   const packages = multipackages ? multipackages[service.title] : null;

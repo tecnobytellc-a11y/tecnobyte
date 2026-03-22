@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
     Coins, Sparkles, TrendingUp, X, Gem, Crosshair, Ticket, 
     Percent, Wallet, Package, RefreshCw, Crown, Target, 
-    Flame, Zap, Headphones, Shield 
+    Flame, Zap, Headphones, Shield, History, ArrowUpRight, ArrowDownRight, CalendarDays
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -31,9 +31,19 @@ const REWARDS_CATALOG = [
     { id: 'fire_frame', name: 'Marco de Fuego', cost: 3500, category: 'Cosméticos', icon: Flame, color: 'text-orange-500' },
 ];
 
-const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
-    // Estados para la tienda
+// --- DATOS SIMULADOS PARA EL HISTORIAL ---
+const DEFAULT_HISTORY = [
+    { id: '1', type: 'credit', amount: 1500, source: 'Bono Especial de CEO', date: '22 Mar 2026' },
+    { id: '2', type: 'debit', amount: 300, source: 'Canje: Giro Extra (Ruleta)', date: '21 Mar 2026' },
+    { id: '3', type: 'credit', amount: 50, source: 'Premio: Caja Misteriosa', date: '21 Mar 2026' },
+    { id: '4', type: 'credit', amount: 15, source: 'Ruleta Diaria', date: '20 Mar 2026' },
+    { id: '5', type: 'credit', amount: 200, source: 'Compra en Tienda (#1029)', date: '19 Mar 2026' },
+];
+
+const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAULT_HISTORY }) => {
+    // Estados para la tienda y el historial
     const [isStoreOpen, setIsStoreOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false); // <-- INYECCIÓN: Estado del Historial
     const [activeFilter, setActiveFilter] = useState('Todos');
 
     const handleRedeem = (reward) => {
@@ -53,7 +63,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
 
     return (
         <>
-            {/* TU DISEÑO EXACTO E INTACTO (Sin el h-full que rompía todo) */}
+            {/* TU DISEÑO EXACTO E INTACTO */}
             <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 relative overflow-hidden group">
                 <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                     <Coins size={120} className="text-cyan-500" />
@@ -91,6 +101,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                         <motion.button 
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
+                            onClick={() => setIsHistoryOpen(true)} // <-- INYECCIÓN: Botón Funcional
                             className="px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2 rounded-lg text-xs border border-gray-700 transition-colors"
                         >
                             Historial
@@ -99,7 +110,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                 </div>
             </div>
 
-            {/* LA TIENDA DE RECOMPENSAS (MODAL INYECTADO Y ARREGLADO) */}
+            {/* LA TIENDA DE RECOMPENSAS */}
             <AnimatePresence>
                 {isStoreOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
@@ -141,7 +152,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                                 ))}
                             </div>
 
-                            {/* Grilla de Productos ARREGLADA */}
+                            {/* Grilla de Productos */}
                             <div className="p-6 overflow-y-auto">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-fr">
                                     {filteredRewards.map((reward) => {
@@ -194,6 +205,63 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                                         );
                                     })}
                                 </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* --- INYECCIÓN: MODAL DE HISTORIAL DE TRANSACCIONES --- */}
+            <AnimatePresence>
+                {isHistoryOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-[#0a0a0f] border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+                        >
+                            {/* Header del Historial */}
+                            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#11111a] rounded-t-2xl shrink-0">
+                                <div>
+                                    <h2 className="text-xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 flex items-center gap-3">
+                                        <History className="text-cyan-400" /> Historial de Movimientos
+                                    </h2>
+                                    <p className="text-gray-400 text-sm mt-1">Registro de tus créditos y débitos de TecnoPoints.</p>
+                                </div>
+                                <button onClick={() => setIsHistoryOpen(false)} className="p-2 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            {/* Lista de Transacciones */}
+                            <div className="p-6 overflow-y-auto space-y-3 hide-scrollbar">
+                                {transactions.length > 0 ? (
+                                    transactions.map((tx) => (
+                                        <div key={tx.id} className="flex items-center justify-between p-4 rounded-xl bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors group">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-lg flex items-center justify-center ${tx.type === 'credit' ? 'bg-green-500/10 border border-green-500/20 text-green-400 group-hover:bg-green-500/20' : 'bg-red-500/10 border border-red-500/20 text-red-400 group-hover:bg-red-500/20'} transition-colors`}>
+                                                    {tx.type === 'credit' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-white font-bold text-sm mb-1">{tx.source}</h4>
+                                                    <div className="flex items-center gap-1 text-xs text-gray-500 font-mono">
+                                                        <CalendarDays size={12} /> {tx.date}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className={`font-mono font-bold text-lg ${tx.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
+                                                {tx.type === 'credit' ? '+' : '-'}{tx.amount} <span className="text-xs text-gray-500">PTS</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-12">
+                                        <History size={48} className="mx-auto text-gray-700 mb-4" />
+                                        <h3 className="text-gray-400 font-bold mb-1">Aún no hay movimientos</h3>
+                                        <p className="text-sm text-gray-600">Aquí aparecerá el registro de tus TecnoPoints ganados y gastados.</p>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     </div>

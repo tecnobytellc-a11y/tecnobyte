@@ -5,6 +5,9 @@ import MysteryBox from '../components/gamification/MysteryBox';
 import Leaderboard from '../components/gamification/Leaderboard';
 import DailyRoulette from '../components/gamification/DailyRoulette';
 import { motion } from 'framer-motion';
+import { auth, db } from '../firebase'; 
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 
 const GamificationDashboard = () => {
     const [isRouletteOpen, setIsRouletteOpen] = useState(false);

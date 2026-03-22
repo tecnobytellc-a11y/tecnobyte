@@ -2,25 +2,22 @@ import React, { useState } from 'react';
 import { 
     Coins, Sparkles, TrendingUp, X, Gem, Crosshair, Ticket, 
     Percent, Wallet, Package, RefreshCw, Crown, Target, 
-    Flame, Zap, Headphones, Shield, History, ArrowUpRight, ArrowDownRight, CalendarDays
+    Flame, Zap, Headphones, Shield, History, ArrowUpRight, ArrowDownRight, CalendarDays, Loader
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+// --- INYECCIÓN: Importamos las herramientas de Firebase ---
+import { auth, db } from '../firebase'; // Asegúrate de que la ruta a firebase.js sea correcta
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-// --- CATÁLOGO DE RECOMPENSAS ESTRATÉGICO ---
 const REWARDS_CATALOG = [
-    // CATEGORÍA 1: Recargas Gamer
     { id: 'ff_100', name: '100 Diamantes Free Fire', cost: 1500, category: 'Recargas', icon: Gem, color: 'text-blue-400' },
     { id: 'cod_80', name: '80 CPs Call of Duty', cost: 1500, category: 'Recargas', icon: Crosshair, color: 'text-yellow-400' },
-    
-    // CATEGORÍA 2: Economía y Cupones
     { id: 'cup_050', name: 'Cupón $0.50 USD', cost: 800, category: 'Economía', icon: Ticket, color: 'text-pink-400' },
     { id: 'cup_100', name: 'Cupón $1.00 USD', cost: 1500, category: 'Economía', icon: Ticket, color: 'text-pink-500' },
     { id: 'cup_3pct', name: 'Cupón 3% Descuento', cost: 500, category: 'Economía', icon: Percent, color: 'text-pink-300' },
     { id: 'tnb_050', name: 'Saldo TNB $0.50', cost: 1000, category: 'Economía', icon: Wallet, color: 'text-green-400' },
     { id: 'tnb_100', name: 'Saldo TNB $1.00', cost: 1800, category: 'Economía', icon: Wallet, color: 'text-green-500' },
     { id: 'box_tier1', name: 'Caja Mítica', cost: 600, category: 'Economía', icon: Package, color: 'text-purple-400' },
-    
-    // CATEGORÍA 3: Cosméticos y VIP
     { id: 'spin_extra', name: 'Giro Extra (Ruleta)', cost: 300, category: 'Beneficios VIP', icon: RefreshCw, color: 'text-indigo-400' },
     { id: 'ticket_vip', name: 'Soporte Prioritario', cost: 400, category: 'Beneficios VIP', icon: Headphones, color: 'text-blue-300' },
     { id: 'badge_hunter', name: 'Insignia "Cazador"', cost: 1000, category: 'Cosméticos', icon: Target, color: 'text-red-400' },
@@ -31,28 +28,48 @@ const REWARDS_CATALOG = [
     { id: 'fire_frame', name: 'Marco de Fuego', cost: 3500, category: 'Cosméticos', icon: Flame, color: 'text-orange-500' },
 ];
 
-// --- DATOS SIMULADOS PARA EL HISTORIAL ---
-const DEFAULT_HISTORY = [
-    { id: '1', type: 'credit', amount: 1500, source: 'Bono Especial de CEO', date: '22 Mar 2026' },
-    { id: '2', type: 'debit', amount: 300, source: 'Canje: Giro Extra (Ruleta)', date: '21 Mar 2026' },
-    { id: '3', type: 'credit', amount: 50, source: 'Premio: Caja Misteriosa', date: '21 Mar 2026' },
-    { id: '4', type: 'credit', amount: 15, source: 'Ruleta Diaria', date: '20 Mar 2026' },
-    { id: '5', type: 'credit', amount: 200, source: 'Compra en Tienda (#1029)', date: '19 Mar 2026' },
-];
-
-const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAULT_HISTORY }) => {
-    // Estados para la tienda y el historial
+const TecnoPoints = ({ points = 0, pointsPending = 0 }) => {
     const [isStoreOpen, setIsStoreOpen] = useState(false);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false); // <-- INYECCIÓN: Estado del Historial
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState('Todos');
+    
+    // --- INYECCIÓN: Estados para el motor de producción ---
+    const [transactions, setTransactions] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     const handleRedeem = (reward) => {
         if (points < reward.cost) {
             alert("No tienes suficientes TecnoPoints para esta recompensa.");
             return;
         }
-        // Acción temporal hasta conectar con el servidor
         alert(`Iniciando canje de: ${reward.name}. Conectando con Vercel...`);
+    };
+
+    // --- INYECCIÓN: Lógica para descargar el historial real de Firebase ---
+    const handleOpenHistory = async () => {
+        setIsHistoryOpen(true);
+        if (!auth.currentUser) return;
+        
+        setIsLoadingHistory(true);
+        try {
+            // Buscamos en la subcolección 'historial_puntos' del usuario actual
+            const q = query(
+                collection(db, "usuarios", auth.currentUser.uid, "historial_puntos"),
+                orderBy("timestamp", "desc"),
+                limit(20)
+            );
+            
+            const querySnapshot = await getDocs(q);
+            const historyData = [];
+            querySnapshot.forEach((doc) => {
+                historyData.push({ id: doc.id, ...doc.data() });
+            });
+            
+            setTransactions(historyData);
+        } catch (error) {
+            console.error("Error cargando el historial:", error);
+        }
+        setIsLoadingHistory(false);
     };
 
     const categories = ['Todos', 'Recargas', 'Economía', 'Beneficios VIP', 'Cosméticos'];
@@ -63,7 +80,6 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
 
     return (
         <>
-            {/* TU DISEÑO EXACTO E INTACTO */}
             <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 relative overflow-hidden group">
                 <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                     <Coins size={120} className="text-cyan-500" />
@@ -101,7 +117,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                         <motion.button 
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsHistoryOpen(true)} // <-- INYECCIÓN: Botón Funcional
+                            onClick={handleOpenHistory} // <-- INYECCIÓN: Dispara la descarga de datos reales
                             className="px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2 rounded-lg text-xs border border-gray-700 transition-colors"
                         >
                             Historial
@@ -110,7 +126,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                 </div>
             </div>
 
-            {/* LA TIENDA DE RECOMPENSAS */}
+            {/* MODAL: TIENDA DE RECOMPENSAS */}
             <AnimatePresence>
                 {isStoreOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
@@ -120,7 +136,6 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             className="bg-[#0a0a0f] border border-indigo-500/50 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(79,70,229,0.2)]"
                         >
-                            {/* Header de la Tienda */}
                             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#11111a] rounded-t-2xl shrink-0">
                                 <div>
                                     <h2 className="text-2xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 flex items-center gap-3">
@@ -139,7 +154,6 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                                 </div>
                             </div>
 
-                            {/* Filtros de Categoría */}
                             <div className="p-4 border-b border-gray-800 bg-[#11111a]/50 overflow-x-auto flex gap-2 hide-scrollbar shrink-0">
                                 {categories.map(cat => (
                                     <button 
@@ -152,7 +166,6 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                                 ))}
                             </div>
 
-                            {/* Grilla de Productos */}
                             <div className="p-6 overflow-y-auto">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-fr">
                                     {filteredRewards.map((reward) => {
@@ -163,29 +176,23 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                                                 key={reward.id} 
                                                 className={`bg-gray-900 border rounded-xl p-5 flex flex-col relative overflow-hidden transition-colors h-full ${canAfford ? 'border-gray-700 hover:border-indigo-500' : 'border-red-900/30 opacity-70'}`}
                                             >
-                                                {/* Icono de fondo */}
                                                 <div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none z-0">
                                                     <reward.icon size={100} />
                                                 </div>
                                                 
-                                                {/* Icono pequeño superior */}
                                                 <div className={`p-3 rounded-xl bg-gray-800/50 w-fit mb-4 border border-gray-700 relative z-10`}>
                                                     <reward.icon className={reward.color} size={24} />
                                                 </div>
                                                 
-                                                {/* Contenedor flexible para los textos */}
                                                 <div className="relative z-10 flex-grow flex flex-col">
-                                                    {/* line-clamp-2 asegura que si el título es largo, ocupe máximo 2 líneas sin desbordarse */}
                                                     <h4 className="text-white font-bold text-sm leading-snug mb-1 line-clamp-2 min-h-[40px]">
                                                         {reward.name}
                                                     </h4>
-                                                    {/* truncate corta el texto con "..." si la categoría es muy larga */}
                                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-4 block truncate">
                                                         {reward.category}
                                                     </span>
                                                 </div>
                                                 
-                                                {/* Contenedor inferior (Botón y Precio) siempre anclado abajo gracias a mt-auto */}
                                                 <div className="mt-auto relative z-10 w-full pt-2">
                                                     <div className="flex justify-between items-end mb-3">
                                                         <span className="text-xs text-gray-400">Precio</span>
@@ -211,7 +218,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                 )}
             </AnimatePresence>
 
-            {/* --- INYECCIÓN: MODAL DE HISTORIAL DE TRANSACCIONES --- */}
+            {/* MODAL: HISTORIAL DE TRANSACCIONES EN PRODUCCIÓN */}
             <AnimatePresence>
                 {isHistoryOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
@@ -221,7 +228,6 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             className="bg-[#0a0a0f] border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)]"
                         >
-                            {/* Header del Historial */}
                             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#11111a] rounded-t-2xl shrink-0">
                                 <div>
                                     <h2 className="text-xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 flex items-center gap-3">
@@ -234,9 +240,13 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150, transactions = DEFAUL
                                 </button>
                             </div>
 
-                            {/* Lista de Transacciones */}
-                            <div className="p-6 overflow-y-auto space-y-3 hide-scrollbar">
-                                {transactions.length > 0 ? (
+                            <div className="p-6 overflow-y-auto space-y-3 hide-scrollbar min-h-[200px] relative">
+                                {/* Estado de Carga */}
+                                {isLoadingHistory ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0f]">
+                                        <Loader className="animate-spin text-cyan-400" size={32} />
+                                    </div>
+                                ) : transactions.length > 0 ? (
                                     transactions.map((tx) => (
                                         <div key={tx.id} className="flex items-center justify-between p-4 rounded-xl bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors group">
                                             <div className="flex items-center gap-4">

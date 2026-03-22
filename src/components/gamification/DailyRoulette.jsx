@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gift, Zap, X, Coins, Sparkles, Loader } from 'lucide-react';
+import { Gift, Zap, X, Coins, Sparkles, Loader, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 
-// Los premios visuales deben estar en el mismo orden que el servidor
 const PRIZES = [
     { id: 1, name: "10 Tecno Points", color: "#6366f1", type: "points", value: 10 },
     { id: 2, name: "¡Sigue Intentando!", color: "#1f2937", type: "none", value: 0 },
@@ -27,7 +26,6 @@ const DailyRoulette = ({ isOpen, onClose, userUid, onWin }) => {
         setIsFetching(true);
 
         try {
-            // 1. Preguntamos al servidor cuál es nuestro premio (Inhackeable)
             const response = await axios.post('https://api-paypal-secure.vercel.app/api/gamification/spin-roulette', {
                 userId: userUid
             });
@@ -39,14 +37,12 @@ const DailyRoulette = ({ isOpen, onClose, userUid, onWin }) => {
                 setIsFetching(false);
                 setIsSpinning(true);
 
-                // 2. Calculamos la rotación visual para que caiga en el premio que dijo el servidor
-                const spinMultiplier = Math.floor(Math.random() * 5) + 5; // 5 to 9 spins visuales
+                const spinMultiplier = Math.floor(Math.random() * 5) + 5; 
                 const segmentAngle = 360 / PRIZES.length;
                 const targetRotation = (spinMultiplier * 360) + ((PRIZES.length - winIndex) * segmentAngle) - (segmentAngle / 2);
                 
                 setRotation(prev => prev + targetRotation); 
                 
-                // 3. Esperamos que termine la animación (4s)
                 setTimeout(() => {
                     setIsSpinning(false);
                     setWonPrize(serverPrize);
@@ -57,12 +53,14 @@ const DailyRoulette = ({ isOpen, onClose, userUid, onWin }) => {
             }
         } catch (error) {
             setIsFetching(false);
-            // Capturamos el error si el usuario ya giró hoy o hubo un fallo
             setErrorMessage(error.response?.data?.message || "Error de conexión con el servidor.");
         }
     };
 
     if (!isOpen) return null;
+
+    // Detectamos si puede volver a girar al instante
+    const canSpinAgain = wonPrize?.name === "¡Sigue Intentando!";
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
@@ -79,7 +77,7 @@ const DailyRoulette = ({ isOpen, onClose, userUid, onWin }) => {
                 <div className="p-8 text-center relative z-10">
                     <Sparkles className="w-12 h-12 text-yellow-400 mx-auto mb-2 animate-pulse" />
                     <h2 className="text-3xl font-orbitron font-bold text-white mb-2 tracking-wide">RULETA DIARIA</h2>
-                    <p className="text-gray-400 text-sm mb-6">Gira la ruleta y gana premios exclusivos. ¡Totalmente en vivo y conectado a la Bóveda!</p>
+                    <p className="text-gray-400 text-sm mb-6">Gira la ruleta y gana premios exclusivos. Tienes 1 intento exacto cada 24 horas.</p>
                     
                     <div className="relative w-64 h-64 mx-auto mb-8">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 w-8 h-8 pointer-events-none">
@@ -135,24 +133,47 @@ const DailyRoulette = ({ isOpen, onClose, userUid, onWin }) => {
                         whileHover={!(isSpinning || isFetching) ? { scale: 1.05 } : {}}
                         whileTap={!(isSpinning || isFetching) ? { scale: 0.95 } : {}}
                         onClick={spinRoulette} 
-                        disabled={isSpinning || isFetching}
-                        className="w-full max-w-[200px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-sm flex items-center justify-center gap-2 mx-auto"
+                        disabled={isSpinning || isFetching || (wonPrize && !canSpinAgain)}
+                        className={`w-full max-w-[200px] font-bold py-3 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all uppercase tracking-wider text-sm flex items-center justify-center gap-2 mx-auto ${canSpinAgain ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white animate-pulse' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white disabled:opacity-50 disabled:cursor-not-allowed'}`}
                     >
                         {isFetching ? <Loader className="animate-spin" size={16} /> : null}
-                        {isSpinning ? 'GIRANDO...' : isFetching ? 'CONECTANDO...' : 'GIRAR AHORA'}
+                        {isSpinning ? 'GIRANDO...' : isFetching ? 'CONECTANDO...' : canSpinAgain ? '¡GIRAR DE NUEVO!' : 'GIRAR AHORA'}
                     </motion.button>
 
                     {wonPrize && (
                         <motion.div 
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`mt-6 p-4 rounded-xl border ${wonPrize.type === 'none' ? 'bg-gray-800/50 border-gray-600' : 'bg-green-900/20 border-green-500/50'}`}
+                            className={`mt-6 p-4 rounded-xl border ${wonPrize.type === 'none' ? (canSpinAgain ? 'bg-yellow-900/20 border-yellow-500/50' : 'bg-gray-800/50 border-gray-600') : 'bg-green-900/20 border-green-500/50'}`}
                         >
-                            <h3 className={`font-bold text-lg ${wonPrize.type === 'none' ? 'text-gray-300' : 'text-green-400'}`}>
-                                {wonPrize.type === 'none' ? '¡CASI!' : '¡FELICITACIONES!'}
+                            <h3 className={`font-bold text-lg ${wonPrize.type === 'none' ? (canSpinAgain ? 'text-yellow-400' : 'text-gray-300') : 'text-green-400'}`}>
+                                {wonPrize.type === 'none' ? (canSpinAgain ? '¡TIENES OTRA OPORTUNIDAD!' : '¡CASI!') : '¡FELICITACIONES!'}
                             </h3>
-                            <p className="text-white font-mono mt-1 text-sm">El servidor dictaminó: <span className="text-cyan-400 font-bold">{wonPrize.name}</span></p>
-                            {wonPrize.type !== 'none' && <p className="text-xs text-green-400 mt-2 font-bold uppercase">✔ Acreditado automáticamente a tu cuenta</p>}
+                            <p className="text-white font-mono mt-1 text-sm">Resultado: <span className="text-cyan-400 font-bold">{wonPrize.name}</span></p>
+                            
+                            {/* MOSTRAR CUPÓN GENERADO */}
+                            {wonPrize.type === 'coupon' && wonPrize.generatedCode && (
+                                <div className="mt-3 p-3 bg-pink-500/20 border border-pink-500/50 rounded-lg">
+                                    <p className="text-xs text-pink-300 uppercase tracking-widest font-bold mb-1">Tu Código de Descuento</p>
+                                    <p className="text-xl font-black font-mono text-white tracking-widest bg-black/50 py-2 rounded selection:bg-pink-500">{wonPrize.generatedCode}</p>
+                                    <p className="text-[10px] text-pink-400 mt-2">1 uso por usuario y cuenta. Cópialo y úsalo al pagar (Excluye Exchange).</p>
+                                </div>
+                            )}
+
+                            {/* MOSTRAR PUNTOS */}
+                            {wonPrize.type === 'points' && (
+                                <p className="text-xs text-green-400 mt-2 font-bold uppercase">✔ Puntos acreditados a tu billetera</p>
+                            )}
+                            
+                            {/* MENSAJE DE COOLDOWN SI APLICA */}
+                            {wonPrize.name === "¡Casi!" && (
+                                <p className="text-xs text-gray-400 mt-2 font-bold uppercase">Vuelve mañana a intentarlo.</p>
+                            )}
+                            {canSpinAgain && (
+                                <p className="text-xs text-yellow-400 mt-2 font-bold uppercase flex items-center justify-center gap-1">
+                                    <RefreshCw size={12} /> ¡Gira arriba sin esperar!
+                                </p>
+                            )}
                         </motion.div>
                     )}
                 </div>

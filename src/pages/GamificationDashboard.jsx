@@ -12,6 +12,59 @@ import { signOut, updatePassword } from 'firebase/auth';
 const GamificationDashboard = () => {
     const [isRouletteOpen, setIsRouletteOpen] = useState(false);
     const [points, setPoints] = useState(1250); // Simulated user points
+    const [activeTab, setActiveTab] = useState('billetera');
+    const [userData, setUserData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+
+    // --- LÓGICA DE EDICIÓN DE DATOS ---
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({ nombre_real: '', telefono: '', gamertag: '' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    // --- LÓGICA DE SEGURIDAD (CONTRASEÑA) ---
+    const [newPassword, setNewPassword] = useState('');
+    const [isChangingPwd, setIsChangingPwd] = useState(false);
+    const [pwdMessage, setPwdMessage] = useState({ type: '', text: '' });
+
+    // Cuando los datos cargan, pre-llenamos el formulario
+    useEffect(() => {
+        if (userData) {
+            setEditForm({
+                nombre_real: userData.nombre_real || '',
+                telefono: userData.telefono || '',
+                gamertag: userData.gamertag || ''
+            });
+        }
+    }, [userData]);
+
+    const handleSaveData = async () => {
+        setIsSaving(true);
+        try {
+            const userRef = doc(db, "usuarios", auth.currentUser.uid);
+            await updateDoc(userRef, editForm);
+            setUserData(prev => ({ ...prev, ...editForm }));
+            setIsEditing(false);
+            alert("¡Datos actualizados con éxito!");
+        } catch (error) {
+            alert("Error al guardar los datos.");
+        }
+        setIsSaving(false);
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        setIsChangingPwd(true);
+        setPwdMessage({ type: '', text: '' });
+        try {
+            await updatePassword(auth.currentUser, newPassword);
+            setPwdMessage({ type: 'success', text: '¡Contraseña actualizada con éxito!' });
+            setNewPassword('');
+        } catch (error) {
+            setPwdMessage({ type: 'error', text: 'Error: Debes haber iniciado sesión recientemente para hacer esto. Cierra sesión y vuelve a entrar.' });
+        }
+        setIsChangingPwd(false);
+    };
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">

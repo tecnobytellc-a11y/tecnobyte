@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ShieldCheck, FileCheck, ImageIcon, Bot, Link as LinkIcon, AlertTriangle, ArrowRight } from 'lucide-react';
 import { MAX_FILE_SIZE_BYTES } from '../../config/constants';
 import { auth, db } from '../../pages/firebase'; // Asegúrate de que la ruta sea correcta

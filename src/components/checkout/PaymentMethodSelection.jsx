@@ -1,13 +1,47 @@
-import React, { useState } from 'react';
-import { Ticket, Loader, AlertTriangle, Check, Wallet } from 'lucide-react'; // INYECCIÓN: Añadido Wallet
+import React, { useState, useEffect } from 'react';
+import { Ticket, Loader, AlertTriangle, Check, Wallet } from 'lucide-react';
 import { SERVER_URL } from '../../config/constants';
 
-// INYECCIÓN: Añadidos userData y cartTotal a las propiedades
+// INYECCIÓN: Para extraer el saldo en tiempo real y evitar el retraso
+import { auth, db } from '../../pages/firebase'; 
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+
 const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, applyCoupon, coupon, removeCoupon, userData, cartTotal }) => {
     const [couponInput, setCouponInput] = useState(''); 
     const [couponError, setCouponError] = useState(''); 
     const [isValidating, setIsValidating] = useState(false);
     
+    // --- INYECCIÓN: OBTENCIÓN INDEPENDIENTE DEL SALDO TNB ---
+    const [localUserData, setLocalUserData] = useState(userData);
+    const [isCheckingBalance, setIsCheckingBalance] = useState(true);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Si el componente padre nos pasó el saldo rápido, lo usamos
+                if (userData && userData.saldo_tnb !== undefined) {
+                    setLocalUserData(userData);
+                    setIsCheckingBalance(false);
+                } else {
+                    // Si el padre falló por el retraso, vamos y lo buscamos nosotros mismos
+                    try {
+                        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+                        if (userDoc.exists()) {
+                            setLocalUserData(userDoc.data());
+                        }
+                    } catch(e) { console.error("Error obteniendo saldo", e); }
+                    setIsCheckingBalance(false);
+                }
+            } else {
+                setLocalUserData(null);
+                setIsCheckingBalance(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [userData]);
+    // ---------------------------------------------------------
+
     const handleApplyCoupon = async () => { 
         if(!couponInput.trim()) return; 
         setIsValidating(true); 
@@ -36,7 +70,7 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
   
     return (
       <div className="max-w-4xl mx-auto bg-gray-900/80 p-8 rounded-2xl border border-indigo-500/20 backdrop-blur-sm animate-fade-in-up">
-        {/* SECCIÓN DE CUPÓN (Intacta) */}
+        {/* SECCIÓN DE CUPÓN */}
         <div className="mb-8 p-4 bg-indigo-900/10 rounded-xl border border-indigo-500/30">
             <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
                 <Ticket size={16} className="text-yellow-400"/> ¿Tienes un cupón?
@@ -77,11 +111,11 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
-          {/* INYECCIÓN: SALDO TNB - MÉTODO PRINCIPAL */}
+          {/* INYECCIÓN: SALDO TNB (AHORA CON CARGA DE ESTADO) */}
           <button 
             onClick={() => { setPaymentMethod('saldo_tnb'); setCheckoutStep(1); }} 
-            disabled={!userData || (userData.saldo_tnb || 0) < (cartTotal || 0)}
-            className={`p-6 rounded-xl border flex flex-col items-center gap-3 relative overflow-hidden group transition-all ${(!userData || (userData.saldo_tnb || 0) < (cartTotal || 0)) ? 'bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed' : 'bg-green-900/20 border-green-500/50 hover:border-green-400 hover:bg-green-900/40 shadow-[0_0_15px_rgba(34,197,94,0.15)]'}`}
+            disabled={isCheckingBalance || !localUserData || (localUserData.saldo_tnb || 0) < (cartTotal || 0)}
+            className={`p-6 rounded-xl border flex flex-col items-center gap-3 relative overflow-hidden group transition-all ${(isCheckingBalance || !localUserData || (localUserData.saldo_tnb || 0) < (cartTotal || 0)) ? 'bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed' : 'bg-green-900/20 border-green-500/50 hover:border-green-400 hover:bg-green-900/40 shadow-[0_0_15px_rgba(34,197,94,0.15)]'}`}
           >
             <div className="absolute top-0 right-0 bg-green-500 text-black text-[10px] font-bold px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">RÁPIDO</div>
             <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-700 rounded-full flex items-center justify-center text-white drop-shadow-[0_4px_10px_rgba(34,197,94,0.4)] group-hover:scale-110 transition-transform">
@@ -89,13 +123,17 @@ const PaymentMethodSelection = ({ setPaymentMethod, setCheckoutStep, setView, ap
             </div>
             <div className="flex flex-col items-center">
                 <span className="font-bold text-white text-center">Saldo TNB</span>
-                {(!userData || (userData.saldo_tnb || 0) < (cartTotal || 0)) ? (
+                {isCheckingBalance ? (
+                    <span className="text-[10px] text-gray-400 font-bold bg-gray-500/10 px-2 py-1 rounded-full mt-1 border border-gray-500/20 flex items-center gap-1">
+                        <Loader size={10} className="animate-spin"/> Cargando...
+                    </span>
+                ) : (!localUserData || (localUserData.saldo_tnb || 0) < (cartTotal || 0)) ? (
                     <span className="text-[10px] text-red-400 font-bold bg-red-500/10 px-2 py-1 rounded-full mt-1 border border-red-500/20">
-                        {userData ? `Insuficiente ($${(userData.saldo_tnb || 0).toFixed(2)})` : 'Inicia sesión'}
+                        {localUserData ? `Insuficiente ($${(localUserData.saldo_tnb || 0).toFixed(2)})` : 'Inicia sesión'}
                     </span>
                 ) : (
                     <span className="text-[10px] text-green-400 font-bold bg-green-500/10 px-2 py-1 rounded-full mt-1 border border-green-500/20">
-                        Disponible: ${(userData.saldo_tnb || 0).toFixed(2)}
+                        Disponible: ${(localUserData.saldo_tnb || 0).toFixed(2)}
                     </span>
                 )}
             </div>

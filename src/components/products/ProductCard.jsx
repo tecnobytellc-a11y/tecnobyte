@@ -3,14 +3,26 @@ import { ShoppingCart } from 'lucide-react';
 import DynamicIcon from '../ui/DynamicIcon';
 import { CUSTOM_ICONS } from '../../config/constants';
 import { motion } from 'framer-motion';
-// INYECCIÓN: Importar auth para verificar sesión
 import { auth } from '../../pages/firebase';
+// INYECCIÓN: Importar el observador de sesión de Firebase
+import { onAuthStateChanged } from 'firebase/auth'; 
 
 const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages }) => {
   const packages = multipackages ? multipackages[service.title] : null;
   const [selectedPkg, setSelectedPkg] = useState(packages ? packages[0] : null);
 
-  // Asegurarnos de actualizar el paquete si cambian los datos del servidor
+  // --- INYECCIÓN: ESTADO DE SESIÓN EN TIEMPO REAL ---
+  const [activeUser, setActiveUser] = useState(null);
+
+  useEffect(() => {
+    // Escucha activamente si el usuario está logueado para no pedirle el correo
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setActiveUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+  // --------------------------------------------------
+
   useEffect(() => {
     if (packages && packages.length > 0) {
       setSelectedPkg(packages[0]);
@@ -22,19 +34,16 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
   const [isForFriend, setIsForFriend] = useState(false);
   const [tnbData, setTnbData] = useState({ friendEmail: '', friendName: '', senderName: '', myEmail: '' });
 
-  // 💰 Tu Calculadora de Comisiones Blindada
   const calcularPrecioConComision = (montoDeseado) => {
       const monto = parseFloat(montoDeseado) || 0;
-      if (service.isTnbRecharge) return monto; // INYECCIÓN: Sin comisión para recarga directa de saldo TNB
+      if (service.isTnbRecharge) return monto; 
       if (monto < 10) return monto + 0.14;
       if (monto >= 10 && monto <= 50) return monto * 1.02;
       return monto * 1.015;
   };
 
   const precioFinalCalculado = calcularPrecioConComision(customAmount);
-  // --- FIN MÓDULO RANGO LIBRE ---
 
-  // 🛡️ SOLUCIÓN: Calculamos primero y asignamos el precio dependiendo del tipo de producto
   const currentPrice = (service.isCustomAmount || service.isTnbRecharge) 
     ? precioFinalCalculado 
     : (packages && selectedPkg ? selectedPkg.price : (service.price || 0));
@@ -43,14 +52,13 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
   
   const handleAdd = () => {
     if (service.isTnbRecharge) {
-        // INYECCIÓN: Lógica para la Recarga de Saldo TNB
         if (isForFriend && (!tnbData.friendEmail || !tnbData.friendName)) {
             alert("Por favor, completa los datos de tu amigo para enviarle la recarga.");
             return;
         }
-        // INYECCIÓN: Si no está logueado y no es para un amigo, exigir correo
-        if (!isForFriend && !auth.currentUser && !tnbData.myEmail) {
-            alert("Por favor, ingresa tu correo para recibir la recarga.");
+        // INYECCIÓN: Usa el estado en tiempo real (activeUser) en lugar del síncrono
+        if (!isForFriend && !activeUser && !tnbData.myEmail) {
+            alert("Por favor, ingresa tu correo para recibir la recarga (o inicia sesión).");
             return;
         }
 
@@ -59,21 +67,18 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
             title: `Recarga Saldo TNB ($${customAmount})` + (isForFriend ? ` Regalo para ${tnbData.friendName}` : ''),
             faceValue: Number(customAmount),
             price: Number(precioFinalCalculado.toFixed(2)),
-            tnbData: { isForFriend, ...tnbData }
+            tnbData: { isForFriend, ...tnbData, myEmail: activeUser ? activeUser.email : tnbData.myEmail }
         });
     } else if (service.isCustomAmount) {
-      // Lógica para Gift Cards de monto libre (Ej. Amazon)
       addToCart({
         ...service,
-        title: `${service.title} de $${customAmount}`, // Ej: "Amazon Gift Card de $15"
-        faceValue: Number(customAmount),               // El monto real para Reloadly
-        price: Number(precioFinalCalculado.toFixed(2)) // Lo que paga el cliente con tu comisión
+        title: `${service.title} de $${customAmount}`, 
+        faceValue: Number(customAmount),               
+        price: Number(precioFinalCalculado.toFixed(2)) 
       });
     } else if (packages && selectedPkg) {
-      // Lógica para sub-paquetes (Ej. Free Fire, Robux)
       addToCart({ ...service, ...selectedPkg, title: currentTitle, price: currentPrice, packageId: selectedPkg.id });
     } else {
-      // Lógica para productos normales
       addToCart(service);
     }
   };
@@ -90,7 +95,6 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
         className="bg-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl p-6 hover:border-indigo-500 transition-colors duration-300 group shadow-lg flex flex-col justify-between"
     >
       <div>
-        {/* Renderizado condicional del icono o PNG gigante */}
         {customIconUrl ? (
           <div className="flex justify-start mb-6">
             <img 
@@ -108,7 +112,6 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
         <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
         <p className="text-gray-400 text-sm mb-4">{service.description}</p>
         
-        {/* Renderizado condicional del menú desplegable solo si hay paquetes */}
         {packages && selectedPkg && (
           <div className="mb-4">
             <label className="text-xs text-indigo-300 font-bold block mb-2 uppercase tracking-wide">Selecciona un paquete:</label>
@@ -127,7 +130,7 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
         )}
       </div>
 
-      {/* 🎛️ INYECCIÓN: MÓDULO DE RECARGA TNB (Regalos y Personal) */}
+      {/* 🎛️ MÓDULO DE RECARGA TNB */}
         {service.isTnbRecharge && (
             <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-indigo-500/30">
                 <label className="block text-xs text-indigo-300 font-bold mb-2 uppercase tracking-wide">
@@ -162,8 +165,8 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
                         <input type="text" placeholder="De parte de (Tu Nombre)" value={tnbData.senderName} onChange={e => setTnbData({...tnbData, senderName: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-pink-500 outline-none transition-colors" />
                     </motion.div>
                 ) : (
-                    // INYECCIÓN: Si no está logueado, pide el correo. Si está logueado, no muestra nada.
-                    !auth.currentUser && (
+                    // Si NO hay sesión activa, pide el correo
+                    !activeUser && (
                         <motion.div initial={{opacity: 0, y: -10}} animate={{opacity: 1, y: 0}} className="space-y-3">
                             <input type="email" placeholder="Tu correo (Para recibir la recarga)" value={tnbData.myEmail} onChange={e => setTnbData({...tnbData, myEmail: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none transition-colors" />
                         </motion.div>
@@ -206,7 +209,6 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
           </span>
         </div>
         
-        {/* NUEVO BOTÓN "AGREGAR AL CARRITO" COMPACTO Y SUTIL */}
         <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -219,7 +221,6 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
           </div>
           <span className="text-[9px] font-bold uppercase whitespace-nowrap">Agregar al carrito</span>
         </motion.button>
-
       </div>
     </motion.div>
   );

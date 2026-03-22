@@ -1,18 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import RankSystem from '../components/gamification/RankSystem';
 import TecnoPoints from '../components/gamification/TecnoPoints';
 import MysteryBox from '../components/gamification/MysteryBox';
 import Leaderboard from '../components/gamification/Leaderboard';
 import DailyRoulette from '../components/gamification/DailyRoulette';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth, db } from './firebase'; 
+import { auth, db, storage } from '../firebase'; // Importamos storage
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut, updatePassword, updateProfile } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode } from 'lucide-react';
+import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud } from 'lucide-react';
 
-// Generamos 20 avatares gamer dinámicos
-const PRESET_AVATARS = Array.from({ length: 20 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=GamerPro${i + 1}&backgroundColor=b6e3f4,c0aede,d1d4f9`);
+// Generamos 50 avatares con 5 estilos de arte diferentes
+const PRESET_AVATARS = [
+    ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=ProGamer${i}&backgroundColor=b6e3f4,c0aede,d1d4f9`),
+    ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=Mecha${i}&backgroundColor=ffdfbf,c0aede`),
+    ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/micah/svg?seed=Hero${i}&backgroundColor=ffdfbf,ffd5dc`),
+    ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/lorelei/svg?seed=Legend${i}&backgroundColor=b6e3f4,c0aede`),
+    ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/adventurer/svg?seed=Quest${i}&backgroundColor=ffd5dc,d1d4f9`)
+];
 
 const GamificationDashboard = () => {
     const [isRouletteOpen, setIsRouletteOpen] = useState(false);
@@ -28,13 +35,14 @@ const GamificationDashboard = () => {
     const [editForm, setEditForm] = useState({ nombre_real: '', telefono: '', gamertag: '' });
     const [isSaving, setIsSaving] = useState(false);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const fileInputRef = useRef(null);
 
     // --- ESTADOS DE SEGURIDAD Y 2FA ---
     const [newPassword, setNewPassword] = useState('');
     const [isChangingPwd, setIsChangingPwd] = useState(false);
     const [pwdMessage, setPwdMessage] = useState({ type: '', text: '' });
-    const [show2FAModal, setShow2FAModal] = useState(false);
-    const [twoFAMethod, setTwoFAMethod] = useState(null); // 'app' o 'sms'
+    const [twoFAMethod, setTwoFAMethod] = useState(null);
 
     // --- CARGA DE DATOS ---
     useEffect(() => {
@@ -107,28 +115,51 @@ const GamificationDashboard = () => {
         setIsChangingPwd(false);
     };
 
+    // --- MOTOR DE FOTOS DE PERFIL ---
     const handleUpdateAvatar = async (url) => {
         try {
-            // 1. Actualiza el perfil en Firebase Auth
             await updateProfile(auth.currentUser, { photoURL: url });
-            // 2. Actualiza la bóveda Firestore
             await updateDoc(doc(db, "usuarios", auth.currentUser.uid), { avatar: url });
-            
             setUserData(prev => ({ ...prev, avatar: url }));
             setShowAvatarModal(false);
             alert("¡Foto de perfil actualizada!");
         } catch (error) {
-            alert("Error al actualizar la foto.");
+            alert("Error al actualizar la foto en la base de datos.");
         }
     };
 
     const handleDeleteAvatar = async () => {
-        await handleUpdateAvatar(""); // Lo dejamos vacío para que use el por defecto
+        await handleUpdateAvatar(""); // Volver a la por defecto
+    };
+
+    const handleCustomUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Límite estricto de 5 Megabytes
+        if (file.size > 5 * 1024 * 1024) {
+            alert("⚠️ La imagen excede el límite de 5MB. Por favor, sube una foto más ligera.");
+            e.target.value = '';
+            return;
+        }
+
+        setIsUploadingPhoto(true);
+        try {
+            const storageRef = ref(storage, `avatars/${auth.currentUser.uid}_${Date.now()}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            
+            await handleUpdateAvatar(downloadURL);
+        } catch (error) {
+            console.error(error);
+            alert("Error al subir la imagen. Verifica que Firebase Storage esté activado.");
+        }
+        setIsUploadingPhoto(false);
+        e.target.value = ''; // Limpiar el input
     };
 
     const handleStart2FASetup = (method) => {
         setTwoFAMethod(method);
-        // Aquí conectaremos con Vercel en el Paso 3
         alert(`Iniciando configuración de 2FA por ${method === 'app' ? 'Google Authenticator' : 'SMS'}. (Conectando con Vercel...)`);
     };
 
@@ -161,7 +192,6 @@ const GamificationDashboard = () => {
                     <div className="bg-[#11111a] border border-gray-800 rounded-3xl p-6 relative overflow-hidden shadow-xl">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500"></div>
                         
-                        {/* FOTO DE PERFIL DINÁMICA */}
                         <div className="flex flex-col items-center gap-4 mb-6 relative group">
                             <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-600 p-1 relative cursor-pointer" onClick={() => setShowAvatarModal(true)}>
                                 <img src={currentAvatar} alt="Avatar" className="w-full h-full rounded-full bg-gray-900 object-cover" />
@@ -194,7 +224,6 @@ const GamificationDashboard = () => {
                             
                             <div className="w-full h-px bg-gray-800 my-4"></div>
 
-                            {/* BOTÓN IR A TIENDA */}
                             <button onClick={() => navigate('/')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20">
                                 <Store size={18} /> Ir a la Tienda
                             </button>
@@ -216,7 +245,6 @@ const GamificationDashboard = () => {
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                     <div className="lg:col-span-1 space-y-6">
                                         
-                                        {/* BILLETERA: SALDO TNB (USD) */}
                                         <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/10 border border-green-500/30 p-6 rounded-2xl relative overflow-hidden group">
                                             <div className="absolute top-0 right-0 p-4 opacity-20"><Wallet size={60} className="text-green-500" /></div>
                                             <h3 className="text-gray-300 font-bold tracking-wide mb-2 flex items-center gap-2"><Wallet className="text-green-400 w-5 h-5" /> Saldo TNB (USD)</h3>
@@ -293,7 +321,7 @@ const GamificationDashboard = () => {
                             </motion.div>
                         )}
 
-                        {/* 🔒 PESTAÑA: SEGURIDAD Y 2FA VIVO */}
+                        {/* 🔒 PESTAÑA: SEGURIDAD Y 2FA */}
                         {activeTab === 'seguridad' && (
                             <motion.div key="seguridad" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-3xl p-8">
                                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white"><Shield className="text-green-500"/> Seguridad de la Cuenta</h2>
@@ -314,7 +342,6 @@ const GamificationDashboard = () => {
                                         </div>
                                     </form>
 
-                                    {/* MÓDULO 2FA INTERACTIVO */}
                                     <div className="bg-gradient-to-r from-gray-900 to-indigo-900/20 p-6 rounded-xl border border-indigo-500/30">
                                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                                             <div>
@@ -356,22 +383,54 @@ const GamificationDashboard = () => {
                 </div>
             </div>
 
-            {/* MODAL DE SELECCIÓN DE AVATAR */}
+            {/* MODAL DE SELECCIÓN DE AVATAR (AHORA CON SUBIDA LOCAL Y 50 OPCIONES) */}
             <AnimatePresence>
                 {showAvatarModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#11111a] border border-gray-800 p-6 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                            <h3 className="text-xl font-bold text-white mb-4">Elige tu Avatar</h3>
-                            <div className="grid grid-cols-4 md:grid-cols-5 gap-4 mb-6">
-                                {PRESET_AVATARS.map((url, idx) => (
-                                    <img key={idx} src={url} alt={`Avatar ${idx}`} onClick={() => handleUpdateAvatar(url)} className="w-full aspect-square rounded-full bg-gray-900 border-2 border-transparent hover:border-indigo-500 cursor-pointer transition-all hover:scale-110" />
-                                ))}
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#11111a] border border-gray-800 p-6 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                            
+                            <div className="flex justify-between items-center mb-6 shrink-0">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2"><User className="text-cyan-400"/> Personaliza tu Avatar</h3>
+                                <button onClick={() => setShowAvatarModal(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
                             </div>
-                            <div className="flex justify-between items-center border-t border-gray-800 pt-4 mt-4">
-                                <button onClick={handleDeleteAvatar} className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm font-bold bg-red-500/10 px-4 py-2 rounded-lg">
+
+                            {/* ZONA DE SUBIDA LOCAL (Hasta 5MB) */}
+                            <div className="mb-6 p-4 border-2 border-dashed border-indigo-500/30 rounded-xl bg-indigo-500/5 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div>
+                                    <h4 className="text-white font-bold text-sm">Subir Foto Propia</h4>
+                                    <p className="text-xs text-gray-400 mt-1">Sube una imagen desde tu dispositivo (Máx 5MB).</p>
+                                </div>
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    ref={fileInputRef}
+                                    onChange={handleCustomUpload}
+                                />
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingPhoto}
+                                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg shadow-lg flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {isUploadingPhoto ? <Loader className="animate-spin" size={16}/> : <UploadCloud size={16}/>}
+                                    {isUploadingPhoto ? 'Subiendo...' : 'Seleccionar Archivo'}
+                                </button>
+                            </div>
+
+                            {/* GRILLA DE 50 AVATARES */}
+                            <div className="overflow-y-auto pr-2 hide-scrollbar">
+                                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">O Elige un Avatar Predeterminado</p>
+                                <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 mb-4">
+                                    {PRESET_AVATARS.map((url, idx) => (
+                                        <img key={idx} src={url} alt={`Avatar ${idx}`} onClick={() => handleUpdateAvatar(url)} className="w-full aspect-square rounded-full bg-gray-900 border-2 border-transparent hover:border-cyan-400 cursor-pointer transition-all hover:scale-110" />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center border-t border-gray-800 pt-4 mt-4 shrink-0">
+                                <button onClick={handleDeleteAvatar} className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm font-bold bg-red-500/10 px-4 py-2 rounded-lg transition-colors">
                                     <Trash2 size={16} /> Eliminar Foto
                                 </button>
-                                <button onClick={() => setShowAvatarModal(false)} className="text-gray-400 hover:text-white font-bold px-4 py-2">Cerrar</button>
                             </div>
                         </motion.div>
                     </div>

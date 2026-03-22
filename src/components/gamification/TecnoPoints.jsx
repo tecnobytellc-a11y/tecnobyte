@@ -54,8 +54,8 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
     return (
         <>
             {/* TU DISEÑO EXACTO E INTACTO */}
-            <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 relative overflow-hidden group">
-                <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 relative overflow-hidden group h-full flex flex-col justify-between">
+                <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                     <Coins size={120} className="text-cyan-500" />
                 </div>
                 
@@ -83,7 +83,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                         <motion.button 
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsStoreOpen(true)} // <-- INYECCIÓN AQUÍ
+                            onClick={() => setIsStoreOpen(true)}
                             className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow-lg"
                         >
                             Canjear Recompensas
@@ -99,7 +99,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                 </div>
             </div>
 
-            {/* LA TIENDA DE RECOMPENSAS (MODAL INYECTADO) */}
+            {/* LA TIENDA DE RECOMPENSAS (MODAL INYECTADO Y ARREGLADO) */}
             <AnimatePresence>
                 {isStoreOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
@@ -110,7 +110,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                             className="bg-[#0a0a0f] border border-indigo-500/50 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(79,70,229,0.2)]"
                         >
                             {/* Header de la Tienda */}
-                            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#11111a] rounded-t-2xl">
+                            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#11111a] rounded-t-2xl shrink-0">
                                 <div>
                                     <h2 className="text-2xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 flex items-center gap-3">
                                         <Sparkles className="text-cyan-400" /> Tienda de Recompensas
@@ -129,7 +129,7 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                             </div>
 
                             {/* Filtros de Categoría */}
-                            <div className="p-4 border-b border-gray-800 bg-[#11111a]/50 overflow-x-auto flex gap-2 hide-scrollbar">
+                            <div className="p-4 border-b border-gray-800 bg-[#11111a]/50 overflow-x-auto flex gap-2 hide-scrollbar shrink-0">
                                 {categories.map(cat => (
                                     <button 
                                         key={cat}
@@ -141,45 +141,59 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
                                 ))}
                             </div>
 
-                            {/* Grilla de Productos */}
-                            <div className="p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {filteredRewards.map((reward) => {
-                                    const canAfford = points >= reward.cost;
-                                    return (
-                                        <motion.div 
-                                            whileHover={{ y: -5 }}
-                                            key={reward.id} 
-                                            className={`bg-gray-900 border rounded-xl p-5 flex flex-col relative overflow-hidden transition-colors ${canAfford ? 'border-gray-700 hover:border-indigo-500' : 'border-red-900/30 opacity-70'}`}
-                                        >
-                                            <div className="absolute -right-4 -top-4 opacity-5">
-                                                <reward.icon size={100} />
-                                            </div>
-                                            
-                                            <div className={`p-3 rounded-xl bg-gray-800/50 w-fit mb-4 border border-gray-700`}>
-                                                <reward.icon className={reward.color} size={28} />
-                                            </div>
-                                            
-                                            <h4 className="text-white font-bold text-sm mb-1 z-10">{reward.name}</h4>
-                                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-4 z-10">{reward.category}</span>
-                                            
-                                            <div className="mt-auto z-10">
-                                                <div className="flex justify-between items-end mb-3">
-                                                    <span className="text-xs text-gray-400">Precio</span>
-                                                    <span className={`font-mono font-bold ${canAfford ? 'text-cyan-400' : 'text-red-400'}`}>
-                                                        {reward.cost.toLocaleString()} PTS
+                            {/* Grilla de Productos ARREGLADA */}
+                            <div className="p-6 overflow-y-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-fr">
+                                    {filteredRewards.map((reward) => {
+                                        const canAfford = points >= reward.cost;
+                                        return (
+                                            <motion.div 
+                                                whileHover={{ y: -5 }}
+                                                key={reward.id} 
+                                                className={`bg-gray-900 border rounded-xl p-5 flex flex-col relative overflow-hidden transition-colors h-full ${canAfford ? 'border-gray-700 hover:border-indigo-500' : 'border-red-900/30 opacity-70'}`}
+                                            >
+                                                {/* Icono de fondo */}
+                                                <div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none z-0">
+                                                    <reward.icon size={100} />
+                                                </div>
+                                                
+                                                {/* Icono pequeño superior */}
+                                                <div className={`p-3 rounded-xl bg-gray-800/50 w-fit mb-4 border border-gray-700 relative z-10`}>
+                                                    <reward.icon className={reward.color} size={24} />
+                                                </div>
+                                                
+                                                {/* Contenedor flexible para los textos */}
+                                                <div className="relative z-10 flex-grow flex flex-col">
+                                                    {/* line-clamp-2 asegura que si el título es largo, ocupe máximo 2 líneas sin desbordarse */}
+                                                    <h4 className="text-white font-bold text-sm leading-snug mb-1 line-clamp-2 min-h-[40px]">
+                                                        {reward.name}
+                                                    </h4>
+                                                    {/* truncate corta el texto con "..." si la categoría es muy larga */}
+                                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-4 block truncate">
+                                                        {reward.category}
                                                     </span>
                                                 </div>
-                                                <button 
-                                                    onClick={() => handleRedeem(reward)}
-                                                    disabled={!canAfford}
-                                                    className={`w-full py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${canAfford ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.3)]' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
-                                                >
-                                                    {canAfford ? 'Canjear' : 'Puntos Insuficientes'}
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
+                                                
+                                                {/* Contenedor inferior (Botón y Precio) siempre anclado abajo gracias a mt-auto */}
+                                                <div className="mt-auto relative z-10 w-full pt-2">
+                                                    <div className="flex justify-between items-end mb-3">
+                                                        <span className="text-xs text-gray-400">Precio</span>
+                                                        <span className={`font-mono font-bold text-sm ${canAfford ? 'text-cyan-400' : 'text-red-400'}`}>
+                                                            {reward.cost.toLocaleString()} PTS
+                                                        </span>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => handleRedeem(reward)}
+                                                        disabled={!canAfford}
+                                                        className={`w-full py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${canAfford ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.3)]' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
+                                                    >
+                                                        {canAfford ? 'Canjear' : 'Puntos Insuficientes'}
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </motion.div>
                     </div>

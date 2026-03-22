@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gift, Zap, X, Coins, Sparkles } from 'lucide-react';
+import { Gift, Zap, X, Coins, Sparkles, Loader } from 'lucide-react';
+import axios from 'axios';
 
+// Los premios visuales deben estar en el mismo orden que el servidor
 const PRIZES = [
     { id: 1, name: "10 Tecno Points", color: "#6366f1", type: "points", value: 10 },
     { id: 2, name: "¡Sigue Intentando!", color: "#1f2937", type: "none", value: 0 },
@@ -11,33 +13,53 @@ const PRIZES = [
     { id: 6, name: "Cupón 10%", color: "#eab308", type: "coupon", value: 10 },
 ];
 
-const DailyRoulette = ({ isOpen, onClose, onWin }) => {
+const DailyRoulette = ({ isOpen, onClose, userUid, onWin }) => {
     const [isSpinning, setIsSpinning] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
     const [rotation, setRotation] = useState(0);
     const [wonPrize, setWonPrize] = useState(null);
+    const [errorMessage, setErrorMessage] = useState("");
 
-    const spinRoulette = () => {
-        if (isSpinning) return;
-        setIsSpinning(true);
+    const spinRoulette = async () => {
+        if (isSpinning || isFetching) return;
         setWonPrize(null);
+        setErrorMessage("");
+        setIsFetching(true);
 
-        // Calculate random winner
-        const winIndex = Math.floor(Math.random() * PRIZES.length);
-        const spinMultiplier = Math.floor(Math.random() * 5) + 5; // 5 to 9 spins
-        const segmentAngle = 360 / PRIZES.length;
-        const targetRotation = (spinMultiplier * 360) + (winIndex * segmentAngle) + (segmentAngle / 2);
-        
-        setRotation(prev => prev - targetRotation); // Spin backwards for effect or forwards, adjusting the calculation
-        
-        // Wait for spin to finish (4s)
-        setTimeout(() => {
-            setIsSpinning(false);
-            const prize = PRIZES[(PRIZES.length - winIndex) % PRIZES.length]; // Adjust based on draw direction
-            setWonPrize(prize);
-            if (prize.type !== 'none' && onWin) {
-                onWin(prize);
+        try {
+            // 1. Preguntamos al servidor cuál es nuestro premio (Inhackeable)
+            const response = await axios.post('https://api-paypal-secure.vercel.app/api/gamification/spin-roulette', {
+                userId: userUid
+            });
+
+            if (response.data.success) {
+                const serverPrize = response.data.prize;
+                const winIndex = response.data.prizeIndex;
+                
+                setIsFetching(false);
+                setIsSpinning(true);
+
+                // 2. Calculamos la rotación visual para que caiga en el premio que dijo el servidor
+                const spinMultiplier = Math.floor(Math.random() * 5) + 5; // 5 to 9 spins visuales
+                const segmentAngle = 360 / PRIZES.length;
+                const targetRotation = (spinMultiplier * 360) + ((PRIZES.length - winIndex) * segmentAngle) - (segmentAngle / 2);
+                
+                setRotation(prev => prev + targetRotation); 
+                
+                // 3. Esperamos que termine la animación (4s)
+                setTimeout(() => {
+                    setIsSpinning(false);
+                    setWonPrize(serverPrize);
+                    if (serverPrize.type !== 'none' && onWin) {
+                        onWin(serverPrize);
+                    }
+                }, 4000);
             }
-        }, 4000);
+        } catch (error) {
+            setIsFetching(false);
+            // Capturamos el error si el usuario ya giró hoy o hubo un fallo
+            setErrorMessage(error.response?.data?.message || "Error de conexión con el servidor.");
+        }
     };
 
     if (!isOpen) return null;
@@ -57,15 +79,13 @@ const DailyRoulette = ({ isOpen, onClose, onWin }) => {
                 <div className="p-8 text-center relative z-10">
                     <Sparkles className="w-12 h-12 text-yellow-400 mx-auto mb-2 animate-pulse" />
                     <h2 className="text-3xl font-orbitron font-bold text-white mb-2 tracking-wide">RULETA DIARIA</h2>
-                    <p className="text-gray-400 text-sm mb-8">Gira la ruleta y gana premios exclusivos, descuentos y Tecno Points. ¡Tienes 1 intento diario!</p>
+                    <p className="text-gray-400 text-sm mb-6">Gira la ruleta y gana premios exclusivos. ¡Totalmente en vivo y conectado a la Bóveda!</p>
                     
                     <div className="relative w-64 h-64 mx-auto mb-8">
-                        {/* Selector Pointer */}
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 w-8 h-8 pointer-events-none">
                             <div className="w-0 h-0 border-l-[16px] border-l-transparent border-r-[16px] border-r-transparent border-t-[24px] border-t-yellow-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"></div>
                         </div>
 
-                        {/* Roulette Wheel */}
                         <motion.div 
                             className="w-full h-full rounded-full border-4 border-indigo-900 overflow-hidden relative shadow-[0_0_30px_rgba(0,0,0,0.8)_inset]"
                             animate={{ rotate: rotation }}
@@ -100,20 +120,26 @@ const DailyRoulette = ({ isOpen, onClose, onWin }) => {
                             })}
                         </motion.div>
                         
-                        {/* Center Button Area */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gray-900 rounded-full border-[4px] border-indigo-500 flex items-center justify-center z-10 shadow-xl">
                             <Gift className="text-white w-6 h-6 animate-bounce" />
                         </div>
                     </div>
 
+                    {errorMessage && (
+                        <div className="mb-4 bg-red-900/30 border border-red-500/50 p-3 rounded-lg text-red-400 text-xs font-bold">
+                            {errorMessage}
+                        </div>
+                    )}
+
                     <motion.button 
-                        whileHover={!isSpinning ? { scale: 1.05 } : {}}
-                        whileTap={!isSpinning ? { scale: 0.95 } : {}}
+                        whileHover={!(isSpinning || isFetching) ? { scale: 1.05 } : {}}
+                        whileTap={!(isSpinning || isFetching) ? { scale: 0.95 } : {}}
                         onClick={spinRoulette} 
-                        disabled={isSpinning}
-                        className="w-full max-w-[200px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-sm"
+                        disabled={isSpinning || isFetching}
+                        className="w-full max-w-[200px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-sm flex items-center justify-center gap-2 mx-auto"
                     >
-                        {isSpinning ? 'Girando...' : 'GIRAR AHORA'}
+                        {isFetching ? <Loader className="animate-spin" size={16} /> : null}
+                        {isSpinning ? 'GIRANDO...' : isFetching ? 'CONECTANDO...' : 'GIRAR AHORA'}
                     </motion.button>
 
                     {wonPrize && (
@@ -125,8 +151,8 @@ const DailyRoulette = ({ isOpen, onClose, onWin }) => {
                             <h3 className={`font-bold text-lg ${wonPrize.type === 'none' ? 'text-gray-300' : 'text-green-400'}`}>
                                 {wonPrize.type === 'none' ? '¡CASI!' : '¡FELICITACIONES!'}
                             </h3>
-                            <p className="text-white font-mono mt-1 text-sm">Has obtenido: <span className="text-cyan-400 font-bold">{wonPrize.name}</span></p>
-                            {wonPrize.type !== 'none' && <p className="text-xs text-gray-400 mt-2">Ha sido acreditado a tu cuenta (Simulación).</p>}
+                            <p className="text-white font-mono mt-1 text-sm">El servidor dictaminó: <span className="text-cyan-400 font-bold">{wonPrize.name}</span></p>
+                            {wonPrize.type !== 'none' && <p className="text-xs text-green-400 mt-2 font-bold uppercase">✔ Acreditado automáticamente a tu cuenta</p>}
                         </motion.div>
                     )}
                 </div>

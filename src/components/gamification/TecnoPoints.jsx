@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // --- INYECCIÓN: Importamos las herramientas de Firebase ---
-import { auth, db } from '../firebase'; // Asegúrate de que la ruta a firebase.js sea correcta
+import { auth, db } from '../../pages/firebase'; // Asegúrate de que la ruta a firebase.js sea correcta
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 const REWARDS_CATALOG = [

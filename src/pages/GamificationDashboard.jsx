@@ -5,11 +5,14 @@ import MysteryBox from '../components/gamification/MysteryBox';
 import Leaderboard from '../components/gamification/Leaderboard';
 import DailyRoulette from '../components/gamification/DailyRoulette';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth, db } from './firebase'; 
+import { auth, db } from '../firebase'; 
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { signOut, updatePassword } from 'firebase/auth';
+import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3 } from 'lucide-react';
+import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode } from 'lucide-react';
+
+// Generamos 20 avatares gamer dinámicos
+const PRESET_AVATARS = Array.from({ length: 20 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=GamerPro${i + 1}&backgroundColor=b6e3f4,c0aede,d1d4f9`);
 
 const GamificationDashboard = () => {
     const [isRouletteOpen, setIsRouletteOpen] = useState(false);
@@ -20,17 +23,20 @@ const GamificationDashboard = () => {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // --- LÓGICA DE EDICIÓN DE DATOS ---
+    // --- ESTADOS DE EDICIÓN Y AVATAR ---
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ nombre_real: '', telefono: '', gamertag: '' });
     const [isSaving, setIsSaving] = useState(false);
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-    // --- LÓGICA DE SEGURIDAD (CONTRASEÑA) ---
+    // --- ESTADOS DE SEGURIDAD Y 2FA ---
     const [newPassword, setNewPassword] = useState('');
     const [isChangingPwd, setIsChangingPwd] = useState(false);
     const [pwdMessage, setPwdMessage] = useState({ type: '', text: '' });
+    const [show2FAModal, setShow2FAModal] = useState(false);
+    const [twoFAMethod, setTwoFAMethod] = useState(null); // 'app' o 'sms'
 
-    // --- CARGA DE DATOS DESDE FIREBASE ---
+    // --- CARGA DE DATOS ---
     useEffect(() => {
         const fetchUserData = async () => {
             const user = auth.currentUser;
@@ -57,7 +63,6 @@ const GamificationDashboard = () => {
         return () => unsubscribe();
     }, [navigate]);
 
-    // Cuando los datos cargan, pre-llenamos el formulario de edición
     useEffect(() => {
         if (userData) {
             setEditForm({
@@ -97,9 +102,34 @@ const GamificationDashboard = () => {
             setPwdMessage({ type: 'success', text: '¡Contraseña actualizada con éxito!' });
             setNewPassword('');
         } catch (error) {
-            setPwdMessage({ type: 'error', text: 'Error: Debes haber iniciado sesión recientemente para hacer esto. Cierra sesión y vuelve a entrar.' });
+            setPwdMessage({ type: 'error', text: 'Error: Debes haber iniciado sesión recientemente. Cierra sesión y vuelve a entrar.' });
         }
         setIsChangingPwd(false);
+    };
+
+    const handleUpdateAvatar = async (url) => {
+        try {
+            // 1. Actualiza el perfil en Firebase Auth
+            await updateProfile(auth.currentUser, { photoURL: url });
+            // 2. Actualiza la bóveda Firestore
+            await updateDoc(doc(db, "usuarios", auth.currentUser.uid), { avatar: url });
+            
+            setUserData(prev => ({ ...prev, avatar: url }));
+            setShowAvatarModal(false);
+            alert("¡Foto de perfil actualizada!");
+        } catch (error) {
+            alert("Error al actualizar la foto.");
+        }
+    };
+
+    const handleDeleteAvatar = async () => {
+        await handleUpdateAvatar(""); // Lo dejamos vacío para que use el por defecto
+    };
+
+    const handleStart2FASetup = (method) => {
+        setTwoFAMethod(method);
+        // Aquí conectaremos con Vercel en el Paso 3
+        alert(`Iniciando configuración de 2FA por ${method === 'app' ? 'Google Authenticator' : 'SMS'}. (Conectando con Vercel...)`);
     };
 
     if (loading) {
@@ -112,16 +142,12 @@ const GamificationDashboard = () => {
         { id: 'seguridad', name: 'Seguridad 2FA', icon: Shield },
     ];
 
-    // Calculamos los puntos reales (si no tiene, mostramos 0, ya no simulamos)
     const currentPoints = userData?.tecnoPoints || 0;
+    const currentAvatar = auth.currentUser?.photoURL || userData?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.gamertag || 'User'}`;
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center mb-12"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
                 <h1 className="text-4xl md:text-5xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 uppercase tracking-widest drop-shadow-[0_0_15px_rgba(79,70,229,0.5)]">
                     Mi Perfil Gamer
                 </h1>
@@ -132,11 +158,16 @@ const GamificationDashboard = () => {
                 
                 {/* 📱 SIDEBAR / MENÚ LATERAL */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-[#11111a] border border-gray-800 rounded-3xl p-6 relative overflow-hidden">
+                    <div className="bg-[#11111a] border border-gray-800 rounded-3xl p-6 relative overflow-hidden shadow-xl">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500"></div>
-                        <div className="flex flex-col items-center gap-4 mb-6">
-                            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-600 p-1">
-                                <img src={auth.currentUser?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.gamertag || 'User'}`} alt="Avatar" className="w-full h-full rounded-full bg-gray-900" />
+                        
+                        {/* FOTO DE PERFIL DINÁMICA */}
+                        <div className="flex flex-col items-center gap-4 mb-6 relative group">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-600 p-1 relative cursor-pointer" onClick={() => setShowAvatarModal(true)}>
+                                <img src={currentAvatar} alt="Avatar" className="w-full h-full rounded-full bg-gray-900 object-cover" />
+                                <div className="absolute inset-1 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Camera size={24} className="text-white" />
+                                </div>
                             </div>
                             <div className="text-center">
                                 <h2 className="text-xl font-bold text-white">{userData?.gamertag || userData?.nombre_real || 'Usuario'}</h2>
@@ -160,7 +191,15 @@ const GamificationDashboard = () => {
                                     {tab.name}
                                 </button>
                             ))}
-                            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 mt-4 border border-red-500/20">
+                            
+                            <div className="w-full h-px bg-gray-800 my-4"></div>
+
+                            {/* BOTÓN IR A TIENDA */}
+                            <button onClick={() => navigate('/')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20">
+                                <Store size={18} /> Ir a la Tienda
+                            </button>
+
+                            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-red-400 hover:bg-red-500/10 mt-2 border border-red-500/20">
                                 <LogOut size={18} /> Cerrar Sesión
                             </button>
                         </nav>
@@ -171,53 +210,52 @@ const GamificationDashboard = () => {
                 <div className="lg:col-span-3">
                     <AnimatePresence mode="wait">
 
-                        {/* 💰 PESTAÑA: BILLETERA Y CASINO (TU DISEÑO ORIGINAL) */}
+                        {/* 💰 PESTAÑA: BILLETERA */}
                         {activeTab === 'billetera' && (
                             <motion.div key="billetera" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                    <div className="lg:col-span-1 space-y-8">
+                                    <div className="lg:col-span-1 space-y-6">
+                                        
+                                        {/* BILLETERA: SALDO TNB (USD) */}
+                                        <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/10 border border-green-500/30 p-6 rounded-2xl relative overflow-hidden group">
+                                            <div className="absolute top-0 right-0 p-4 opacity-20"><Wallet size={60} className="text-green-500" /></div>
+                                            <h3 className="text-gray-300 font-bold tracking-wide mb-2 flex items-center gap-2"><Wallet className="text-green-400 w-5 h-5" /> Saldo TNB (USD)</h3>
+                                            <div className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 mb-4">${(userData?.saldo_tnb || 0).toFixed(2)}</div>
+                                            <div className="mt-4 pt-4 border-t border-green-500/20">
+                                                <p className="text-[10px] uppercase text-green-400 font-bold tracking-wider mb-2">Canjear Tarjeta de Regalo</p>
+                                                <div className="flex gap-2">
+                                                    <input type="text" placeholder="Código" className="w-full bg-black/50 border border-green-500/30 rounded-lg px-3 py-2 text-sm text-white font-mono uppercase outline-none" />
+                                                    <button onClick={() => alert("Conectando con Vercel...")} className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors">Canjear</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <TecnoPoints points={currentPoints} pointsPending={userData?.tecnoPoints_pendientes || 0} />
                                         <RankSystem userPoints={currentPoints} />
+                                        
                                         <div className="bg-[#11111a] border border-indigo-500/30 p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500 transition-colors cursor-pointer" onClick={() => setIsRouletteOpen(true)}>
                                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                             <h3 className="text-xl font-bold font-orbitron text-white mb-2 relative z-10">Ruleta Diaria</h3>
                                             <p className="text-sm text-gray-400 relative z-10 mb-4">Gira gratis y gana asegurado hoy.</p>
-                                            <button className="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg relative z-10 shadow-lg group-hover:bg-indigo-500 transition-colors">
-                                                Jugar Ahora
-                                            </button>
+                                            <button className="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg relative z-10 shadow-lg group-hover:bg-indigo-500 transition-colors">Jugar Ahora</button>
                                         </div>
                                     </div>
 
                                     <div className="lg:col-span-2 space-y-8">
                                         <div>
-                                            <h2 className="text-2xl font-bold font-orbitron text-white mb-6 uppercase tracking-wider flex items-center gap-3">
-                                                <span className="w-8 h-1 bg-cyan-400 rounded-full"></span> 
-                                                Cajas de Botín
-                                            </h2>
+                                            <h2 className="text-2xl font-bold font-orbitron text-white mb-6 uppercase tracking-wider flex items-center gap-3"><span className="w-8 h-1 bg-cyan-400 rounded-full"></span> Cajas de Botín</h2>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <MysteryBox isPremium={false} onOpen={(reward) => alert("Recibiste: " + reward.name)} />
                                                 <MysteryBox isPremium={true} onOpen={(reward) => alert("Recibiste: " + reward.name)} />
                                             </div>
                                         </div>
-
-                                        <div className="pt-6">
-                                            <Leaderboard />
-                                        </div>
+                                        <div className="pt-6"><Leaderboard /></div>
                                     </div>
                                 </div>
-
-                                <DailyRoulette 
-                                    isOpen={isRouletteOpen} 
-                                    onClose={() => setIsRouletteOpen(false)} 
-                                    onWin={(prize) => {
-                                        // Aquí en la Fase 4 cambiaremos esto para que conecte con Vercel
-                                        alert("Ganaste: " + prize.name);
-                                    }} 
-                                />
                             </motion.div>
                         )}
 
-                        {/* 👤 PESTAÑA: DATOS PERSONALES VIVOS */}
+                        {/* 👤 PESTAÑA: DATOS PERSONALES */}
                         {activeTab === 'datos' && (
                             <motion.div key="datos" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-3xl p-8">
                                 <div className="flex justify-between items-center mb-6">
@@ -255,7 +293,7 @@ const GamificationDashboard = () => {
                             </motion.div>
                         )}
 
-                        {/* 🔒 PESTAÑA: SEGURIDAD ACTIVA */}
+                        {/* 🔒 PESTAÑA: SEGURIDAD Y 2FA VIVO */}
                         {activeTab === 'seguridad' && (
                             <motion.div key="seguridad" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-3xl p-8">
                                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white"><Shield className="text-green-500"/> Seguridad de la Cuenta</h2>
@@ -274,21 +312,42 @@ const GamificationDashboard = () => {
                                                 {isChangingPwd ? 'Actualizando...' : 'Actualizar'}
                                             </button>
                                         </div>
-                                        {pwdMessage.text && (
-                                            <p className={`mt-3 text-sm font-bold ${pwdMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
-                                                {pwdMessage.text}
-                                            </p>
-                                        )}
                                     </form>
 
-                                    <div className="bg-gradient-to-r from-gray-900 to-indigo-900/20 p-6 rounded-xl border border-indigo-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
-                                        <div>
-                                            <h3 className="font-bold text-indigo-400 mb-1 flex items-center gap-2"><Settings size={16}/> Verificación en 2 Pasos (2FA)</h3>
-                                            <p className="text-sm text-gray-400">Protege tus TecnoPoints de accesos no autorizados.</p>
+                                    {/* MÓDULO 2FA INTERACTIVO */}
+                                    <div className="bg-gradient-to-r from-gray-900 to-indigo-900/20 p-6 rounded-xl border border-indigo-500/30">
+                                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                                            <div>
+                                                <h3 className="font-bold text-indigo-400 mb-1 flex items-center gap-2"><Settings size={16}/> Verificación en 2 Pasos (2FA)</h3>
+                                                <p className="text-sm text-gray-400">Añade una capa extra de seguridad a tu Saldo TNB y tus TecnoPoints.</p>
+                                            </div>
+                                            {userData?.twoFactorEnabled ? (
+                                                <span className="px-4 py-1.5 bg-green-500/20 text-green-400 border border-green-500/50 font-bold rounded-full text-xs flex items-center gap-2">
+                                                    <Shield size={14} /> Activo
+                                                </span>
+                                            ) : (
+                                                <span className="px-4 py-1.5 bg-red-500/20 text-red-400 border border-red-500/50 font-bold rounded-full text-xs">Desactivado</span>
+                                            )}
                                         </div>
-                                        <button className="px-6 py-2 bg-gray-800 text-gray-400 border border-gray-700 font-bold rounded-lg cursor-not-allowed whitespace-nowrap flex items-center gap-2">
-                                            Próximamente
-                                        </button>
+
+                                        {!userData?.twoFactorEnabled && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <button onClick={() => handleStart2FASetup('app')} className="p-4 border border-gray-700 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/10 transition-all text-left flex items-start gap-4">
+                                                    <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400"><QrCode size={24} /></div>
+                                                    <div>
+                                                        <h4 className="text-white font-bold text-sm">App de Autenticación</h4>
+                                                        <p className="text-xs text-gray-400 mt-1">Usa Google Authenticator o Authy (Recomendado).</p>
+                                                    </div>
+                                                </button>
+                                                <button onClick={() => handleStart2FASetup('sms')} className="p-4 border border-gray-700 rounded-xl hover:border-cyan-500 hover:bg-cyan-500/10 transition-all text-left flex items-start gap-4">
+                                                    <div className="p-2 bg-cyan-500/20 rounded-lg text-cyan-400"><Smartphone size={24} /></div>
+                                                    <div>
+                                                        <h4 className="text-white font-bold text-sm">Mensaje SMS</h4>
+                                                        <p className="text-xs text-gray-400 mt-1">Recibe un código por mensaje de texto.</p>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>
@@ -296,6 +355,38 @@ const GamificationDashboard = () => {
                     </AnimatePresence>
                 </div>
             </div>
+
+            {/* MODAL DE SELECCIÓN DE AVATAR */}
+            <AnimatePresence>
+                {showAvatarModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#11111a] border border-gray-800 p-6 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <h3 className="text-xl font-bold text-white mb-4">Elige tu Avatar</h3>
+                            <div className="grid grid-cols-4 md:grid-cols-5 gap-4 mb-6">
+                                {PRESET_AVATARS.map((url, idx) => (
+                                    <img key={idx} src={url} alt={`Avatar ${idx}`} onClick={() => handleUpdateAvatar(url)} className="w-full aspect-square rounded-full bg-gray-900 border-2 border-transparent hover:border-indigo-500 cursor-pointer transition-all hover:scale-110" />
+                                ))}
+                            </div>
+                            <div className="flex justify-between items-center border-t border-gray-800 pt-4 mt-4">
+                                <button onClick={handleDeleteAvatar} className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm font-bold bg-red-500/10 px-4 py-2 rounded-lg">
+                                    <Trash2 size={16} /> Eliminar Foto
+                                </button>
+                                <button onClick={() => setShowAvatarModal(false)} className="text-gray-400 hover:text-white font-bold px-4 py-2">Cerrar</button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            <DailyRoulette 
+                isOpen={isRouletteOpen} 
+                onClose={() => setIsRouletteOpen(false)} 
+                userUid={auth.currentUser?.uid}
+                onWin={async (prize) => {
+                    const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
+                    if(userDoc.exists()) setUserData(userDoc.data());
+                }} 
+            />
         </div>
     );
 };

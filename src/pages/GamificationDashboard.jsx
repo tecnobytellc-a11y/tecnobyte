@@ -10,7 +10,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud } from 'lucide-react';
+import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X } from 'lucide-react';
 
 // Generamos 50 avatares con 5 estilos de arte diferentes
 const PRESET_AVATARS = [

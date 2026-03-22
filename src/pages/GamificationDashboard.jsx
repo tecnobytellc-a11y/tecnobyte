@@ -273,8 +273,24 @@ const GamificationDashboard = () => {
                                         <div>
                                             <h2 className="text-2xl font-bold font-orbitron text-white mb-6 uppercase tracking-wider flex items-center gap-3"><span className="w-8 h-1 bg-cyan-400 rounded-full"></span> Cajas de Botín</h2>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <MysteryBox isPremium={false} onOpen={(reward) => alert("Recibiste: " + reward.name)} />
-                                                <MysteryBox isPremium={true} onOpen={(reward) => alert("Recibiste: " + reward.name)} />
+                                                <MysteryBox 
+                                                    isPremium={false} 
+                                                    boxCount={userData?.cajas_normales || 0} 
+                                                    userUid={auth.currentUser?.uid}
+                                                    onOpen={async () => {
+                                                        const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
+                                                        if(userDoc.exists()) setUserData(userDoc.data());
+                                                    }} 
+                                                />
+                                                <MysteryBox 
+                                                    isPremium={true} 
+                                                    boxCount={userData?.cajas_miticas || 0} 
+                                                    userUid={auth.currentUser?.uid}
+                                                    onOpen={async () => {
+                                                        const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
+                                                        if(userDoc.exists()) setUserData(userDoc.data());
+                                                    }} 
+                                                />
                                             </div>
                                         </div>
                                         <div className="pt-6"><Leaderboard /></div>

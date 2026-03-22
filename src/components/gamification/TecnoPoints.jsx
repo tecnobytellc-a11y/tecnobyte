@@ -53,8 +53,8 @@ const TecnoPoints = ({ points = 1200, pointsPending = 150 }) => {
 
     return (
         <>
-            {/* TU DISEÑO EXACTO E INTACTO */}
-            <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 relative overflow-hidden group h-full flex flex-col justify-between">
+            {/* TU DISEÑO EXACTO E INTACTO (Sin el h-full que rompía todo) */}
+            <div className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 relative overflow-hidden group">
                 <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                     <Coins size={120} className="text-cyan-500" />
                 </div>

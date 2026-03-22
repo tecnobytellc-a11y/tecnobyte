@@ -5,7 +5,7 @@ import MysteryBox from '../components/gamification/MysteryBox';
 import Leaderboard from '../components/gamification/Leaderboard';
 import DailyRoulette from '../components/gamification/DailyRoulette';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth, db, storage } from '../firebase'; // Importamos storage
+import { auth, db, storage } from './firebase'; // Importamos storage
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';

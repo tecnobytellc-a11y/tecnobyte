@@ -5,7 +5,7 @@ import MysteryBox from '../components/gamification/MysteryBox';
 import Leaderboard from '../components/gamification/Leaderboard';
 import DailyRoulette from '../components/gamification/DailyRoulette';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth, db } from '../firebase'; 
+import { auth, db } from '../../firebase'; 
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';

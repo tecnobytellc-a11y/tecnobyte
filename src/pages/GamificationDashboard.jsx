@@ -11,6 +11,7 @@ import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X } from 'lucide-react';
+import axios from 'axios'; // INYECCIÓN: Necesario para hablar con el servidor
 
 // Generamos 50 avatares con 5 estilos de arte diferentes
 const PRESET_AVATARS = [
@@ -43,6 +44,10 @@ const GamificationDashboard = () => {
     const [isChangingPwd, setIsChangingPwd] = useState(false);
     const [pwdMessage, setPwdMessage] = useState({ type: '', text: '' });
     const [twoFAMethod, setTwoFAMethod] = useState(null);
+
+    // --- INYECCIÓN: ESTADOS PARA EL CANJE DE BILLETERA ---
+    const [giftCode, setGiftCode] = useState('');
+    const [isRedeeming, setIsRedeeming] = useState(false);
 
     // --- CARGA DE DATOS ---
     useEffect(() => {
@@ -163,6 +168,33 @@ const GamificationDashboard = () => {
         alert(`Iniciando configuración de 2FA por ${method === 'app' ? 'Google Authenticator' : 'SMS'}. (Conectando con Vercel...)`);
     };
 
+    // --- INYECCIÓN: LÓGICA PARA CANJEAR GIFTCARD ---
+    const handleRedeemGiftCard = async () => {
+        if (!giftCode.trim()) {
+            alert("Por favor, ingresa un código.");
+            return;
+        }
+
+        setIsRedeeming(true);
+        try {
+            const response = await axios.post('https://api-paypal-secure.vercel.app/api/gamification/redeem-giftcard', {
+                userId: auth.currentUser.uid,
+                code: giftCode
+            });
+
+            if (response.data.success) {
+                // Actualiza el saldo en la pantalla sin recargar
+                setUserData(prev => ({ ...prev, saldo_tnb: response.data.newBalance }));
+                setGiftCode(''); // Limpia el input
+                alert(response.data.message); // "¡Felicidades! Se han añadido..."
+            }
+        } catch (error) {
+            alert(error.response?.data?.message || "Error de conexión con la bóveda de saldo.");
+        }
+        setIsRedeeming(false);
+    };
+    // ------------------------------------------------
+
     if (loading) {
         return <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center"><Loader className="animate-spin text-indigo-500" size={48} /></div>;
     }
@@ -252,8 +284,21 @@ const GamificationDashboard = () => {
                                             <div className="mt-4 pt-4 border-t border-green-500/20">
                                                 <p className="text-[10px] uppercase text-green-400 font-bold tracking-wider mb-2">Canjear Tarjeta de Regalo</p>
                                                 <div className="flex gap-2">
-                                                    <input type="text" placeholder="Código" className="w-full bg-black/50 border border-green-500/30 rounded-lg px-3 py-2 text-sm text-white font-mono uppercase outline-none" />
-                                                    <button onClick={() => alert("Conectando con Vercel...")} className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors">Canjear</button>
+                                                    {/* INYECCIÓN: Inputs y Botones reales conectados */}
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Código" 
+                                                        value={giftCode}
+                                                        onChange={(e) => setGiftCode(e.target.value)}
+                                                        className="w-full bg-black/50 border border-green-500/30 rounded-lg px-3 py-2 text-sm text-white font-mono uppercase outline-none focus:border-green-400 transition-colors" 
+                                                    />
+                                                    <button 
+                                                        onClick={handleRedeemGiftCard} 
+                                                        disabled={isRedeeming}
+                                                        className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
+                                                    >
+                                                        {isRedeeming ? <Loader size={16} className="animate-spin" /> : 'Canjear'}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>

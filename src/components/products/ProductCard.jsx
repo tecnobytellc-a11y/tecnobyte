@@ -3,6 +3,8 @@ import { ShoppingCart } from 'lucide-react';
 import DynamicIcon from '../ui/DynamicIcon';
 import { CUSTOM_ICONS } from '../../config/constants';
 import { motion } from 'framer-motion';
+// INYECCIÓN: Importar auth para verificar sesión
+import { auth } from '../pages/firebase';
 
 const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages }) => {
   const packages = multipackages ? multipackages[service.title] : null;
@@ -46,6 +48,12 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
             alert("Por favor, completa los datos de tu amigo para enviarle la recarga.");
             return;
         }
+        // INYECCIÓN: Si no está logueado y no es para un amigo, exigir correo
+        if (!isForFriend && !auth.currentUser && !tnbData.myEmail) {
+            alert("Por favor, ingresa tu correo para recibir la recarga.");
+            return;
+        }
+
         addToCart({
             ...service,
             title: `Recarga Saldo TNB ($${customAmount})` + (isForFriend ? ` Regalo para ${tnbData.friendName}` : ''),
@@ -154,9 +162,12 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
                         <input type="text" placeholder="De parte de (Tu Nombre)" value={tnbData.senderName} onChange={e => setTnbData({...tnbData, senderName: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-pink-500 outline-none transition-colors" />
                     </motion.div>
                 ) : (
-                    <motion.div initial={{opacity: 0, y: -10}} animate={{opacity: 1, y: 0}} className="space-y-3">
-                        <input type="email" placeholder="Tu correo (Obligatorio si no has iniciado sesión)" value={tnbData.myEmail} onChange={e => setTnbData({...tnbData, myEmail: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none transition-colors" />
-                    </motion.div>
+                    // INYECCIÓN: Si no está logueado, pide el correo. Si está logueado, no muestra nada.
+                    !auth.currentUser && (
+                        <motion.div initial={{opacity: 0, y: -10}} animate={{opacity: 1, y: 0}} className="space-y-3">
+                            <input type="email" placeholder="Tu correo (Para recibir la recarga)" value={tnbData.myEmail} onChange={e => setTnbData({...tnbData, myEmail: e.target.value})} className="w-full bg-black/60 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none transition-colors" />
+                        </motion.div>
+                    )
                 )}
             </div>
         )}

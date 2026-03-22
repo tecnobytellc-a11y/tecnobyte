@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { Ticket, ShieldCheck, FileCheck, ImageIcon, Check, Loader } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Ticket, ShieldCheck, FileCheck, ImageIcon, Check, Loader, UserCheck } from 'lucide-react';
 import { convertToBase64 } from '../../utils/helpers';
 import { MAX_FILE_SIZE_BYTES } from '../../config/constants';
 import { submitOrderToPrivateServer } from '../../utils/security';
+import { auth, db } from '../../firebase'; // Tu ruta ajustada
+import { doc, getDoc } from 'firebase/firestore';
+import axios from 'axios';
 
 const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOrder, setCart, setCheckoutStep, paymentMethod, exchangeRate, coupon, contactInfo, openTerms, openPrivacy }) => {
   const [isSubmitting, setIsSubmitting] = useState(false); 

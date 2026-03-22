@@ -1,9 +1,22 @@
-import React from 'react';
-import { ShoppingCart, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingCart, User, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { auth } from '../../pages/firebase'; // ⚠️ Asegúrate de que la ruta a tu firebase.js sea correcta
+import { onAuthStateChanged } from 'firebase/auth';
 
 const Navbar = ({ cartCount, onOpenCart }) => {
+    // --- CEREBRO DE AUTENTICACIÓN ---
+    const [currentUser, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setCurrentUser(user);
+        });
+        return () => unsubscribe();
+    }, []);
+    // --------------------------------
+
     return (
         <motion.nav 
             initial={{ y: -100 }}
@@ -17,7 +30,7 @@ const Navbar = ({ cartCount, onOpenCart }) => {
             `}</style>
             
             <div className="max-w-7xl mx-auto px-4 relative h-20">
-                {/* Logo a la izquierda */}
+                {/* Logo a la izquierda (INTACTO) */}
                 <Link 
                     to="/"
                     className="absolute h-20 flex items-center justify-center cursor-pointer z-10" 
@@ -33,20 +46,37 @@ const Navbar = ({ cartCount, onOpenCart }) => {
 
                 {/* Actions: Profile + Cart */}
                 <div className="flex items-center justify-end h-full gap-4">
-                    <Link to="/login">
-                        <motion.div 
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="relative group cursor-pointer flex items-center justify-center w-10 h-10 rounded-full bg-gray-800/50 border border-indigo-500/30 hover:border-cyan-400 transition-colors"
-                        >
-                            <User className="w-5 h-5 text-gray-300 group-hover:text-cyan-400 transition-colors" />
-                        </motion.div>
-                    </Link>
+                    
+                    {/* BOTÓN INTELIGENTE: Cambia según si hay sesión iniciada o no */}
+                    {currentUser ? (
+                        <Link to="/perfil">
+                            <motion.div 
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex items-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-cyan-400 font-bold py-2 px-4 rounded-full border border-indigo-500/50 transition-colors shadow-[0_0_10px_rgba(79,70,229,0.2)]"
+                            >
+                                <User size={18} />
+                                <span className="hidden sm:inline text-sm">Mi Cuenta</span>
+                            </motion.div>
+                        </Link>
+                    ) : (
+                        <Link to="/login">
+                            <motion.div 
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex items-center gap-2 bg-gray-800/80 hover:bg-gray-700 text-gray-300 hover:text-white font-bold py-2 px-4 rounded-full border border-gray-600 transition-colors"
+                            >
+                                <LogIn size={18} />
+                                <span className="hidden sm:inline text-sm">Iniciar sesión / Registrarse</span>
+                            </motion.div>
+                        </Link>
+                    )}
 
+                    {/* Carrito (INTACTO) */}
                     <motion.div 
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
-                        className="relative group cursor-pointer" 
+                        className="relative group cursor-pointer ml-2" 
                         onClick={onOpenCart}
                     >
                         <ShoppingCart className="w-7 h-7 text-gray-300 group-hover:text-cyan-400 transition-colors" />

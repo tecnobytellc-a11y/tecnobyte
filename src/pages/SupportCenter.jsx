@@ -1,23 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, CheckCircle, Clock, FileText, X, Send, User, Bot, PlusCircle, Search, HelpCircle, PhoneCall, Mail, Smartphone, AlertTriangle, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 // 1. Importamos las herramientas de Firebase directamente aquí
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, getDocs, orderBy } from 'firebase/firestore';
-
-// 2. Coloca aquí los mismos datos de tu Firebase que ya tienes en tu panel de administración
-const firebaseConfig = {
-          apiKey: "AIzaSyBgqPltYbC8ZSzLszFA1y6FegfHJn91Ozg",
-          authDomain: "tecnobyte-52ae0.firebaseapp.com",
-          projectId: "tecnobyte-52ae0",
-          storageBucket: "tecnobyte-52ae0.firebasestorage.app",
-          messagingSenderId: "727089895868",
-          appId: "1:727089895868:web:0412acf7c812a1f07b73b9",
-          measurementId: "G-XC1PJ1PB6W"
-        };
-
-// 3. Inicializamos la base de datos de forma aislada solo para este componente
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+import { db } from './firebase'; // (Ajusta los '../' según la carpeta donde esté tu archivo firebase.js)
 
 export default function SupportCenter() {
   const [activeTab, setActiveTab] = useState('abiertos');

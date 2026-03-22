@@ -70,10 +70,13 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
   const handleSubmit = (e) => { 
       e.preventDefault(); 
       // AHORA EXIGIMOS QUE EL CAMPO DE CÉDULA (idNumber) ESTÉ LLENO
-      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.phone || !paypalData.idNumber) { 
-          alert("Por favor completa todos los campos de texto."); 
-          return; 
-      } 
+      // Validación estricta: Si requiere KYC y NO lo tiene, lo bloqueamos
+      if (requiresIdImage && !hasKyc) {
+          return alert("⚠️ Por regulaciones de seguridad, debes Verificar tu Identidad con Didit antes de continuar con este método de pago.");
+      }
+      if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.idNumber) {
+          return alert("Completa todos los campos obligatorios.");
+      }
       // VERIFICAMOS LA FOTO SOLO SI EL MÉTODO LO REQUIERE (Ej: PayPal)
       if (requiresIdImage && !paypalData.idDoc) { 
           alert("Debes cargar la foto de tu documento de identidad para continuar."); 
@@ -126,29 +129,41 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                 <input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="+584120000000" value={paypalData.phone || ''} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} />
             </div>
         </div>
-        
-        {/* LA FOTO DEL DOCUMENTO AHORA SOLO APARECE SI requiresIdImage ES TRUE */}
-        {requiresIdImage && ( 
-            <div className="bg-indigo-900/10 border border-indigo-500/30 rounded-xl p-4 mt-4">
-                <label className="block text-indigo-300 text-sm font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Verificación de Identidad (Obligatorio)</label>
-                <div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${paypalData.idDoc ? 'border-green-500/50 bg-green-900/10' : 'border-gray-600 hover:border-indigo-500 bg-gray-800/50'}`} onClick={() => idDocRef.current && idDocRef.current.click()}>
-                    <input type="file" ref={idDocRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                    {paypalData.idDoc ? ( 
-                        <div className="flex flex-col items-center text-green-400">
-                            <FileCheck size={32} className="mb-2" />
-                            <p className="font-bold text-sm">Documento Cargado</p>
-                            <p className="text-xs opacity-70 mb-2">{paypalData.idDoc.name}</p>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setPaypalData({...paypalData, idDoc: null}); if(idDocRef.current) idDocRef.current.value = ""; }} className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30">Cambiar archivo</button>
-                        </div> 
-                    ) : ( 
-                        <div className="flex flex-col items-center text-gray-400">
-                            <ImageIcon size={32} className="mb-2 opacity-50" />
-                            <p className="font-bold text-sm text-white">Subir Foto Documento ID</p>
-                            <p className="text-xs mt-1 opacity-70">Haz clic para cargar (Máx 1MB)</p>
-                        </div> 
-                    )}
-                </div>
-            </div> 
+      
+        {/* INTERRUPTOR VISUAL DE DIDIT */}
+        {requiresIdImage && (
+            <div className="mt-4">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Verificación de Identidad (Requerido)
+                </label>
+                
+                {hasKyc ? (
+                    <div className="bg-green-900/20 border border-green-500/50 rounded-xl p-4 flex items-center gap-3">
+                        <div className="bg-green-500/20 p-2 rounded-full">
+                            <UserCheck size={24} className="text-green-400" />
+                        </div>
+                        <div>
+                            <p className="text-green-400 text-sm font-bold uppercase tracking-wider">Identidad Verificada</p>
+                            <p className="text-green-500/70 text-xs">KYC Nivel 1 Aprobado por Didit. Puedes proceder al pago.</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-xl p-4 text-center">
+                        <ShieldCheck size={32} className="text-indigo-400 mx-auto mb-2" />
+                        <p className="text-gray-300 text-xs mb-3">
+                            Para usar {paymentMethod === 'paypal' ? 'PayPal' : 'este método'}, requerimos validar tu identidad por normas anti-fraude.
+                        </p>
+                        <button 
+                            type="button"
+                            onClick={handleStartKYC}
+                            disabled={isLoadingKyc}
+                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-lg transition-all shadow-lg flex justify-center items-center gap-2 text-sm"
+                        >
+                            {isLoadingKyc ? "Conectando al Escáner..." : "Verificar Identidad con Didit"}
+                        </button>
+                    </div>
+                )}
+            </div>
         )}
 
         {/* 🤖 MÓDULO INTELIGENTE: ADMIN BOT (INYECCIÓN DE CÓDIGO) */}

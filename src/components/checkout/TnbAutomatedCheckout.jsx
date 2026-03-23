@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet, Loader, Check } from 'lucide-react';
 import { submitOrderToPrivateServer } from '../../utils/security';
-import { auth } from '../../pages/firebase'; // INYECCIÓN: Necesario para saber tu UID
+import { auth } from '../../pages/firebase'; 
 
 const TnbAutomatedCheckout = ({ finalTotal, cart, paypalData, coupon, setLastOrder, setCart, setCheckoutStep }) => {
     const [status, setStatus] = useState('idle');
@@ -19,7 +19,7 @@ const TnbAutomatedCheckout = ({ finalTotal, cart, paypalData, coupon, setLastOrd
             const orderData = {
                 orderId: uniqueId,
                 visualId: uniqueId,
-                userId: auth.currentUser.uid, // INYECCIÓN CRÍTICA: ID para que Vercel sepa a quién restarle
+                userId: auth.currentUser.uid, 
                 user: `${paypalData.firstName} ${paypalData.lastName}`,
                 items: cart.map(i => i.title).join(', '),
                 total: finalTotal.toFixed(2),
@@ -31,26 +31,20 @@ const TnbAutomatedCheckout = ({ finalTotal, cart, paypalData, coupon, setLastOrd
                 fullData: { ...paypalData, refNumber: 'TNB-AUTO-' + uniqueId }
             };
 
-            // Enviamos la orden al servidor
-            const response = await submitOrderToPrivateServer(orderData);
+            // Enviamos la orden al servidor (Si hay error de saldo, Vercel lanzará un error y caerá en el catch)
+            await submitOrderToPrivateServer(orderData);
 
-            // Verificamos estrictamente que el servidor responda bien
-            if (response && response.success) {
-                setStatus('success');
-                setTimeout(() => {
-                    setLastOrder(orderData);
-                    setCart([]);
-                    setCheckoutStep(3);
-                }, 2000);
-            } else {
-                // Si Vercel no pudo restar el saldo, abortamos.
-                alert("Fondos insuficientes o error procesando el saldo TNB.");
-                setStatus('idle');
-            }
+            // Si llegamos a esta línea, es porque Vercel restó el saldo con éxito
+            setStatus('success');
+            setTimeout(() => {
+                setLastOrder(orderData);
+                setCart([]);
+                setCheckoutStep(3); // Lanzamos la pantalla de éxito
+            }, 2000);
 
         } catch (error) {
             console.error(error);
-            alert("Error procesando el pago con Saldo TNB. Verifica tu conexión.");
+            alert("Fondos insuficientes o error procesando el pago con Saldo TNB.");
             setStatus('idle');
         }
     };

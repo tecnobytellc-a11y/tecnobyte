@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
 import { Wallet, Loader, Check } from 'lucide-react';
-import { submitOrderToPrivateServer } from '../../utils/security'; // Verifica que esta ruta sea correcta
+import { submitOrderToPrivateServer } from '../../utils/security';
+import { auth } from '../../pages/firebase'; // INYECCIÓN: Necesario para saber tu UID
 
 const TnbAutomatedCheckout = ({ finalTotal, cart, paypalData, coupon, setLastOrder, setCart, setCheckoutStep }) => {
     const [status, setStatus] = useState('idle');
 
     const handlePay = async () => {
+        if (!auth.currentUser) {
+            alert("Error: No has iniciado sesión.");
+            return;
+        }
+
         setStatus('processing');
         try {
-            // Generamos ID único para la orden
             const uniqueId = 'ORD-' + Date.now().toString().slice(-4) + Math.floor(Math.random() * 100);
 
             const orderData = {
                 orderId: uniqueId,
                 visualId: uniqueId,
+                userId: auth.currentUser.uid, // INYECCIÓN CRÍTICA: ID para que Vercel sepa a quién restarle
                 user: `${paypalData.firstName} ${paypalData.lastName}`,
                 items: cart.map(i => i.title).join(', '),
                 total: finalTotal.toFixed(2),
-                status: 'COMPLETADO', // Es inmediato porque ya verificamos el saldo
+                status: 'COMPLETADO', 
                 date: new Date().toISOString(),
                 rawItems: cart.map(({ icon, ...rest }) => rest),
                 paymentMethod: 'saldo_tnb',
@@ -25,19 +31,25 @@ const TnbAutomatedCheckout = ({ finalTotal, cart, paypalData, coupon, setLastOrd
                 fullData: { ...paypalData, refNumber: 'TNB-AUTO-' + uniqueId }
             };
 
-            // Disparamos la orden a tu servidor Vercel (el cual restará el saldo matemáticamente)
-            await submitOrderToPrivateServer(orderData);
+            // Enviamos la orden al servidor
+            const response = await submitOrderToPrivateServer(orderData);
 
-            setStatus('success');
-            
-            // Esperamos 2 segundos para que el cliente vea el check verde y luego lo enviamos al recibo
-            setTimeout(() => {
-                setLastOrder(orderData);
-                setCart([]);
-                setCheckoutStep(3); // Paso final de éxito
-            }, 2000);
+            // Verificamos estrictamente que el servidor responda bien
+            if (response && response.success) {
+                setStatus('success');
+                setTimeout(() => {
+                    setLastOrder(orderData);
+                    setCart([]);
+                    setCheckoutStep(3);
+                }, 2000);
+            } else {
+                // Si Vercel no pudo restar el saldo, abortamos.
+                alert("Fondos insuficientes o error procesando el saldo TNB.");
+                setStatus('idle');
+            }
 
         } catch (error) {
+            console.error(error);
             alert("Error procesando el pago con Saldo TNB. Verifica tu conexión.");
             setStatus('idle');
         }
@@ -63,7 +75,7 @@ const TnbAutomatedCheckout = ({ finalTotal, cart, paypalData, coupon, setLastOrd
             {status === 'processing' && (
                 <div className="py-4">
                     <Loader className="animate-spin text-green-400 mx-auto mb-2" size={32} />
-                    <p className="text-green-400 font-bold animate-pulse">Procesando pago instantáneo...</p>
+                    <p className="text-green-400 font-bold animate-pulse">Debitando fondos...</p>
                 </div>
             )}
             

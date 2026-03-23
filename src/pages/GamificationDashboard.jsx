@@ -6,14 +6,15 @@ import Leaderboard from '../components/gamification/Leaderboard';
 import DailyRoulette from '../components/gamification/DailyRoulette';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db, storage } from './firebase'; // Importamos storage
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+// INYECCIÓN: Agregadas herramientas de búsqueda de Firestore
+import { doc, getDoc, updateDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X } from 'lucide-react';
-import axios from 'axios'; // INYECCIÓN: Necesario para hablar con el servidor
+// INYECCIÓN: Agregados iconos de historial
+import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays } from 'lucide-react';
+import axios from 'axios';
 
-// Generamos 50 avatares con 5 estilos de arte diferentes
 const PRESET_AVATARS = [
     ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=ProGamer${i}&backgroundColor=b6e3f4,c0aede,d1d4f9`),
     ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=Mecha${i}&backgroundColor=ffdfbf,c0aede`),
@@ -45,9 +46,14 @@ const GamificationDashboard = () => {
     const [pwdMessage, setPwdMessage] = useState({ type: '', text: '' });
     const [twoFAMethod, setTwoFAMethod] = useState(null);
 
-    // --- INYECCIÓN: ESTADOS PARA EL CANJE DE BILLETERA ---
+    // --- ESTADOS PARA EL CANJE DE BILLETERA ---
     const [giftCode, setGiftCode] = useState('');
     const [isRedeeming, setIsRedeeming] = useState(false);
+
+    // --- INYECCIÓN: ESTADOS PARA EL HISTORIAL DE BILLETERA ---
+    const [isWalletHistoryOpen, setIsWalletHistoryOpen] = useState(false);
+    const [walletHistory, setWalletHistory] = useState([]);
+    const [isLoadingWalletHistory, setIsLoadingWalletHistory] = useState(false);
 
     // --- CARGA DE DATOS ---
     useEffect(() => {
@@ -120,7 +126,6 @@ const GamificationDashboard = () => {
         setIsChangingPwd(false);
     };
 
-    // --- MOTOR DE FOTOS DE PERFIL ---
     const handleUpdateAvatar = async (url) => {
         try {
             await updateProfile(auth.currentUser, { photoURL: url });
@@ -134,14 +139,13 @@ const GamificationDashboard = () => {
     };
 
     const handleDeleteAvatar = async () => {
-        await handleUpdateAvatar(""); // Volver a la por defecto
+        await handleUpdateAvatar(""); 
     };
 
     const handleCustomUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Límite estricto de 5 Megabytes
         if (file.size > 5 * 1024 * 1024) {
             alert("⚠️ La imagen excede el límite de 5MB. Por favor, sube una foto más ligera.");
             e.target.value = '';
@@ -160,7 +164,7 @@ const GamificationDashboard = () => {
             alert("Error al subir la imagen. Verifica que Firebase Storage esté activado.");
         }
         setIsUploadingPhoto(false);
-        e.target.value = ''; // Limpiar el input
+        e.target.value = ''; 
     };
 
     const handleStart2FASetup = (method) => {
@@ -168,7 +172,6 @@ const GamificationDashboard = () => {
         alert(`Iniciando configuración de 2FA por ${method === 'app' ? 'Google Authenticator' : 'SMS'}. (Conectando con Vercel...)`);
     };
 
-    // --- INYECCIÓN: LÓGICA PARA CANJEAR GIFTCARD ---
     const handleRedeemGiftCard = async () => {
         if (!giftCode.trim()) {
             alert("Por favor, ingresa un código.");
@@ -183,17 +186,38 @@ const GamificationDashboard = () => {
             });
 
             if (response.data.success) {
-                // Actualiza el saldo en la pantalla sin recargar
                 setUserData(prev => ({ ...prev, saldo_tnb: response.data.newBalance }));
-                setGiftCode(''); // Limpia el input
-                alert(response.data.message); // "¡Felicidades! Se han añadido..."
+                setGiftCode(''); 
+                alert(response.data.message); 
             }
         } catch (error) {
             alert(error.response?.data?.message || "Error de conexión con la bóveda de saldo.");
         }
         setIsRedeeming(false);
     };
-    // ------------------------------------------------
+
+    // --- INYECCIÓN: DESCARGAR HISTORIAL DE BILLETERA ---
+    const handleOpenWalletHistory = async () => {
+        setIsWalletHistoryOpen(true);
+        if (!auth.currentUser) return;
+        setIsLoadingWalletHistory(true);
+        try {
+            const q = query(
+                collection(db, "usuarios", auth.currentUser.uid, "historial_billetera"),
+                orderBy("timestamp", "desc"),
+                limit(30) // Trae los últimos 30 movimientos
+            );
+            const querySnapshot = await getDocs(q);
+            const historyData = [];
+            querySnapshot.forEach((doc) => {
+                historyData.push({ id: doc.id, ...doc.data() });
+            });
+            setWalletHistory(historyData);
+        } catch (error) {
+            console.error("Error cargando historial de billetera:", error);
+        }
+        setIsLoadingWalletHistory(false);
+    };
 
     if (loading) {
         return <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center"><Loader className="animate-spin text-indigo-500" size={48} /></div>;
@@ -280,11 +304,18 @@ const GamificationDashboard = () => {
                                         <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/10 border border-green-500/30 p-6 rounded-2xl relative overflow-hidden group">
                                             <div className="absolute top-0 right-0 p-4 opacity-20"><Wallet size={60} className="text-green-500" /></div>
                                             <h3 className="text-gray-300 font-bold tracking-wide mb-2 flex items-center gap-2"><Wallet className="text-green-400 w-5 h-5" /> Saldo TNB (USD)</h3>
-                                            <div className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 mb-4">${(userData?.saldo_tnb || 0).toFixed(2)}</div>
+                                            
+                                            {/* INYECCIÓN: Botón Historial Integrado al Saldo */}
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">${(userData?.saldo_tnb || 0).toFixed(2)}</div>
+                                                <button onClick={handleOpenWalletHistory} className="text-[10px] uppercase tracking-wider bg-green-500/10 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-colors flex items-center gap-1 font-bold">
+                                                    <History size={14} /> Historial
+                                                </button>
+                                            </div>
+
                                             <div className="mt-4 pt-4 border-t border-green-500/20">
                                                 <p className="text-[10px] uppercase text-green-400 font-bold tracking-wider mb-2">Canjear Tarjeta de Regalo</p>
                                                 <div className="flex gap-2">
-                                                    {/* INYECCIÓN: Inputs y Botones reales conectados */}
                                                     <input 
                                                         type="text" 
                                                         placeholder="Código" 
@@ -444,7 +475,66 @@ const GamificationDashboard = () => {
                 </div>
             </div>
 
-            {/* MODAL DE SELECCIÓN DE AVATAR (AHORA CON SUBIDA LOCAL Y 50 OPCIONES) */}
+            {/* MODAL: HISTORIAL DE BILLETERA TNB */}
+            <AnimatePresence>
+                {isWalletHistoryOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-[#0a0a0f] border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+                        >
+                            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#11111a] rounded-t-2xl shrink-0">
+                                <div>
+                                    <h2 className="text-xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-400 flex items-center gap-3">
+                                        <History className="text-green-400" /> Historial de Billetera
+                                    </h2>
+                                    <p className="text-gray-400 text-sm mt-1">Registro de tus recargas y pagos con Saldo TNB.</p>
+                                </div>
+                                <button onClick={() => setIsWalletHistoryOpen(false)} className="p-2 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 overflow-y-auto space-y-3 hide-scrollbar min-h-[200px] relative">
+                                {isLoadingWalletHistory ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0f]">
+                                        <Loader className="animate-spin text-green-400" size={32} />
+                                    </div>
+                                ) : walletHistory.length > 0 ? (
+                                    walletHistory.map((tx) => (
+                                        <div key={tx.id} className="flex items-center justify-between p-4 rounded-xl bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors group">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-lg flex items-center justify-center ${tx.type === 'credit' ? 'bg-green-500/10 border border-green-500/20 text-green-400 group-hover:bg-green-500/20' : 'bg-red-500/10 border border-red-500/20 text-red-400 group-hover:bg-red-500/20'} transition-colors`}>
+                                                    {tx.type === 'credit' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-white font-bold text-sm mb-1">{tx.concept}</h4>
+                                                    <div className="flex items-center gap-1 text-xs text-gray-500 font-mono">
+                                                        <CalendarDays size={12} /> {tx.date}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className={`font-mono font-bold text-lg ${tx.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
+                                                {tx.type === 'credit' ? '+' : '-'}${Number(tx.amount).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-12">
+                                        <Wallet size={48} className="mx-auto text-gray-700 mb-4" />
+                                        <h3 className="text-gray-400 font-bold mb-1">Billetera sin movimientos</h3>
+                                        <p className="text-sm text-gray-600">Aquí aparecerán tus recargas y compras pagadas con Saldo TNB.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* MODAL DE SELECCIÓN DE AVATAR */}
             <AnimatePresence>
                 {showAvatarModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -455,18 +545,13 @@ const GamificationDashboard = () => {
                                 <button onClick={() => setShowAvatarModal(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
                             </div>
 
-                            {/* ZONA DE SUBIDA LOCAL (Hasta 5MB) */}
                             <div className="mb-6 p-4 border-2 border-dashed border-indigo-500/30 rounded-xl bg-indigo-500/5 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4">
                                 <div>
                                     <h4 className="text-white font-bold text-sm">Subir Foto Propia</h4>
                                     <p className="text-xs text-gray-400 mt-1">Sube una imagen desde tu dispositivo (Máx 5MB).</p>
                                 </div>
                                 <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    ref={fileInputRef}
-                                    onChange={handleCustomUpload}
+                                    type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleCustomUpload}
                                 />
                                 <button 
                                     onClick={() => fileInputRef.current?.click()}
@@ -478,7 +563,6 @@ const GamificationDashboard = () => {
                                 </button>
                             </div>
 
-                            {/* GRILLA DE 50 AVATARES */}
                             <div className="overflow-y-auto pr-2 hide-scrollbar">
                                 <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">O Elige un Avatar Predeterminado</p>
                                 <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 mb-4">

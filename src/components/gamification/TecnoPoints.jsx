@@ -10,8 +10,6 @@ import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import axios from 'axios';
 
 const REWARDS_CATALOG = [
-    { id: 'ff_100', name: '100 Diamantes Free Fire', cost: 1500, category: 'Recargas', icon: Gem, color: 'text-blue-400', requiresId: true },
-    { id: 'cod_80', name: '80 CPs Call of Duty', cost: 1500, category: 'Recargas', icon: Crosshair, color: 'text-yellow-400', requiresId: true },
     { id: 'cup_050', name: 'Cupón $0.50 USD', cost: 800, category: 'Economía', icon: Ticket, color: 'text-pink-400' },
     { id: 'cup_100', name: 'Cupón $1.00 USD', cost: 1500, category: 'Economía', icon: Ticket, color: 'text-pink-500' },
     { id: 'cup_3pct', name: 'Cupón 3% Descuento', cost: 500, category: 'Economía', icon: Percent, color: 'text-pink-300' },
@@ -87,7 +85,7 @@ const TecnoPoints = ({ points = 0, pointsPending = 0, onUpdate }) => {
         setIsLoadingHistory(false);
     };
 
-    const categories = ['Todos', 'Recargas', 'Economía', 'Beneficios VIP', 'Cosméticos'];
+    const categories = ['Todos', 'Economía', 'Beneficios VIP', 'Cosméticos'];
     const filteredRewards = activeFilter === 'Todos' ? REWARDS_CATALOG : REWARDS_CATALOG.filter(r => r.category === activeFilter);
 
     return (

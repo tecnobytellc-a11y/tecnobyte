@@ -48,14 +48,15 @@ const SocialProofPopup = () => {
         };
 
         // Esperar 10 segundos antes de mostrar el primero al entrar a la web
-        const primerTimeout = setTimeout(generarCompraAleatoria, 10000);
+        // 🔥 MODO FRENÉTICO: El primero sale a los 3 segundos rápido
+        const primerTimeout = setTimeout(generarCompraAleatoria, 3000);
 
-        // Luego, repetir infinitamente cada 25 a 45 segundos de forma aleatoria
+        // Repetir infinitamente cada 10 a 18 segundos
         const intervaloInfinito = setInterval(() => {
             if (!isVisible) {
                 generarCompraAleatoria();
             }
-        }, Math.floor(Math.random() * 20000) + 25000);
+        }, Math.floor(Math.random() * 8000) + 10000);
 
         return () => {
             clearTimeout(primerTimeout);

@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, X, Loader, Users } from 'lucide-react';
+import { Trophy, Medal, Crown, X, Loader, Users, BadgeCheck } from 'lucide-react'; // INYECCIÓN: Agregamos BadgeCheck
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../../pages/firebase'; // INYECCIÓN: Importamos la base de datos
+import { db } from '../../pages/firebase'; 
 import { collection, getDocs } from 'firebase/firestore';
+
+// 🔥 LISTA VIP: Escribe aquí tu correo o tu Gamertag exactamente como aparece en tu perfil
+const CUENTAS_VERIFICADAS = [
+    "jesxsve16@gmail.com", 
+    "Jesús Vera",
+    "Jesxs_Ve"
+];
 
 // 🔥 CEREBRO DE DATOS MASIVO
 const NOMBRES = [
@@ -27,27 +34,22 @@ const RANGOS = [
     { name: 'Diamante', min: 15000, max: 49999, color: 'text-cyan-400' },
     { name: 'Oro', min: 10000, max: 14999, color: 'text-yellow-400' },
     { name: 'Plata', min: 5000, max: 9999, color: 'text-gray-300' },
-    { name: 'Bronce', min: 0, max: 4999, color: 'text-orange-400' } // Añadido para usuarios reales nuevos
+    { name: 'Bronce', min: 0, max: 4999, color: 'text-orange-400' }
 ];
 
 const Leaderboard = () => {
     const [topPlayers, setTopPlayers] = useState([]);
-    
-    // --- INYECCIÓN: ESTADOS PARA EL RANKING GLOBAL ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [realUsers, setRealUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Motor de simulación para los Top 5
     const generarJugadores = () => {
         let nuevosJugadores = [];
         let nombresDisponibles = [...NOMBRES];
-        
         let puntosLocos = [];
         for (let i = 0; i < 5; i++) {
             puntosLocos.push(Math.floor(Math.random() * 77000) + 3000);
         }
-        
         puntosLocos.sort((a, b) => b - a);
 
         for (let i = 0; i < 5; i++) {
@@ -74,7 +76,6 @@ const Leaderboard = () => {
         return () => clearInterval(intervalo);
     }, []);
 
-    // --- INYECCIÓN: TRAER USUARIOS REALES ---
     const fetchRealUsers = async () => {
         setIsLoading(true);
         try {
@@ -82,12 +83,12 @@ const Leaderboard = () => {
             let users = [];
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                // Priorizamos el acumulado histórico, si no tiene, usamos el actual
                 const pts = data.tecnoPoints_acumulados || data.tecnoPoints || 0; 
                 
                 users.push({
                     id: doc.id,
                     name: data.gamertag || data.nombre_real || 'Jugador Nuevo',
+                    email: data.email || data.correo || '', // Capturamos el correo de Firebase
                     points: pts,
                     isReal: true,
                     avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.gamertag || doc.id}`
@@ -107,14 +108,19 @@ const Leaderboard = () => {
         }
     };
 
-    // --- INYECCIÓN: MEZCLAR Y ORDENAR (SIMULADOS + REALES) EN TIEMPO REAL ---
     const rankingCompleto = [...topPlayers, ...realUsers]
         .sort((a, b) => b.points - a.points)
         .map(player => {
-            // Asignamos el rango matemáticamente a cada uno en la mezcla
             let rankInfo = RANGOS.find(r => player.points >= r.min && player.points <= r.max) || RANGOS[RANGOS.length - 1];
             return { ...player, rank: rankInfo.name, rankColor: rankInfo.color };
         });
+
+    // --- FUNCIÓN DE VERIFICACIÓN ---
+    const checkIsVerified = (player) => {
+        if (!player.isReal) return false;
+        // Verifica si el correo o el nombre coinciden con la Lista VIP
+        return CUENTAS_VERIFICADAS.includes(player.email) || CUENTAS_VERIFICADAS.includes(player.name);
+    };
 
     return (
         <>
@@ -129,13 +135,13 @@ const Leaderboard = () => {
                     <p className="text-xs text-gray-400 mt-1">Los Top 5 clientes del mes en vivo.</p>
                 </div>
 
-                {/* VISTA RESUMIDA (SOLO LOS 5 PRIMEROS DE LA MEZCLA) */}
                 <div className="space-y-3 relative z-10 min-h-[350px]">
                     <AnimatePresence mode="popLayout">
                         {rankingCompleto.slice(0, 5).map((player, index) => {
                             let PositionIcon;
                             let iconColor;
                             let bgGlow = '';
+                            const isVerified = checkIsVerified(player);
 
                             if (index === 0) {
                                 PositionIcon = Trophy;
@@ -177,9 +183,11 @@ const Leaderboard = () => {
                                             )}
                                         </div>
                                         <div>
-                                            <h4 className="text-white font-bold text-sm flex items-center gap-2">
+                                            <h4 className="text-white font-bold text-sm flex items-center gap-1">
                                                 {player.name}
-                                                {player.isReal && <span className="bg-indigo-500 text-white text-[8px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Real</span>}
+                                                {isVerified && (
+                                                    <BadgeCheck size={16} className="text-white fill-blue-500" title="Cuenta Oficial" />
+                                                )}
                                             </h4>
                                             <span className={`text-[10px] uppercase font-bold tracking-wider ${player.rankColor}`}>
                                                 Rango {player.rank}
@@ -208,7 +216,6 @@ const Leaderboard = () => {
                 </button>
             </div>
 
-            {/* --- INYECCIÓN: MODAL DEL RANKING COMPLETO --- */}
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
@@ -218,7 +225,6 @@ const Leaderboard = () => {
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             className="bg-[#0a0a0f] border border-gray-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)]"
                         >
-                            {/* Cabecera del Modal */}
                             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#11111a] rounded-t-2xl shrink-0">
                                 <div>
                                     <h2 className="text-2xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 flex items-center gap-3">
@@ -236,7 +242,6 @@ const Leaderboard = () => {
                                 </div>
                             </div>
 
-                            {/* Lista Global Desplazable */}
                             <div className="p-6 overflow-y-auto hide-scrollbar space-y-2 relative min-h-[300px]">
                                 {isLoading && realUsers.length === 0 ? (
                                     <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0f]/80 z-10">
@@ -245,6 +250,8 @@ const Leaderboard = () => {
                                 ) : (
                                     rankingCompleto.map((player, index) => {
                                         const isTop3 = index < 3;
+                                        const isVerified = checkIsVerified(player);
+
                                         return (
                                             <motion.div 
                                                 layout
@@ -259,9 +266,11 @@ const Leaderboard = () => {
                                                     </div>
                                                     <img src={player.avatar} alt={player.name} className="w-10 h-10 rounded-full bg-black border border-gray-700 object-cover" />
                                                     <div>
-                                                        <h4 className="text-white font-bold text-sm flex items-center gap-2">
+                                                        <h4 className="text-white font-bold text-sm flex items-center gap-1">
                                                             {player.name}
-                                                            {player.isReal && <span className="text-[9px] px-1.5 py-0.5 rounded border border-indigo-500/30 text-indigo-400 bg-indigo-500/10">Cuenta Verificada</span>}
+                                                            {isVerified && (
+                                                                <BadgeCheck size={16} className="text-white fill-blue-500" title="Cuenta Oficial" />
+                                                            )}
                                                         </h4>
                                                         <span className={`text-[10px] uppercase font-bold tracking-wider ${player.rankColor}`}>
                                                             {player.rank}

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ShieldCheck, FileCheck, ImageIcon, Bot, Link as LinkIcon, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ShieldCheck, FileCheck, ImageIcon, Bot, Link as LinkIcon, AlertTriangle, ArrowRight, UserCheck } from 'lucide-react';
 import { MAX_FILE_SIZE_BYTES } from '../../config/constants';
-import { auth, db } from '../../pages/firebase'; // Asegúrate de que la ruta sea correcta
+import { auth, db } from '../../pages/firebase'; 
 import { doc, getDoc } from 'firebase/firestore';
 import axios from 'axios';
 
@@ -9,13 +9,13 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
   const idDocRef = useRef(null); 
   const isBinance = (paymentMethod === 'binance'); 
   const isTarjeta = (paymentMethod === 'tarjeta');
+  const isSaldoTnb = (paymentMethod === 'saldo_tnb'); // INYECCIÓN: Detectar Saldo TNB
   
-  // AQUÍ ESTÁ LA MAGIA: Exigimos foto siempre, EXCEPTO si es Binance o Tarjeta
-  const requiresIdImage = !isBinance && !isTarjeta; 
+  // AQUÍ ESTÁ LA MAGIA: Exigimos foto siempre, EXCEPTO si es Binance, Tarjeta o SALDO TNB
+  const requiresIdImage = !isBinance && !isTarjeta && !isSaldoTnb; 
   
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-  // --- INYECCIÓN KYC DIDIT ---
   const [hasKyc, setHasKyc] = useState(false);
   const [isLoadingKyc, setIsLoadingKyc] = useState(false);
   const [userUid, setUserUid] = useState(null);
@@ -37,7 +37,6 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
   const handleStartKYC = async () => {
       setIsLoadingKyc(true);
       try {
-          // Llama a tu servidor en Vercel
           const response = await axios.post('https://api-paypal-secure.vercel.app/api/kyc/generate-session', {
               vendorData: userUid || "Invitado_Checkout"
           });
@@ -52,9 +51,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
           setIsLoadingKyc(false);
       }
   };
-  // ---------------------------
   
-  // VALIDACIÓN ARCHIVO 1MB
   const handleFileChange = (e) => { 
       const file = e.target.files[0]; 
       if (file) { 
@@ -69,21 +66,17 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
 
   const handleSubmit = (e) => { 
       e.preventDefault(); 
-      // AHORA EXIGIMOS QUE EL CAMPO DE CÉDULA (idNumber) ESTÉ LLENO
-      // Validación estricta: Si requiere KYC y NO lo tiene, lo bloqueamos
       if (requiresIdImage && !hasKyc) {
           return alert("⚠️ Por regulaciones de seguridad, debes Verificar tu Identidad con Didit antes de continuar con este método de pago.");
       }
       if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.idNumber) {
           return alert("Completa todos los campos obligatorios.");
       }
-      // VERIFICAMOS LA FOTO SOLO SI EL MÉTODO LO REQUIERE (Ej: PayPal)
       if (requiresIdImage && !paypalData.idDoc) { 
           alert("Debes cargar la foto de tu documento de identidad para continuar."); 
           return; 
       } 
 
-      // --- 🛡️ VALIDACIÓN ADMIN BOT (NUEVO) ---
       const hasBot = cart.some(item => item.id === 20 || item.title === 'Admin. Bot');
       if (hasBot) {
           const link = paypalData.groupLink;
@@ -92,19 +85,17 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
               return; 
           }
       }
-      // ----------------------------------------------
 
       setCheckoutStep(2); 
   };
   
-  // EL BOTÓN SOLO SE ACTIVA SI LA CÉDULA ESTÁ PUESTA Y LA FOTO (SI APLICA) TAMBIÉN
   const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && paypalData.idNumber && (!requiresIdImage || paypalData.idDoc) && acceptedTerms;
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
       <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-        <span className={`${isBinance ? 'bg-yellow-500 text-black' : (isTarjeta ? 'bg-cyan-500 text-black' : 'bg-indigo-600 text-white')} text-xs py-1 px-2 rounded`}>API</span> 
-        Configuración de {isBinance ? 'Binance Pay' : (isTarjeta ? 'Tarjeta' : 'Facturación')}
+        <span className={`${isBinance ? 'bg-yellow-500 text-black' : (isTarjeta ? 'bg-cyan-500 text-black' : isSaldoTnb ? 'bg-green-500 text-black' : 'bg-indigo-600 text-white')} text-xs py-1 px-2 rounded`}>API</span> 
+        Configuración de {isBinance ? 'Binance Pay' : (isTarjeta ? 'Tarjeta' : isSaldoTnb ? 'Pago con Saldo TNB' : 'Facturación')}
       </h2>
       <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -120,7 +111,6 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
         
         <div className="grid grid-cols-2 gap-4">
             <div>
-                {/* --- NUEVO CAMPO DE CÉDULA --- */}
                 <label className="block text-gray-300 text-sm mb-1">Cédula / Documento</label>
                 <input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="V-12345678" value={paypalData.idNumber || ''} onChange={e => setPaypalData({...paypalData, idNumber: e.target.value})} />
             </div>
@@ -130,7 +120,6 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
             </div>
         </div>
       
-        {/* INTERRUPTOR VISUAL DE DIDIT */}
         {requiresIdImage && (
             <div className="mt-4">
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
@@ -166,7 +155,6 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
             </div>
         )}
 
-        {/* 🤖 MÓDULO INTELIGENTE: ADMIN BOT (INYECCIÓN DE CÓDIGO) */}
         {cart.some(item => item.id === 20 || item.title === 'Admin. Bot') && (
             <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl animate-fadeIn">
                 <div className="flex items-center gap-2 mb-2">
@@ -176,7 +164,6 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                 
                 <p className="text-[11px] text-gray-300 mb-3 leading-relaxed">
                     Para activar el <strong>Admin Bot</strong>, necesitamos el enlace de invitación de tu grupo.
-                    <span className="block text-blue-300 mt-1">🚀 El bot se unirá automáticamente al confirmar el pago.</span>
                 </p>
 
                 <div className="space-y-1">
@@ -191,7 +178,6 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                             onChange={(e) => setPaypalData({ ...paypalData, groupLink: e.target.value })}
                         />
                     </div>
-                    {/* Mensaje de error condicional */}
                     {paypalData.groupLink && !paypalData.groupLink.includes('chat.whatsapp.com') && (
                         <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
                             <AlertTriangle size={10} /> Enlace no válido. Debe contener "chat.whatsapp.com"
@@ -205,7 +191,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
             <input type="checkbox" id="terms-checkbox-paypal" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-600 focus:ring-indigo-500" />
             <label htmlFor="terms-checkbox-paypal" className="text-sm text-gray-400">He leído y acepto los <span onClick={openTerms} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Términos y Condiciones</span> y la <span onClick={openPrivacy} className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer">Política de Privacidad</span>.</label>
         </div>
-        <button type="submit" disabled={!isFormValid} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all ${isFormValid ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : (isTarjeta ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white')) : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>
+        <button type="submit" disabled={!isFormValid} className={`w-full font-bold py-4 rounded-lg shadow-lg mt-4 flex justify-center gap-2 transition-all ${isFormValid ? (isBinance ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : (isTarjeta ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : isSaldoTnb ? 'bg-green-500 hover:bg-green-400 text-black' : 'bg-indigo-600 hover:bg-indigo-700 text-white')) : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-70'}`}>
             Continuar al Pago <ArrowRight size={20} />
         </button>
       </form>

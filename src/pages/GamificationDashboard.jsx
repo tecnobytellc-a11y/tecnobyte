@@ -334,8 +334,15 @@ const GamificationDashboard = () => {
                                             </div>
                                         </div>
 
-                                        <TecnoPoints points={currentPoints} pointsPending={userData?.tecnoPoints_pendientes || 0} />
-                                        <RankSystem userPoints={currentPoints} />
+                                        <TecnoPoints 
+                                        points={currentPoints} 
+                                        pointsPending={userData?.tecnoPoints_pendientes || 0} 
+                                        onUpdate={async () => {
+                                            const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
+                                            if(userDoc.exists()) setUserData(userDoc.data());
+                                        }}
+                                    />
+                                        <RankSystem userPoints={userData?.tecnoPoints_acumulados || currentPoints} />
                                         
                                         <div className="bg-[#11111a] border border-indigo-500/30 p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500 transition-colors cursor-pointer" onClick={() => setIsRouletteOpen(true)}>
                                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>

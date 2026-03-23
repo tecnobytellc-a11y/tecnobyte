@@ -46,7 +46,8 @@ const RankSystem = ({ userPoints = 1200 }) => {
                             </div>
                             <div>
                                 <span className={`text-2xl font-black font-orbitron tracking-wide ${currentRank.color}`}>{currentRank.name}</span>
-                                <div className="text-white font-mono text-sm">{userPoints.toLocaleString()} <span className="text-gray-500 text-xs">PTS</span></div>
+                                {/* INYECCIÓN: Etiqueta (Histórico) añadida sutilmente */}
+                                <div className="text-white font-mono text-sm">{userPoints.toLocaleString()} <span className="text-gray-500 text-xs">PTS (Histórico)</span></div>
                             </div>
                         </div>
                     </div>

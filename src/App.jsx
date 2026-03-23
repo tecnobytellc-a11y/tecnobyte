@@ -215,7 +215,7 @@ const AppContent = () => {
                                 </div>
                             </div>
                             
-                            {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={setCoupon} coupon={coupon} removeCoupon={() => setCoupon(null)} />}
+                            {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={applyCoupon} coupon={coupon} removeCoupon={removeCoupon} cartTotal={finalTotal} />}
                             {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'tarjeta' || paymentMethod === 'saldo_tnb') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} cart={cart} />}
                             {checkoutStep === 2 && ( 
                                 (paymentMethod === 'tarjeta') ? <PayPalCardProcessor cart={cart} finalTotal={finalTotal} coupon={coupon} paypalData={paypalData} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} /> :

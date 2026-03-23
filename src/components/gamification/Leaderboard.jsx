@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Crown, X, Loader, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../firebase'; // INYECCIÓN: Importamos la base de datos
+import { db } from '../pages/firebase'; // INYECCIÓN: Importamos la base de datos
 import { collection, getDocs } from 'firebase/firestore';
 
 // 🔥 CEREBRO DE DATOS MASIVO

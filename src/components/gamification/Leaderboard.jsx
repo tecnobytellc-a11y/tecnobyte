@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, X, Loader, Users, BadgeCheck } from 'lucide-react'; 
+import { Trophy, Medal, Crown, X, Loader, Users, BadgeCheck } from 'lucide-react'; // INYECCIÓN: Agregamos BadgeCheck
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../pages/firebase'; 
 import { collection, getDocs } from 'firebase/firestore';
@@ -30,8 +30,7 @@ const NOMBRES = [
 ];
 
 const RANGOS = [
-    { name: 'Leyenda', min: 100000, max: 9999999, color: 'text-rose-500' },
-    { name: 'Gran Maestro', min: 50000, max: 99999, color: 'text-purple-500' },
+    { name: 'Gran Maestro', min: 50000, max: 999999, color: 'text-purple-500' },
     { name: 'Diamante', min: 15000, max: 49999, color: 'text-cyan-400' },
     { name: 'Oro', min: 10000, max: 14999, color: 'text-yellow-400' },
     { name: 'Plata', min: 5000, max: 9999, color: 'text-gray-300' },
@@ -48,13 +47,12 @@ const Leaderboard = () => {
         let nuevosJugadores = [];
         let nombresDisponibles = [...NOMBRES];
         let puntosLocos = [];
-        // INYECCIÓN: Generamos 30 BOTS Millonarios
-        for (let i = 0; i < 30; i++) {
-            puntosLocos.push(Math.floor(Math.random() * 485000) + 15000);
+        for (let i = 0; i < 5; i++) {
+            puntosLocos.push(Math.floor(Math.random() * 77000) + 3000);
         }
         puntosLocos.sort((a, b) => b - a);
 
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 5; i++) {
             const nombreIndex = Math.floor(Math.random() * nombresDisponibles.length);
             const nombre = nombresDisponibles.splice(nombreIndex, 1)[0]; 
             const puntosAsignados = puntosLocos[i];
@@ -90,7 +88,7 @@ const Leaderboard = () => {
                 users.push({
                     id: doc.id,
                     name: data.gamertag || data.nombre_real || 'Jugador Nuevo',
-                    email: data.email || data.correo || '', 
+                    email: data.email || data.correo || '', // Capturamos el correo de Firebase
                     points: pts,
                     isReal: true,
                     avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.gamertag || doc.id}`
@@ -117,8 +115,10 @@ const Leaderboard = () => {
             return { ...player, rank: rankInfo.name, rankColor: rankInfo.color };
         });
 
+    // --- FUNCIÓN DE VERIFICACIÓN ---
     const checkIsVerified = (player) => {
         if (!player.isReal) return false;
+        // Verifica si el correo o el nombre coinciden con la Lista VIP
         return CUENTAS_VERIFICADAS.includes(player.email) || CUENTAS_VERIFICADAS.includes(player.name);
     };
 
@@ -132,13 +132,12 @@ const Leaderboard = () => {
                 <div className="text-center mb-6 relative z-10">
                     <Crown className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
                     <h2 className="text-2xl font-black font-orbitron text-white uppercase tracking-widest">Salón de la Fama</h2>
-                    <p className="text-xs text-gray-400 mt-1">Los Top 30 clientes del mes en vivo.</p>
+                    <p className="text-xs text-gray-400 mt-1">Los Top 5 clientes del mes en vivo.</p>
                 </div>
 
-                {/* INYECCIÓN: Contenedor con scroll para los 30 puestos con filtro estricto de 10,000 pts */}
-                <div className="space-y-3 relative z-10 max-h-[600px] overflow-y-auto hide-scrollbar pr-2">
+                <div className="space-y-3 relative z-10 min-h-[350px]">
                     <AnimatePresence mode="popLayout">
-                        {rankingCompleto.filter(p => p.isSimulated || p.points >= 10000).slice(0, 30).map((player, index) => {
+                        {rankingCompleto.slice(0, 5).map((player, index) => {
                             let PositionIcon;
                             let iconColor;
                             let bgGlow = '';
@@ -167,7 +166,7 @@ const Leaderboard = () => {
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
-                                    transition={{ delay: index * 0.05, duration: 0.3 }}
+                                    transition={{ delay: index * 0.1, duration: 0.4 }}
                                     key={player.id}
                                     className={`flex items-center justify-between p-3 rounded-xl border ${bgGlow}`}
                                 >
@@ -211,7 +210,7 @@ const Leaderboard = () => {
                 
                 <button 
                     onClick={handleOpenRanking}
-                    className="w-full mt-6 py-3 border border-indigo-500/50 text-indigo-400 text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-indigo-500 hover:text-white transition-colors relative z-10 shadow-lg"
+                    className="w-full mt-6 py-2 border border-indigo-500/50 text-indigo-400 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-indigo-500 hover:text-white transition-colors relative z-10"
                 >
                     Ver Ranking Completo
                 </button>

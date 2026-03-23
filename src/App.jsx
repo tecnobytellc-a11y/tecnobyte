@@ -23,6 +23,7 @@ import PayPalDetailsForm from './components/checkout/PayPalDetailsForm';
 import PayPalCardProcessor from './components/checkout/PayPalCardProcessor';
 import AutomatedFlowWrapper from './components/checkout/AutomatedFlowWrapper';
 import BinanceAutomatedCheckout from './components/checkout/BinanceAutomatedCheckout';
+import TnbAutomatedCheckout from './components/checkout/TnbAutomatedCheckout';
 import PaymentProofStep from './components/checkout/PaymentProofStep';
 
 import SuccessScreen from './components/verification/SuccessScreen';
@@ -215,11 +216,12 @@ const AppContent = () => {
                             </div>
                             
                             {checkoutStep === 0 && <PaymentMethodSelection setPaymentMethod={setPaymentMethod} setCheckoutStep={setCheckoutStep} setView={setView} applyCoupon={setCoupon} coupon={coupon} removeCoupon={() => setCoupon(null)} />}
-                            {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'tarjeta') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} cart={cart} />}
+                            {checkoutStep === 1 && (paymentMethod === 'paypal' || paymentMethod === 'binance' || paymentMethod === 'tarjeta' || paymentMethod === 'saldo_tnb') && <PayPalDetailsForm paypalData={paypalData} setPaypalData={setPaypalData} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} cart={cart} />}
                             {checkoutStep === 2 && ( 
                                 (paymentMethod === 'tarjeta') ? <PayPalCardProcessor cart={cart} finalTotal={finalTotal} coupon={coupon} paypalData={paypalData} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} /> :
                                 (paymentMethod === 'paypal') ? <AutomatedFlowWrapper cart={cart} cartTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paypalData={paypalData} coupon={coupon} contactInfo={contactInfo} paymentMethod={paymentMethod} /> : 
-                                (paymentMethod === 'binance') ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={(tid) => { /* Handled originally in function, let's keep it clean we need handleBinanceSuccess equivalent */ }} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> : 
+                                (paymentMethod === 'binance') ? <BinanceAutomatedCheckout finalTotal={finalTotal} cartTotal={finalTotal} paypalData={paypalData} onVerified={(tid) => { /* Handled originally in function, let's keep it clean we need handleBinanceSuccess equivalent */ }} onCancel={() => setCheckoutStep(0)} contactInfo={contactInfo} /> :
+                                (paymentMethod === 'saldo_tnb') ? <TnbAutomatedCheckout finalTotal={finalTotal} cart={cart} paypalData={paypalData} coupon={coupon} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} /> :
                                 <PaymentProofStep proofData={proofData} setProofData={setProofData} cart={cart} cartTotal={rawTotal} finalTotal={finalTotal} setLastOrder={setLastOrder} setCart={setCart} setCheckoutStep={setCheckoutStep} paymentMethod={paymentMethod} paypalData={paypalData} exchangeRate={exchangeRateBs} coupon={coupon} contactInfo={contactInfo} openTerms={() => setShowTerms(true)} openPrivacy={() => setShowPrivacy(true)} />
                             )}
                             {checkoutStep === 3 && (

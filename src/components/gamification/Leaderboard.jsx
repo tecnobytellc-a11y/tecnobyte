@@ -47,12 +47,14 @@ const Leaderboard = () => {
         let nuevosJugadores = [];
         let nombresDisponibles = [...NOMBRES];
         let puntosLocos = [];
-        for (let i = 0; i < 5; i++) {
+        // INYECCIÓN: Ajustado a 30 puestos para los bots
+        for (let i = 0; i < 30; i++) {
             puntosLocos.push(Math.floor(Math.random() * 77000) + 3000);
         }
         puntosLocos.sort((a, b) => b - a);
 
-        for (let i = 0; i < 5; i++) {
+        // INYECCIÓN: Ajustado a 30 puestos para los bots
+        for (let i = 0; i < 30; i++) {
             const nombreIndex = Math.floor(Math.random() * nombresDisponibles.length);
             const nombre = nombresDisponibles.splice(nombreIndex, 1)[0]; 
             const puntosAsignados = puntosLocos[i];
@@ -108,7 +110,8 @@ const Leaderboard = () => {
         }
     };
 
-    const rankingCompleto = [...topPlayers, ...realUsers]
+    // INYECCIÓN: Filtramos a los usuarios reales para que solo pasen los que tienen 10,000 puntos o más
+    const rankingCompleto = [...topPlayers, ...realUsers.filter(user => user.points >= 5000)]
         .sort((a, b) => b.points - a.points)
         .map(player => {
             let rankInfo = RANGOS.find(r => player.points >= r.min && player.points <= r.max) || RANGOS[RANGOS.length - 1];
@@ -132,12 +135,14 @@ const Leaderboard = () => {
                 <div className="text-center mb-6 relative z-10">
                     <Crown className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
                     <h2 className="text-2xl font-black font-orbitron text-white uppercase tracking-widest">Salón de la Fama</h2>
-                    <p className="text-xs text-gray-400 mt-1">Los Top 5 clientes del mes en vivo.</p>
+                    {/* INYECCIÓN: Cambiado texto a Top 10 */}
+                    <p className="text-xs text-gray-400 mt-1">Los Top 10 clientes del mes en vivo.</p>
                 </div>
 
                 <div className="space-y-3 relative z-10 min-h-[350px]">
                     <AnimatePresence mode="popLayout">
-                        {rankingCompleto.slice(0, 5).map((player, index) => {
+                        {/* INYECCIÓN: Mostrar 10 puestos en la pantalla principal */}
+                        {rankingCompleto.slice(0, 10).map((player, index) => {
                             let PositionIcon;
                             let iconColor;
                             let bgGlow = '';
@@ -248,7 +253,8 @@ const Leaderboard = () => {
                                         <Loader className="animate-spin text-cyan-400" size={40} />
                                     </div>
                                 ) : (
-                                    rankingCompleto.map((player, index) => {
+                                    // INYECCIÓN: Mostrar exactamente los 30 primeros en el modal
+                                    rankingCompleto.slice(0, 30).map((player, index) => {
                                         const isTop3 = index < 3;
                                         const isVerified = checkIsVerified(player);
 

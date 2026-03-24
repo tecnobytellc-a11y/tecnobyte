@@ -12,7 +12,7 @@ import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 // INYECCIÓN: Agregados iconos de historial
-import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays } from 'lucide-react';
+import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays, Lock, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 
 const PRESET_AVATARS = [
@@ -44,13 +44,22 @@ const GamificationDashboard = () => {
     const [newPassword, setNewPassword] = useState('');
     const [isChangingPwd, setIsChangingPwd] = useState(false);
     const [pwdMessage, setPwdMessage] = useState({ type: '', text: '' });
+    
+    // --- INYECCIÓN: ESTADOS PARA LÓGICA REAL DE 2FA ---
     const [twoFAMethod, setTwoFAMethod] = useState(null);
+    const [is2FASetupOpen, setIs2FASetupOpen] = useState(false);
+    const [setupStep, setSetupStep] = useState(1); // 1: QR, 2: Exito
+    const [qrCodeUrl, setQrCodeUrl] = useState(null);
+    const [tempSecret, setTempSecret] = useState('');
+    const [authCode, setAuthCode] = useState('');
+    const [isProcessing2FA, setIsProcessing2FA] = useState(false);
+    const [error2FA, setError2FA] = useState('');
 
     // --- ESTADOS PARA EL CANJE DE BILLETERA ---
     const [giftCode, setGiftCode] = useState('');
     const [isRedeeming, setIsRedeeming] = useState(false);
 
-    // --- INYECCIÓN: ESTADOS PARA EL HISTORIAL DE BILLETERA ---
+    // --- ESTADOS PARA EL HISTORIAL DE BILLETERA ---
     const [isWalletHistoryOpen, setIsWalletHistoryOpen] = useState(false);
     const [walletHistory, setWalletHistory] = useState([]);
     const [isLoadingWalletHistory, setIsLoadingWalletHistory] = useState(false);
@@ -167,9 +176,67 @@ const GamificationDashboard = () => {
         e.target.value = ''; 
     };
 
-    const handleStart2FASetup = (method) => {
+    // --- INYECCIÓN: LÓGICA REAL DE ACTIVACIÓN 2FA ---
+    const handleStart2FASetup = async (method) => {
+        if (method === 'sms') {
+            alert('La verificación por SMS estará disponible pronto. Por favor usa la App de Autenticación.');
+            return;
+        }
+
         setTwoFAMethod(method);
-        alert(`Iniciando configuración de 2FA por ${method === 'app' ? 'Google Authenticator' : 'SMS'}. (Conectando con Vercel...)`);
+        setIs2FASetupOpen(true);
+        setIsProcessing2FA(true);
+        setError2FA('');
+        setSetupStep(1);
+
+        try {
+            const idToken = await auth.currentUser.getIdToken(true);
+            const res = await fetch('/api/2fa-generate', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${idToken}` }
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                setQrCodeUrl(data.qrCodeUrl);
+                setTempSecret(data.secret);
+            } else {
+                setError2FA('Error al generar el código QR desde el servidor.');
+            }
+        } catch (err) {
+            setError2FA('Error de conexión con el servidor.');
+        }
+        setIsProcessing2FA(false);
+    };
+
+    const handleVerify2FACode = async (e) => {
+        e.preventDefault();
+        if (authCode.length < 6) return;
+        setIsProcessing2FA(true);
+        setError2FA('');
+
+        try {
+            const idToken = await auth.currentUser.getIdToken(true);
+            const res = await fetch('/api/2fa-verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ codigo: authCode, secret: tempSecret })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setSetupStep(2); // Éxito
+                setUserData(prev => ({ ...prev, twoFactorSecret: tempSecret })); // Actualizar UI local
+            } else {
+                setError2FA(data.message || 'Código incorrecto. Intenta de nuevo.');
+            }
+        } catch (err) {
+            setError2FA('Error al verificar el código con el servidor.');
+        }
+        setIsProcessing2FA(false);
     };
 
     const handleRedeemGiftCard = async () => {
@@ -196,7 +263,6 @@ const GamificationDashboard = () => {
         setIsRedeeming(false);
     };
 
-    // --- INYECCIÓN: DESCARGAR HISTORIAL DE BILLETERA ---
     const handleOpenWalletHistory = async () => {
         setIsWalletHistoryOpen(true);
         if (!auth.currentUser) return;
@@ -205,7 +271,7 @@ const GamificationDashboard = () => {
             const q = query(
                 collection(db, "usuarios", auth.currentUser.uid, "historial_billetera"),
                 orderBy("timestamp", "desc"),
-                limit(30) // Trae los últimos 30 movimientos
+                limit(30)
             );
             const querySnapshot = await getDocs(q);
             const historyData = [];
@@ -278,6 +344,15 @@ const GamificationDashboard = () => {
                                 </button>
                             ))}
                             
+                            {/* --- INYECCIÓN: BOTÓN VORTEX PAY EN EL MENÚ LATERAL --- */}
+                            <button
+                                onClick={() => window.location.href = 'https://www.tecnobyte.lat/vortex-pay'}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm bg-gradient-to-r from-cyan-500/10 to-green-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20"
+                            >
+                                <img src="/vertexpay.png" alt="Vortex Pay" className="w-5 h-5 object-contain" />
+                                Vortex Pay
+                            </button>
+
                             <div className="w-full h-px bg-gray-800 my-4"></div>
 
                             <button onClick={() => navigate('/')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20">
@@ -305,7 +380,6 @@ const GamificationDashboard = () => {
                                             <div className="absolute top-0 right-0 p-4 opacity-20"><Wallet size={60} className="text-green-500" /></div>
                                             <h3 className="text-gray-300 font-bold tracking-wide mb-2 flex items-center gap-2"><Wallet className="text-green-400 w-5 h-5" /> Saldo TNB (USD)</h3>
                                             
-                                            {/* INYECCIÓN: Botón Historial Integrado al Saldo */}
                                             <div className="flex items-center gap-3 mb-4">
                                                 <div className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">${(userData?.saldo_tnb || 0).toFixed(2)}</div>
                                                 <button onClick={handleOpenWalletHistory} className="text-[10px] uppercase tracking-wider bg-green-500/10 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-colors flex items-center gap-1 font-bold">
@@ -335,13 +409,13 @@ const GamificationDashboard = () => {
                                         </div>
 
                                         <TecnoPoints 
-                                        points={currentPoints} 
-                                        pointsPending={userData?.tecnoPoints_pendientes || 0} 
-                                        onUpdate={async () => {
-                                            const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
-                                            if(userDoc.exists()) setUserData(userDoc.data());
-                                        }}
-                                    />
+                                            points={currentPoints} 
+                                            pointsPending={userData?.tecnoPoints_pendientes || 0} 
+                                            onUpdate={async () => {
+                                                const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
+                                                if(userDoc.exists()) setUserData(userDoc.data());
+                                            }}
+                                        />
                                         <RankSystem userPoints={userData?.tecnoPoints_acumulados || currentPoints} />
                                         
                                         <div className="bg-[#11111a] border border-indigo-500/30 p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500 transition-colors cursor-pointer" onClick={() => setIsRouletteOpen(true)}>
@@ -439,25 +513,29 @@ const GamificationDashboard = () => {
                                                 {isChangingPwd ? 'Actualizando...' : 'Actualizar'}
                                             </button>
                                         </div>
+                                        {pwdMessage.text && <p className={`text-xs mt-3 ${pwdMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>{pwdMessage.text}</p>}
                                     </form>
 
-                                    <div className="bg-gradient-to-r from-gray-900 to-indigo-900/20 p-6 rounded-xl border border-indigo-500/30">
-                                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                                    <div className="bg-gradient-to-r from-gray-900 to-indigo-900/20 p-6 rounded-xl border border-indigo-500/30 relative overflow-hidden">
+                                        {/* INYECCIÓN: Lógica de 2FA Visual */}
+                                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 relative z-10">
                                             <div>
                                                 <h3 className="font-bold text-indigo-400 mb-1 flex items-center gap-2"><Settings size={16}/> Verificación en 2 Pasos (2FA)</h3>
                                                 <p className="text-sm text-gray-400">Añade una capa extra de seguridad a tu Saldo TNB y tus TecnoPoints.</p>
                                             </div>
-                                            {userData?.twoFactorEnabled ? (
+                                            {userData?.twoFactorSecret ? (
                                                 <span className="px-4 py-1.5 bg-green-500/20 text-green-400 border border-green-500/50 font-bold rounded-full text-xs flex items-center gap-2">
                                                     <Shield size={14} /> Activo
                                                 </span>
                                             ) : (
-                                                <span className="px-4 py-1.5 bg-red-500/20 text-red-400 border border-red-500/50 font-bold rounded-full text-xs">Desactivado</span>
+                                                <span className="px-4 py-1.5 bg-red-500/20 text-red-400 border border-red-500/50 font-bold rounded-full text-xs flex items-center gap-2">
+                                                    <AlertTriangle size={14} /> Desactivado
+                                                </span>
                                             )}
                                         </div>
 
-                                        {!userData?.twoFactorEnabled && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {!userData?.twoFactorSecret && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
                                                 <button onClick={() => handleStart2FASetup('app')} className="p-4 border border-gray-700 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/10 transition-all text-left flex items-start gap-4">
                                                     <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400"><QrCode size={24} /></div>
                                                     <div>
@@ -474,6 +552,63 @@ const GamificationDashboard = () => {
                                                 </button>
                                             </div>
                                         )}
+                                        
+                                        {/* MODAL INYECTADO DE CONFIGURACIÓN 2FA DENTRO DE LA PESTAÑA */}
+                                        <AnimatePresence>
+                                            {is2FASetupOpen && (
+                                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-6 pt-6 border-t border-gray-800">
+                                                    <div className="bg-black/50 border border-indigo-500/30 rounded-xl p-6 relative">
+                                                        <button onClick={() => setIs2FASetupOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X size={20} /></button>
+                                                        
+                                                        {setupStep === 1 && (
+                                                            <div className="space-y-6">
+                                                                <h4 className="text-lg font-bold text-white text-center flex items-center justify-center gap-2">
+                                                                    <QrCode className="text-indigo-400" /> Configurar Autenticador
+                                                                </h4>
+                                                                
+                                                                {isProcessing2FA ? (
+                                                                    <div className="flex justify-center py-8"><Loader className="animate-spin text-indigo-500" size={32} /></div>
+                                                                ) : (
+                                                                    <div className="flex flex-col items-center space-y-4">
+                                                                        <div className="bg-white p-3 rounded-lg">
+                                                                            <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                                                                        </div>
+                                                                        <p className="text-xs text-gray-400 text-center max-w-xs">Escanea este código con tu aplicación de autenticación para vincular tu cuenta.</p>
+                                                                        
+                                                                        <form onSubmit={handleVerify2FACode} className="w-full max-w-xs mt-4">
+                                                                            <div className="flex gap-2">
+                                                                                <input 
+                                                                                    type="text" 
+                                                                                    maxLength="6" 
+                                                                                    required 
+                                                                                    placeholder="000000" 
+                                                                                    value={authCode} 
+                                                                                    onChange={(e) => setAuthCode(e.target.value.replace(/\D/g, ''))} 
+                                                                                    className="w-full bg-[#0a0a0f] border border-gray-700 rounded-lg p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-indigo-500 outline-none transition-colors" 
+                                                                                />
+                                                                            </div>
+                                                                            {error2FA && <p className="text-xs text-red-400 text-center mt-2">{error2FA}</p>}
+                                                                            <button type="submit" disabled={authCode.length < 6 || isProcessing2FA} className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center">
+                                                                                {isProcessing2FA ? <Loader size={16} className="animate-spin" /> : 'Verificar y Activar'}
+                                                                            </button>
+                                                                        </form>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {setupStep === 2 && (
+                                                            <div className="text-center py-8 space-y-4">
+                                                                <CheckCircle2 className="text-green-500 mx-auto" size={64} strokeWidth={1.5} />
+                                                                <h4 className="text-2xl font-bold text-white">¡2FA Activado!</h4>
+                                                                <p className="text-sm text-gray-400">Tu cuenta ahora está protegida con seguridad de nivel bancario.</p>
+                                                                <button onClick={() => setIs2FASetupOpen(false)} className="mt-4 px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-lg transition-colors">Cerrar</button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
                             </motion.div>
@@ -497,7 +632,7 @@ const GamificationDashboard = () => {
                                     <h2 className="text-xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-400 flex items-center gap-3">
                                         <History className="text-green-400" /> Historial de Billetera
                                     </h2>
-                                    <p className="text-gray-400 text-sm mt-1">Registro de tus recargas y pagos con Saldo TNB.</p>
+                                    <p className="text-gray-400 text-sm mt-1">Registro de tus recargas y compras con Saldo TNB.</p>
                                 </div>
                                 <button onClick={() => setIsWalletHistoryOpen(false)} className="p-2 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors">
                                     <X size={24} />

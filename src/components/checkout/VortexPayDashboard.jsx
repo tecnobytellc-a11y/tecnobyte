@@ -1,62 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ArrowDownToLine, Wallet, ShieldCheck, Zap, History, Loader, AlertTriangle, CheckCircle2, Lock, ArrowUpRight, ArrowDownRight, CalendarDays, Eye, X, Copy, Mail, KeyRound, UserCog } from 'lucide-react';
-import { auth, db } from '../../pages/firebase'; // IMPORTANTE: Asegúrate de que esta ruta es correcta
+import { auth, db } from '../../pages/firebase'; // Asegúrate de que la ruta sea la correcta
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-const VortexPayDashboard = ({ saldoTnb = 0 }) => { 
-    const [activeTab, setActiveTab] = useState('enviar'); 
+const VortexPayDashboard = () => { 
+    const [activeTab, setActiveTab] = useState('enviar'); // 'enviar', 'retirar', 'historial'
     const [monto, setMonto] = useState('');
     const [destinatario, setDestinatario] = useState('');
     const [walletBsc, setWalletBsc] = useState('');
     const [codigo2fa, setCodigo2fa] = useState('');
     
-    const [status, setStatus] = useState('idle'); 
+    const [status, setStatus] = useState('idle'); // idle, processing, success, error
     const [mensaje, setMensaje] = useState('');
     
     const [transacciones, setTransacciones] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
     const [detailsModal, setDetailsModal] = useState({ isOpen: false, transaction: null });
     const [is2faActivationModalOpen, setIs2faActivationModalOpen] = useState(false);
     
-    // --- ESTADO REAL DE 2FA DESDE FIREBASE ---
+    // --- PRODUCCIÓN: ESTADOS REALES DESDE FIREBASE ---
+    const [saldoReal, setSaldoReal] = useState(0);
     const [is2faActive, setIs2faActive] = useState(false);
 
+    // Cargar datos reales del usuario al entrar al panel
     useEffect(() => {
-        // Verificar si el usuario tiene el 2FA activo en su perfil
-        const verificarEstado2FA = async () => {
+        const fetchUserData = async () => {
             if (auth.currentUser) {
                 const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
-                if (userDoc.exists() && userDoc.data().twoFactorSecret) {
-                    setIs2faActive(true);
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    setSaldoReal(data.tecnoPoints_acumulados || 0); // Cargamos tu saldo real
+                    if (data.twoFactorSecret) {
+                        setIs2faActive(true); // Verificamos si tienes 2FA real configurado
+                    }
                 }
             }
         };
-        verificarEstado2FA();
+        fetchUserData();
     }, []);
 
+    // Matemáticas de Comisiones en Tiempo Real
     const numMonto = parseFloat(monto) || 0;
+    
+    // P2P: 1.5%
     const comisionP2P = numMonto * 0.015;
     const recibeAmigo = numMonto - comisionP2P;
+
+    // Crypto: 5.4% + $0.33
     const comisionCrypto = (numMonto * 0.054) + 0.33;
     const recibeCrypto = numMonto - comisionCrypto;
 
     const handleProcesar = async (e) => {
         e.preventDefault();
 
-        // VALIDACIÓN DE CAPA 1: 2FA ACTIVADO
+        if (!auth.currentUser) {
+            alert("Debes iniciar sesión.");
+            return;
+        }
+
+        // VERIFICACIÓN REAL DE 2FA
         if (!is2faActive) {
             setIs2faActivationModalOpen(true);
             return; 
         }
 
-        if (numMonto <= 0 || numMonto > saldoTnb) {
-            alert("Monto inválido o fondos insuficientes.");
+        if (numMonto <= 0 || numMonto > saldoReal) {
+            alert("Monto inválido o fondos insuficientes en tu cuenta.");
             return;
         }
 
         if (activeTab === 'retirar' && recibeCrypto <= 0) {
-            alert("El monto a retirar debe ser mayor a la comisión.");
+            alert("El monto a retirar debe ser mayor a la comisión de red.");
             return;
         }
 
@@ -68,6 +84,7 @@ const VortexPayDashboard = ({ saldoTnb = 0 }) => {
         setStatus('processing');
         
         try {
+            // --- CONEXIÓN BLINDADA A VERCEL ---
             const idToken = await auth.currentUser.getIdToken(true);
             const endpoint = activeTab === 'enviar' ? '/api/vortex-pay-transfer' : '/api/vortex-pay-withdraw';
             const payload = activeTab === 'enviar' ? { destinatario, monto, codigo2fa } : { walletBsc, monto, codigo2fa };
@@ -88,19 +105,22 @@ const VortexPayDashboard = ({ saldoTnb = 0 }) => {
                 if (activeTab === 'enviar') {
                     setMensaje(`¡Envío exitoso! ID: ${data.txId}. Se han transferido $${recibeAmigo.toFixed(2)} TNB a ${destinatario}. Comisión cobrada: $${comisionP2P.toFixed(2)}`);
                 } else {
-                    setMensaje(`¡Retiro solicitado! ID: ${data.txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20.`);
+                    setMensaje(`¡Retiro solicitado! ID: ${data.txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20. Un administrador lo procesará tras verificar seguridad.`);
                 }
+                // Actualizamos el saldo visualmente sin tener que recargar la página
+                setSaldoReal(prev => prev - numMonto);
             } else {
                 setStatus('idle');
-                alert(data.message || 'Ocurrió un error procesando la transacción.');
+                alert(`Error del Servidor: ${data.message}`);
             }
         } catch (error) {
-            console.error("Error al procesar la transacción:", error);
+            console.error("Error en la transacción Vortex Pay:", error);
             setStatus('idle');
-            alert("Error de conexión con el servidor bancario.");
+            alert("Error de conexión con el protocolo bancario. Revisa tu internet.");
         }
     };
 
+    // --- PRODUCCIÓN: CARGA DE HISTORIAL REAL DESDE FIREBASE ---
     const cargarHistorialReal = async () => {
         if (!auth.currentUser) return;
         setIsLoadingHistory(true);
@@ -108,16 +128,18 @@ const VortexPayDashboard = ({ saldoTnb = 0 }) => {
             const q = query(collection(db, "usuarios", auth.currentUser.uid, "historial_vortex_pay"), orderBy("date", "desc"), limit(20));
             const querySnapshot = await getDocs(q);
             const historyData = [];
+            
             querySnapshot.forEach((docSnap) => {
                 const data = docSnap.data();
                 historyData.push({
                     ...data,
-                    date: data.date ? data.date.toDate().toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Reciente'
+                    // Si viene del servidor como Timestamp, lo formateamos bonito
+                    date: data.date && data.date.toDate ? data.date.toDate().toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Reciente'
                 });
             });
             setTransacciones(historyData);
         } catch (error) {
-            console.error("Error obteniendo historial:", error);
+            console.error("Error obteniendo el historial real:", error);
         }
         setIsLoadingHistory(false);
     };
@@ -167,7 +189,7 @@ const VortexPayDashboard = ({ saldoTnb = 0 }) => {
                     <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1 flex items-center justify-center md:justify-end gap-1">
                         <Wallet size={14} className="text-cyan-400"/> Saldo Disponible
                     </p>
-                    <p className="text-4xl font-mono font-black text-white">${Number(saldoTnb).toFixed(2)}</p>
+                    <p className="text-4xl font-mono font-black text-white">${Number(saldoReal).toFixed(2)}</p>
                 </div>
             </div>
 
@@ -204,7 +226,7 @@ const VortexPayDashboard = ({ saldoTnb = 0 }) => {
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
                                                 <span>Monto a Enviar (USD)</span>
-                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: ${Number(saldoTnb).toFixed(2)}</span>
+                                                <span onClick={() => setMonto(saldoReal.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: ${Number(saldoReal).toFixed(2)}</span>
                                             </label>
                                             
                                             <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-cyan-500 transition-colors">
@@ -247,7 +269,7 @@ const VortexPayDashboard = ({ saldoTnb = 0 }) => {
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
                                                 <span>Monto a Retirar (USD)</span>
-                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: ${Number(saldoTnb).toFixed(2)}</span>
+                                                <span onClick={() => setMonto(saldoReal.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: ${Number(saldoReal).toFixed(2)}</span>
                                             </label>
                                             
                                             <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-green-500 transition-colors">
@@ -273,7 +295,7 @@ const VortexPayDashboard = ({ saldoTnb = 0 }) => {
                             </motion.div>
                         )}
 
-                        {/* ================= HISTORIAL ================= */}
+                        {/* ================= HISTORIAL REAL ================= */}
                         {activeTab === 'historial' && (
                             <motion.div key="historial" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 h-full space-y-6">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><History className="text-gray-300"/> Registro Financiero Real</h3>

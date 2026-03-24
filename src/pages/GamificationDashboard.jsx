@@ -191,7 +191,7 @@ const GamificationDashboard = () => {
         try {
             const idToken = await auth.currentUser.getIdToken(true);
             // INYECCIÓN: URL completa hacia tu servidor privado
-            const res = await fetch('/private-auth/2fa-generate', {
+            const res = await fetch('/private-api/2fa-generate', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${idToken}` }
             });
@@ -218,7 +218,7 @@ const GamificationDashboard = () => {
         try {
             const idToken = await auth.currentUser.getIdToken(true);
            // INYECCIÓN: URL completa hacia tu servidor privado
-            const res = await fetch('/private-auth/2fa-verify', {
+            const res = await fetch('/private-api/2fa-verify', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

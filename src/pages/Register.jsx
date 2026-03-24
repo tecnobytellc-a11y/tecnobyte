@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight, ShieldCheck, Phone, Hash } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 // --- INYECCIÓN DE SEGURIDAD BANCARIA ---
-import { registrarConPerfilSeguro, loginConGoogle, db } from './firebase'; // db importado
-import { collection, query, where, getDocs } from 'firebase/firestore'; // INYECCIÓN: Herramientas de Firestore
+import { registrarConPerfilSeguro, loginConGoogle, db, auth } from './firebase'; 
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore'; // INYECCIÓN: Herramientas de Firestore
+import { updatePassword } from 'firebase/auth'; // INYECCIÓN: Para actualizar la contraseña de Google
 import axios from 'axios';
 
 const Register = () => {
@@ -22,6 +23,10 @@ const Register = () => {
     const [error, setError] = useState('');
     const [showKycPrompt, setShowKycPrompt] = useState(false); // Controla si mostramos la invitación de Didit
     const [userUid, setUserUid] = useState(null); // Guarda el ID secreto del usuario
+    
+    // --- INYECCIÓN: Control del flujo de Google ---
+    const [isGoogleFlow, setIsGoogleFlow] = useState(false); 
+
     const navigate = useNavigate();
 
     const handleRegister = async (e) => {
@@ -47,15 +52,40 @@ const Register = () => {
                 cedula_identidad: cedula,
                 telefono: telefono,
                 gamertag: gamertagBuscado, // Guardamos el nombre limpio de espacios
-                origen_registro: "formulario_completo"
+                origen_registro: isGoogleFlow ? "google_completado" : "formulario_completo"
             };
             
-           // Disparamos la función y RECUPERAMOS el usuario creado
-            const usuarioCreado = await registrarConPerfilSeguro(email, password, datosDelFormulario);
-            
-            // Guardamos su ID y mostramos la pantalla de Didit
-            setUserUid(usuarioCreado.uid);
-            setShowKycPrompt(true);
+            if (isGoogleFlow) {
+                // 🔹 FLUJO GOOGLE: El usuario ya está autenticado, solo guardamos sus datos y contraseña
+                try {
+                    // Le asignamos la contraseña autogenerada (o la que haya escrito) a su cuenta de Google
+                    await updatePassword(auth.currentUser, password);
+                } catch (pwdErr) {
+                    console.warn("La contraseña no se pudo enlazar, pero el registro continuará.", pwdErr);
+                }
+
+                // Creamos su perfil en la base de datos
+                await setDoc(doc(db, "usuarios", auth.currentUser.uid), {
+                    ...datosDelFormulario,
+                    email: email,
+                    saldo_tnb: 0,
+                    tecnoPoints: 0,
+                    tecnoPoints_acumulados: 0,
+                    cajas_normales: 0,
+                    cajas_miticas: 0,
+                    kyc_verificado: false,
+                    fecha_registro: new Date()
+                });
+
+                setUserUid(auth.currentUser.uid);
+                setShowKycPrompt(true);
+
+            } else {
+                // 🔹 FLUJO NORMAL: Creamos el usuario desde cero
+                const usuarioCreado = await registrarConPerfilSeguro(email, password, datosDelFormulario);
+                setUserUid(usuarioCreado.uid);
+                setShowKycPrompt(true);
+            }
             
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
@@ -95,8 +125,28 @@ const Register = () => {
     const handleGoogleRegister = async () => {
         setError('');
         try {
-            await loginConGoogle();
-            navigate('/perfil');
+            const userCredential = await loginConGoogle();
+            const user = userCredential?.user || auth.currentUser;
+
+            if (user) {
+                // Extraemos nombre y apellido de Google
+                const fullName = user.displayName || '';
+                const nameParts = fullName.split(' ');
+                const firstName = nameParts[0] || '';
+                const lastName = nameParts.slice(1).join(' ') || '';
+
+                setNombre(firstName);
+                setApellido(lastName);
+                setEmail(user.email);
+                
+                // Generamos una contraseña segura automática
+                setPassword("Tnb-" + Math.random().toString(36).slice(-8) + "!");
+                
+                setIsGoogleFlow(true);
+                
+                // Subimos la pantalla arriba para que vea el formulario
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         } catch (err) {
             setError('Error al conectar con Google.');
         }
@@ -144,6 +194,12 @@ const Register = () => {
                 {error && (
                     <div className="mb-4 bg-red-500/10 border border-red-500/50 text-red-400 text-sm text-center p-3 rounded-lg font-mono">
                         {error}
+                    </div>
+                )}
+
+                {isGoogleFlow && (
+                    <div className="mb-4 bg-green-500/10 border border-green-500/50 text-green-400 text-sm text-center p-3 rounded-lg font-mono">
+                        ¡Cuenta de Google vinculada! Completa las casillas vacías para guardar tu perfil en la base de datos.
                     </div>
                 )}
 
@@ -216,8 +272,8 @@ const Register = () => {
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-purple-400">
                                 <Mail size={18} />
                             </div>
-                            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-mono text-sm" placeholder="tu@correo.com" />
+                            <input type="email" required disabled={isGoogleFlow} value={email} onChange={(e) => setEmail(e.target.value)}
+                                className={`w-full bg-black/50 border border-gray-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-mono text-sm ${isGoogleFlow ? 'opacity-60 cursor-not-allowed' : ''}`} placeholder="tu@correo.com" />
                         </div>
                     </div>
 
@@ -236,6 +292,9 @@ const Register = () => {
                         </div>
                         {password.length > 0 && password.length < 6 && (
                             <p className="text-[10px] text-red-500 mt-1 ml-2">La contraseña debe tener al menos 6 caracteres.</p>
+                        )}
+                        {isGoogleFlow && (
+                            <p className="text-[10px] text-green-400 mt-1 ml-2">↑ Hemos generado una contraseña segura para ti. Puedes cambiarla si lo deseas.</p>
                         )}
                     </div>
 
@@ -263,22 +322,27 @@ const Register = () => {
                     </motion.button>
                 </form>
 
-                <div className="mt-6 relative flex items-center justify-center">
-                    <div className="absolute border-t border-gray-800 w-full"></div>
-                    <span className="bg-gray-900 px-3 text-[10px] text-gray-500 relative z-10 font-bold uppercase tracking-wider">O usa Google</span>
-                </div>
+                {/* Si ya está en flujo Google, ocultamos el botón inferior de Google para no confundir */}
+                {!isGoogleFlow && (
+                    <>
+                        <div className="mt-6 relative flex items-center justify-center">
+                            <div className="absolute border-t border-gray-800 w-full"></div>
+                            <span className="bg-gray-900 px-3 text-[10px] text-gray-500 relative z-10 font-bold uppercase tracking-wider">O usa Google</span>
+                        </div>
 
-                <div className="mt-4">
-                    <button type="button" onClick={handleGoogleRegister} className="w-full bg-white hover:bg-gray-100 text-gray-900 font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-3 text-sm">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                        </svg>
-                        Registro Rápido
-                    </button>
-                </div>
+                        <div className="mt-4">
+                            <button type="button" onClick={handleGoogleRegister} className="w-full bg-white hover:bg-gray-100 text-gray-900 font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-3 text-sm">
+                                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                </svg>
+                                Registro Rápido
+                            </button>
+                        </div>
+                    </>
+                )}
 
                 <p className="text-center text-xs text-gray-400 mt-6">
                     ¿Ya eres miembro? <Link to="/login" className="text-pink-400 hover:text-pink-300 font-bold transition-colors">Inicia Sesión aquí</Link>

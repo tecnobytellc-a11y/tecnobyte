@@ -1,58 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ArrowDownToLine, Wallet, ShieldCheck, Zap, History, Loader, AlertTriangle, CheckCircle2, Lock, ArrowUpRight, ArrowDownRight, CalendarDays, Eye, X, Copy, Mail, KeyRound, UserCog } from 'lucide-react';
-// import { auth, db } from '../../pages/firebase'; // Descomentar para producción
+import { auth, db } from '../../pages/firebase'; // IMPORTANTE: Asegúrate de que esta ruta es correcta
+import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-// 🔥 HELPER: Generador simulado de ID de Transacción Bancaria (Ej: VTX4A9F R2T1)
-const generateNumericTxId = () => {
-    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let result = 'VTX';
-    for (let i = 0; i < 8; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-};
-
-const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para pruebas
-    const [activeTab, setActiveTab] = useState('enviar'); // 'enviar', 'retirar', 'historial'
+const VortexPayDashboard = ({ saldoTnb = 0 }) => { 
+    const [activeTab, setActiveTab] = useState('enviar'); 
     const [monto, setMonto] = useState('');
     const [destinatario, setDestinatario] = useState('');
     const [walletBsc, setWalletBsc] = useState('');
     const [codigo2fa, setCodigo2fa] = useState('');
     
-    const [status, setStatus] = useState('idle'); // idle, processing, success, error
+    const [status, setStatus] = useState('idle'); 
     const [mensaje, setMensaje] = useState('');
     
     const [transacciones, setTransacciones] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-
-    // --- INYECCIÓN: ESTADOS PARA EL MODAL DE DETALLES PROFUNDO (DRAWER) ---
     const [detailsModal, setDetailsModal] = useState({ isOpen: false, transaction: null });
-
-    // --- INYECCIÓN: ESTADO PARA EL MODAL DE ACTIVACIÓN 2FA ---
     const [is2faActivationModalOpen, setIs2faActivationModalOpen] = useState(false);
     
-    // SIMULACIÓN DE ESTADO DE USUARIO (Para producción, esto vendrá de Firebase)
-    const [is2faActiveSimulated, setIs2faActiveSimulated] = useState(false); // Cambiar a true para probar el flujo normal
+    // --- ESTADO REAL DE 2FA DESDE FIREBASE ---
+    const [is2faActive, setIs2faActive] = useState(false);
 
-    // Matemáticas de Comisiones en Tiempo Real
+    useEffect(() => {
+        // Verificar si el usuario tiene el 2FA activo en su perfil
+        const verificarEstado2FA = async () => {
+            if (auth.currentUser) {
+                const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
+                if (userDoc.exists() && userDoc.data().twoFactorSecret) {
+                    setIs2faActive(true);
+                }
+            }
+        };
+        verificarEstado2FA();
+    }, []);
+
     const numMonto = parseFloat(monto) || 0;
-    
-    // P2P: 1.5%
     const comisionP2P = numMonto * 0.015;
     const recibeAmigo = numMonto - comisionP2P;
-
-    // Crypto: 5.4% + $0.33
     const comisionCrypto = (numMonto * 0.054) + 0.33;
     const recibeCrypto = numMonto - comisionCrypto;
 
     const handleProcesar = async (e) => {
         e.preventDefault();
 
-        // --- INYECCIÓN: PROTOCOLO DE SEGURIDAD BANCARIA (VERIFICACIÓN DE ACTIVACIÓN 2FA) ---
-        if (!is2faActiveSimulated) {
+        // VALIDACIÓN DE CAPA 1: 2FA ACTIVADO
+        if (!is2faActive) {
             setIs2faActivationModalOpen(true);
-            return; // Bloqueamos la transacción
+            return; 
         }
 
         if (numMonto <= 0 || numMonto > saldoTnb) {
@@ -72,71 +67,64 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
 
         setStatus('processing');
         
-        // Aquí irá la llamada blindada al backend en el futuro. 
-        // Por ahora simulamos el tiempo de proceso bancario.
-        setTimeout(() => {
-            setStatus('success');
-            const txId = generateNumericTxId(); // Generamos el ID único para la simulación
-            if (activeTab === 'enviar') {
-                setMensaje(`¡Envío exitoso! ID: ${txId}. Se han transferido $${recibeAmigo.toFixed(2)} TNB a ${destinatario}. Comisión cobrada: $${comisionP2P.toFixed(2)}`);
+        try {
+            const idToken = await auth.currentUser.getIdToken(true);
+            const endpoint = activeTab === 'enviar' ? '/api/vortex-pay-transfer' : '/api/vortex-pay-withdraw';
+            const payload = activeTab === 'enviar' ? { destinatario, monto, codigo2fa } : { walletBsc, monto, codigo2fa };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setStatus('success');
+                if (activeTab === 'enviar') {
+                    setMensaje(`¡Envío exitoso! ID: ${data.txId}. Se han transferido $${recibeAmigo.toFixed(2)} TNB a ${destinatario}. Comisión cobrada: $${comisionP2P.toFixed(2)}`);
+                } else {
+                    setMensaje(`¡Retiro solicitado! ID: ${data.txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20.`);
+                }
             } else {
-                setMensaje(`¡Retiro solicitado! ID: ${txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20. Un administrador lo procesará tras verificar seguridad.`);
+                setStatus('idle');
+                alert(data.message || 'Ocurrió un error procesando la transacción.');
             }
-        }, 3000);
+        } catch (error) {
+            console.error("Error al procesar la transacción:", error);
+            setStatus('idle');
+            alert("Error de conexión con el servidor bancario.");
+        }
     };
 
-    const cargarHistorialFalso = () => {
+    const cargarHistorialReal = async () => {
+        if (!auth.currentUser) return;
         setIsLoadingHistory(true);
-        setTimeout(() => {
-            setTransacciones([
-                { 
-                    id: 1, 
-                    type: 'debit', 
-                    amount: 15.00, 
-                    source: 'Envío a Jesus_Ve', 
-                    date: '23 Mar 2026', 
-                    status: 'Completado',
-                    // INJECTIONS
-                    txId: generateNumericTxId(),
-                    vortexType: 'P2P',
-                    comision: 0.225,
-                    recipient: 'jesus_ve@tecnobyte.io',
-                    emisor: 'tu_correo@ejemplo.com'
-                },
-                { 
-                    id: 2, 
-                    type: 'credit', 
-                    amount: 50.00, 
-                    source: 'Recarga de Saldo TNB', 
-                    date: '21 Mar 2026', 
-                    status: 'Completado',
-                    // INJECTIONS
-                    txId: generateNumericTxId(),
-                    vortexType: 'RECARGA',
-                    comision: 0.00
-                },
-                { 
-                    id: 3, 
-                    type: 'debit', 
-                    amount: 100.00, 
-                    source: 'Retiro USDT (BSC)', 
-                    date: '15 Mar 2026', 
-                    status: 'Procesando',
-                    // INJECTIONS
-                    txId: generateNumericTxId(),
-                    vortexType: 'CRYPTO',
-                    comision: 5.73,
-                    netCrypto: 94.27,
-                    bep20Address: '0x1234...abcdBEP20AddressExample'
-                }
-            ]);
-            setIsLoadingHistory(false);
-        }, 1000);
+        try {
+            const q = query(collection(db, "usuarios", auth.currentUser.uid, "historial_vortex_pay"), orderBy("date", "desc"), limit(20));
+            const querySnapshot = await getDocs(q);
+            const historyData = [];
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                historyData.push({
+                    ...data,
+                    date: data.date ? data.date.toDate().toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Reciente'
+                });
+            });
+            setTransacciones(historyData);
+        } catch (error) {
+            console.error("Error obteniendo historial:", error);
+        }
+        setIsLoadingHistory(false);
     };
 
     useEffect(() => {
         if (activeTab === 'historial') {
-            cargarHistorialFalso(); // Reemplazar por Firebase luego
+            cargarHistorialReal(); 
         }
     }, [activeTab]);
 
@@ -156,7 +144,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
     return (
         <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in-up relative">
             
-            {/* CABECERA VORTEX - EXACTAMENTE IGUAL QUE ANTES */}
+            {/* CABECERA VORTEX */}
             <div className="bg-gradient-to-r from-[#0a0f18] to-[#11111a] border border-cyan-500/30 rounded-3xl p-8 mb-8 relative overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.15)] flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="absolute -left-20 -top-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -183,7 +171,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                 </div>
             </div>
 
-            {/* SISTEMA DE PESTAÑAS - EXACTAMENTE IGUAL QUE ANTES */}
+            {/* SISTEMA DE PESTAÑAS */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8 relative">
                 
                 <div className="md:col-span-4 space-y-3 shrink-0">
@@ -207,28 +195,24 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 <p className="text-sm text-gray-400 mb-8">Envía Saldo a cualquier usuario de la red. Tiempo estimado: Instante.</p>
                                 
                                 <form onSubmit={handleProcesar} className="space-y-6">
-                                    {/* Destinatario */}
                                     <div>
                                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Destinatario (Correo de TecnoByte)</label>
                                         <input type="email" required placeholder="correo@amigo.com" value={destinatario} onChange={(e) => setDestinatario(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white focus:border-cyan-500 outline-none transition-colors" />
                                     </div>
 
-                                    {/* Monto y Desglose */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
                                                 <span>Monto a Enviar (USD)</span>
-                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: ${saldoTnb.toFixed(2)}</span>
+                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: ${Number(saldoTnb).toFixed(2)}</span>
                                             </label>
                                             
-                                            {/* --- AJUSTE: Contenedor FLEX para alineación perfecta del signo $ --- */}
                                             <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-cyan-500 transition-colors">
                                                 <span className="text-gray-400 font-bold text-2xl">$</span>
                                                 <input type="number" step="0.01" min="0.10" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-transparent py-4 pl-2 text-white font-mono text-2xl outline-none" />
                                             </div>
                                         </div>
                                         
-                                        {/* Ticket de Resumen Matemático */}
                                         <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center text-xs">
                                             <div className="flex justify-between text-gray-400 mb-2"><span>Monto bruto:</span> <span>${numMonto.toFixed(2)}</span></div>
                                             <div className="flex justify-between text-red-400 pb-2 border-b border-gray-800"><span>Comisión Vortex (1.5%):</span> <span>-${comisionP2P.toFixed(2)}</span></div>
@@ -236,13 +220,9 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                         </div>
                                     </div>
 
-                                    {/* Campo 2FA Obligatorio */}
                                     <div className="bg-cyan-900/10 border border-cyan-500/20 p-5 rounded-xl relative">
                                         <label className="block text-xs font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
                                         <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-cyan-500 outline-none transition-colors" />
-                                        
-                                        {/* INYECCIÓN VISUAL: Botón simulado para activar 2FA (Para pruebas) */}
-                                        <button type="button" onClick={() => setIs2faActiveSimulated(!is2faActiveSimulated)} className="absolute top-2 right-2 text-[9px] px-2 py-0.5 rounded bg-gray-800 text-gray-500">Simular: {is2faActiveSimulated ? '2FA ON' : '2FA OFF'}</button>
                                     </div>
 
                                     <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Procesar Transferencia</button>
@@ -257,29 +237,25 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 <p className="text-sm text-gray-400 mb-8">Convierte tu Saldo a Tether (USDT) a través de la red Binance Smart Chain (BEP20).</p>
                                 
                                 <form onSubmit={handleProcesar} className="space-y-6">
-                                    {/* Wallet */}
                                     <div className="space-y-2">
                                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Dirección USDT (Red BEP20)</label>
                                         <input type="text" required placeholder="Ej: 0x1234abcd..." value={walletBsc} onChange={(e) => setWalletBsc(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white font-mono text-sm focus:border-green-500 outline-none transition-colors" />
                                         <p className="text-[10px] text-yellow-500 mt-1 flex items-center gap-1"><AlertTriangle size={12}/> Verifica bien la dirección. Las transferencias crypto son irreversibles.</p>
                                     </div>
 
-                                    {/* Monto y Desglose */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
                                                 <span>Monto a Retirar (USD)</span>
-                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: ${saldoTnb.toFixed(2)}</span>
+                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: ${Number(saldoTnb).toFixed(2)}</span>
                                             </label>
                                             
-                                            {/* --- AJUSTE: Contenedor FLEX para alineación perfecta del signo $ --- */}
                                             <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-green-500 transition-colors">
                                                 <span className="text-gray-400 font-bold text-2xl">$</span>
                                                 <input type="number" step="0.01" min="10.00" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-transparent py-4 pl-2 text-white font-mono text-2xl outline-none" />
                                             </div>
                                         </div>
                                         
-                                        {/* Ticket de Resumen Matemático Crypto */}
                                         <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center text-xs">
                                             <div className="flex justify-between text-gray-400 mb-2"><span>Retiro bruto:</span> <span>${numMonto.toFixed(2)}</span></div>
                                             <div className="flex justify-between text-red-400 pb-2 border-b border-gray-800"><span>Comisión Red (5.4% + $0.33):</span> <span>-${comisionCrypto.toFixed(2)}</span></div>
@@ -287,13 +263,9 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                         </div>
                                     </div>
 
-                                    {/* Campo 2FA Obligatorio */}
                                     <div className="bg-green-900/10 border border-green-500/20 p-5 rounded-xl relative">
                                         <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
                                         <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-green-500 outline-none transition-colors" />
-                                        
-                                        {/* INYECCIÓN VISUAL: Botón simulado para activar 2FA (Para pruebas) */}
-                                        <button type="button" onClick={() => setIs2faActiveSimulated(!is2faActiveSimulated)} className="absolute top-2 right-2 text-[9px] px-2 py-0.5 rounded bg-gray-800 text-gray-500">Simular: {is2faActiveSimulated ? '2FA ON' : '2FA OFF'}</button>
                                     </div>
 
                                     <button type="submit" disabled={recibeCrypto <= 0} className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Confirmar Retiro</button>
@@ -301,7 +273,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                             </motion.div>
                         )}
 
-                        {/* ================= HISTORIAL CON INYECCIONES PROFUNDAS ================= */}
+                        {/* ================= HISTORIAL ================= */}
                         {activeTab === 'historial' && (
                             <motion.div key="historial" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 h-full space-y-6">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><History className="text-gray-300"/> Registro Financiero Real</h3>
@@ -357,7 +329,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 <CheckCircle2 className={`${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'} mb-6 relative z-10`} size={80} strokeWidth={1.5} />
                                 <h3 className="text-3xl font-bold text-white mb-4 relative z-10">¡Operación Certificada!</h3>
                                 <p className="text-gray-300 font-medium mb-10 relative z-10 max-w-md mx-auto leading-relaxed">{mensaje}</p>
-                                <button onClick={resetForm} className="px-10 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors border border-gray-600 relative z-10 shadow-lg uppercase tracking-widest text-sm">Finalizar</button>
+                                <button onClick={resetForm} className="px-10 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors border border-gray-600 relative z-10 shadow-lg uppercase tracking-widest text-sm Finalizar">Finalizar</button>
                                 <div className="absolute inset-0 bg-green-500/5 animate-pulse"></div>
                             </motion.div>
                         )}
@@ -394,9 +366,9 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                         <h4 className="text-xs font-black text-white uppercase tracking-widest mb-2 flex items-center gap-1.5"><Zap size={14} className="text-cyan-400"/> Rastreo P2P</h4>
                                         <div className="text-xs space-y-3">
                                             <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Emisor</span> <span className="text-gray-300">{detailsModal.transaction.emisor}</span></div>
-                                            <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Receptor</span> <span className="text-white font-bold">{detailsModal.transaction.recipient}</span></div>
-                                            <div className="flex justify-between"><span className="text-gray-500">Comisión (1.5%)</span> <span className="text-red-400">-${detailsModal.transaction.comision.toFixed(3)}</span></div>
-                                            <div className="flex justify-between pt-2 border-t border-gray-800 text-sm font-bold text-cyan-400"><span>Tu amigo recibió neto:</span> <span>${(detailsModal.transaction.amount - detailsModal.transaction.comision).toFixed(2)}</span></div>
+                                            <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Receptor</span> <span className="text-white font-bold">{detailsModal.transaction.recipientDetails || detailsModal.transaction.recipient}</span></div>
+                                            <div className="flex justify-between"><span className="text-gray-500">Comisión (1.5%)</span> <span className="text-red-400">-${(detailsModal.transaction.comision || 0).toFixed(3)}</span></div>
+                                            <div className="flex justify-between pt-2 border-t border-gray-800 text-sm font-bold text-cyan-400"><span>Tu amigo recibió neto:</span> <span>${(detailsModal.transaction.montoNeto || detailsModal.transaction.amount).toFixed(2)}</span></div>
                                         </div>
                                     </div>
                                 )}
@@ -406,9 +378,9 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                         <h4 className="text-xs font-black text-white uppercase tracking-widest mb-2 flex items-center gap-1.5"><ArrowDownToLine size={14} className="text-green-400"/> Rastreo Blockchain</h4>
                                         <div className="text-xs space-y-3">
                                             <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Red de Salida</span> <span className="text-gray-300">BEP20</span></div>
-                                            <div className="space-y-1.5 border-b border-gray-800 pb-2"><span className="text-gray-500">Dirección de Destino</span> <div className="flex items-center gap-2 bg-black border border-gray-700 p-2 rounded-lg text-sm text-green-400 font-mono break-all">{detailsModal.transaction.bep20Address} <button onClick={() => copyToClipboard(detailsModal.transaction.bep20Address, 'Dirección')} className="text-gray-600 hover:text-green-400"><Copy size={12}/></button></div></div>
-                                            <div className="flex justify-between"><span className="text-gray-500">Comisión Red (5.4%+$0.33)</span> <span className="text-red-400">-${detailsModal.transaction.comision.toFixed(2)}</span></div>
-                                            <div className="flex justify-between pt-2 border-t border-gray-800 text-sm font-bold text-green-400"><span>Recibiste neto USDT:</span> <span>{detailsModal.transaction.netCrypto.toFixed(2)} USDT</span></div>
+                                            <div className="space-y-1.5 border-b border-gray-800 pb-2"><span className="text-gray-500">Dirección de Destino</span> <div className="flex items-center gap-2 bg-black border border-gray-700 p-2 rounded-lg text-sm text-green-400 font-mono break-all">{detailsModal.transaction.walletDestination || detailsModal.transaction.bep20Address} <button onClick={() => copyToClipboard(detailsModal.transaction.walletDestination || detailsModal.transaction.bep20Address, 'Dirección')} className="text-gray-600 hover:text-green-400"><Copy size={12}/></button></div></div>
+                                            <div className="flex justify-between"><span className="text-gray-500">Comisión Red (5.4%+$0.33)</span> <span className="text-red-400">-${(detailsModal.transaction.comisionCobrada || detailsModal.transaction.comision).toFixed(2)}</span></div>
+                                            <div className="flex justify-between pt-2 border-t border-gray-800 text-sm font-bold text-green-400"><span>Recibiste neto USDT:</span> <span>{(detailsModal.transaction.montoNeto || detailsModal.transaction.netCrypto).toFixed(2)} USDT</span></div>
                                         </div>
                                     </div>
                                 )}
@@ -420,16 +392,14 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                 )}
             </AnimatePresence>
 
-            {/* ================= INYECCIÓN: MODAL DE REQUISITO DE ACTIVACIÓN DE 2FA ================= */}
+            {/* ================= MODAL DE REQUISITO DE ACTIVACIÓN DE 2FA ================= */}
             <AnimatePresence>
                 {is2faActivationModalOpen && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#0a0f18] border border-yellow-500/50 rounded-2xl w-full max-w-md p-8 shadow-[0_0_50px_rgba(234,179,8,0.2)] relative overflow-hidden space-y-6">
                             
-                            {/* Efecto de fondo amarillo */}
                             <div className="absolute -left-10 -top-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-                            {/* Cabecera del Modal */}
                             <div className="flex justify-between items-center relative z-10 border-b border-gray-800 pb-4">
                                 <h3 className="text-xl font-bold text-white flex items-center gap-2 font-orbitron tracking-wider">
                                     <Lock className="text-yellow-400" /> Requisito de Seguridad
@@ -437,7 +407,6 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 <button onClick={() => setIs2faActivationModalOpen(false)} className="p-2 text-gray-500 hover:text-white rounded-full hover:bg-gray-800"><X size={20}/></button>
                             </div>
 
-                            {/* Cuerpo del Mensaje */}
                             <div className="flex flex-col items-center text-center space-y-4 relative z-10 py-4">
                                 <div className="p-4 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 mb-2">
                                     <UserCog size={48} strokeWidth={1.5} />
@@ -448,7 +417,6 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 </p>
                             </div>
 
-                            {/* Indicaciones paso a paso */}
                             <div className="bg-black/50 border border-gray-800 rounded-xl p-5 space-y-3 relative z-10">
                                 <h5 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">¿Cómo activarlo?</h5>
                                 <div className="flex items-center gap-3 text-xs text-gray-300">
@@ -465,11 +433,9 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 </div>
                             </div>
 
-                            {/* Botones de acción */}
                             <div className="flex gap-3 pt-4 relative z-10 border-t border-gray-800">
                                 <button onClick={() => setIs2faActivationModalOpen(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest border border-gray-600 shadow-lg">Entendido</button>
-                                {/* Este botón debería llevar realmente a la página de perfil en el futuro */}
-                                <button onClick={() => alert("Redirigiendo a Perfil... (Lógica para FASE 2)")} className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black py-3 rounded-xl transition-all text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(234,179,8,0.3)]">Ir a Mi Perfil</button>
+                                <button onClick={() => window.location.href = '/perfil'} className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black py-3 rounded-xl transition-all text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(234,179,8,0.3)]">Ir a Mi Perfil</button>
                             </div>
                         </motion.div>
                     </div>

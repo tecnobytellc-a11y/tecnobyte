@@ -189,37 +189,42 @@ const GamificationDashboard = () => {
         setSetupStep(1);
 
         try {
-            const idToken = await auth.currentUser.getIdToken(true);
-            
             if (method === 'email') {
-                // RUTA NUEVA: Generar código al correo
-                const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-email-generate', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${idToken}` }
+                // 1. Aseguramos que tenemos un correo al cual enviar
+                const emailToSend = auth.currentUser.email || userData?.email;
+                if (!emailToSend) {
+                    setError2FA('Tu cuenta no tiene un correo electrónico válido registrado.');
+                    setIsProcessing2FA(false);
+                    return;
+                }
+
+                // 2. Usamos AXIOS (Adiós a los errores de paquetes vacíos)
+                const res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-generate', { 
+                    userId: auth.currentUser.uid, 
+                    email: emailToSend 
                 });
-                const data = await res.json();
                 
-                if (!data.success) {
-                    setError2FA(data.message || 'Error enviando el correo.');
+                // Si la respuesta es exitosa, se queda en el paso 1 esperando el código
+                if (!res.data.success) {
+                    setError2FA('Error enviando el correo.');
                 }
             } 
             else if (method === 'app') {
-                // RUTA ORIGINAL: Generar QR de Google Authenticator
-                const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-generate', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${idToken}` }
-                });
-                const data = await res.json();
+                const idToken = await auth.currentUser.getIdToken(true);
+                const res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-generate', 
+                    {}, // Body vacío
+                    { headers: { 'Authorization': `Bearer ${idToken}` } }
+                );
                 
-                if (data.success) {
-                    setQrCodeUrl(data.qrCodeUrl);
-                    setTempSecret(data.secret);
+                if (res.data.success) {
+                    setQrCodeUrl(res.data.qrCodeUrl);
+                    setTempSecret(res.data.secret);
                 } else {
                     setError2FA('Error al generar el código QR.');
                 }
             }
         } catch (err) {
-            setError2FA('Error de conexión con el servidor.');
+            setError2FA(err.response?.data?.message || 'Error de conexión con el servidor.');
         }
         setIsProcessing2FA(false);
     };
@@ -249,37 +254,30 @@ const GamificationDashboard = () => {
         setError2FA('');
 
         try {
-            const idToken = await auth.currentUser.getIdToken(true);
-            let endpoint = '';
-            let payload = {};
-
+            let res;
             if (twoFAMethod === 'email') {
-                endpoint = 'https://api-paypal-secure.vercel.app/api/2fa-email-verify';
-                payload = { codigo: authCode, isSetup: true };
+                // VERIFICACIÓN DE CORREO USANDO AXIOS
+                res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-verify', { 
+                    userId: auth.currentUser.uid, 
+                    codigo: authCode, 
+                    isSetup: true 
+                });
             } else {
-                endpoint = 'https://api-paypal-secure.vercel.app/api/2fa-verify';
-                payload = { codigo: authCode, secret: tempSecret };
+                // VERIFICACIÓN DE APP USANDO AXIOS
+                const idToken = await auth.currentUser.getIdToken(true);
+                res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-verify', 
+                    { codigo: authCode, secret: tempSecret },
+                    { headers: { 'Authorization': `Bearer ${idToken}` } }
+                );
             }
 
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
-                },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                setSetupStep(2); // Éxito
+            if (res.data.success) {
+                setSetupStep(2);
                 const secretValue = twoFAMethod === 'email' ? 'EMAIL_OTP_ENABLED' : tempSecret;
                 setUserData(prev => ({ ...prev, twoFactorSecret: secretValue, twoFactorType: twoFAMethod })); 
-            } else {
-                setError2FA(data.message || 'Código incorrecto. Intenta de nuevo.');
             }
         } catch (err) {
-            setError2FA('Error al verificar el código.');
+            setError2FA(err.response?.data?.message || 'Código incorrecto. Intenta de nuevo.');
         }
         setIsProcessing2FA(false);
     };

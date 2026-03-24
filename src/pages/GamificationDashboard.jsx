@@ -574,9 +574,9 @@ if (method === 'passkey') {
                                         <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Teléfono</p>
                                         {isEditing ? <input type="tel" value={editForm.telefono} onChange={e => setEditForm({...editForm, telefono: e.target.value})} className="w-full bg-black border border-cyan-500/50 rounded p-2 text-white" /> : <p className="font-mono text-white">{userData?.telefono || 'No registrado'}</p>}
                                     </div>
-                                    <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-800">
-                                        <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Gamertag</p>
-                                        {isEditing ? <input type="text" value={editForm.gamertag} onChange={e => setEditForm({...editForm, gamertag: e.target.value})} className="w-full bg-black border border-cyan-500/50 rounded p-2 text-cyan-400" /> : <p className="font-mono text-cyan-400">{userData?.gamertag || 'No registrado'}</p>}
+                                    <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-800 opacity-70">
+                                        <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Gamertag (No Editable)</p>
+                                        <p className="font-mono text-gray-400">{userData?.gamertag || 'No registrado'}</p>
                                     </div>
                                     <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-800 opacity-70">
                                         <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Correo (No Editable)</p>

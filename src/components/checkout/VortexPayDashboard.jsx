@@ -200,7 +200,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                 <div className="md:col-span-8 flex-grow">
                     <AnimatePresence mode="wait">
                         
-                        {/* ================= FORMULARIO P2P - IGUAL ESTÉTICA ================= */}
+                        {/* ================= FORMULARIO P2P ================= */}
                         {activeTab === 'enviar' && status === 'idle' && (
                             <motion.div key="enviar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 h-full">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><Zap className="text-cyan-400"/> Transferencia Inmediata</h3>
@@ -215,10 +215,17 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
 
                                     {/* Monto y Desglose */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
-                                        <div className="relative">
-                                            {/* --- AJUSTE: Signo de Dólar arreglado --- */}
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl z-10">$</span>
-                                            <input type="number" step="0.01" min="0.10" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-12 pr-4 text-white font-mono text-2xl focus:border-cyan-500 outline-none transition-colors relative z-0" />
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
+                                                <span>Monto a Enviar (USD)</span>
+                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: ${saldoTnb.toFixed(2)}</span>
+                                            </label>
+                                            
+                                            {/* --- AJUSTE: Contenedor FLEX para alineación perfecta del signo $ --- */}
+                                            <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-cyan-500 transition-colors">
+                                                <span className="text-gray-400 font-bold text-2xl">$</span>
+                                                <input type="number" step="0.01" min="0.10" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-transparent py-4 pl-2 text-white font-mono text-2xl outline-none" />
+                                            </div>
                                         </div>
                                         
                                         {/* Ticket de Resumen Matemático */}
@@ -243,7 +250,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                             </motion.div>
                         )}
 
-                        {/* ================= FORMULARIO RETIRO CRYPTO - IGUAL ESTÉTICA ================= */}
+                        {/* ================= FORMULARIO RETIRO CRYPTO ================= */}
                         {activeTab === 'retirar' && status === 'idle' && (
                             <motion.div key="retirar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 h-full">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><ArrowDownToLine className="text-green-400"/> Retiro a Billetera BSC</h3>
@@ -251,20 +258,25 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 
                                 <form onSubmit={handleProcesar} className="space-y-6">
                                     {/* Wallet */}
-                                    <div className="space-y-2"> {/* --- AJUSTE: Contenedor para pegar el mensaje --- */}
+                                    <div className="space-y-2">
                                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Dirección USDT (Red BEP20)</label>
                                         <input type="text" required placeholder="Ej: 0x1234abcd..." value={walletBsc} onChange={(e) => setWalletBsc(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white font-mono text-sm focus:border-green-500 outline-none transition-colors" />
-                                        
-                                        {/* --- AJUSTE: Mensaje Crypto pegado debajo --- */}
                                         <p className="text-[10px] text-yellow-500 mt-1 flex items-center gap-1"><AlertTriangle size={12}/> Verifica bien la dirección. Las transferencias crypto son irreversibles.</p>
                                     </div>
 
                                     {/* Monto y Desglose */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
-                                        <div className="relative">
-                                            {/* --- AJUSTE: Signo de Dólar arreglado --- */}
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl z-10">$</span>
-                                            <input type="number" step="0.01" min="10.00" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-12 pr-4 text-white font-mono text-2xl focus:border-green-500 outline-none transition-colors relative z-0" />
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
+                                                <span>Monto a Retirar (USD)</span>
+                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: ${saldoTnb.toFixed(2)}</span>
+                                            </label>
+                                            
+                                            {/* --- AJUSTE: Contenedor FLEX para alineación perfecta del signo $ --- */}
+                                            <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-green-500 transition-colors">
+                                                <span className="text-gray-400 font-bold text-2xl">$</span>
+                                                <input type="number" step="0.01" min="10.00" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-transparent py-4 pl-2 text-white font-mono text-2xl outline-none" />
+                                            </div>
                                         </div>
                                         
                                         {/* Ticket de Resumen Matemático Crypto */}
@@ -310,18 +322,15 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                                         <div className="flex items-center gap-2 text-[10px] font-mono">
                                                             <span className="flex items-center gap-1 text-gray-500"><CalendarDays size={10} /> {tx.date}</span>
                                                             <span className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${tx.status === 'Completado' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{tx.status}</span>
-                                                            {/* INYECCIÓN VISUAL: ID DE TRANSACCIÓN */}
                                                             <span className="text-cyan-600">ID: {tx.txId}</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 
-                                                {/* INYECCIÓN: Lado derecho con Monto y Botón de Ojo */}
                                                 <div className="flex items-center gap-4 relative z-10">
                                                     <div className={`font-mono font-bold text-lg ${tx.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
                                                         {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
                                                     </div>
-                                                    {/* INYECCIÓN VISUAL: Botón Ver Detalles (Ojo) */}
                                                     <button onClick={() => setDetailsModal({ isOpen: true, transaction: tx })} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white transition-colors" title="Ver Detalles Profundos"><Eye size={16}/></button>
                                                 </div>
                                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-800/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 pointer-events-none"></div>
@@ -334,7 +343,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                             </motion.div>
                         )}
 
-                        {/* ================= ESTADOS DE PROCESAMIENTO - IGUAL ESTÉTICA ================= */}
+                        {/* ESTADOS DE PROCESAMIENTO */}
                         {status === 'processing' && (
                             <motion.div key="processing" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full space-y-4">
                                 <Loader className={`animate-spin mb-6 ${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'}`} size={64} />
@@ -348,7 +357,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 <CheckCircle2 className={`${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'} mb-6 relative z-10`} size={80} strokeWidth={1.5} />
                                 <h3 className="text-3xl font-bold text-white mb-4 relative z-10">¡Operación Certificada!</h3>
                                 <p className="text-gray-300 font-medium mb-10 relative z-10 max-w-md mx-auto leading-relaxed">{mensaje}</p>
-                                <button onClick={resetForm} className="px-10 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors border border-gray-600 relative z-10 shadow-lg uppercase tracking-widest text-sm Finalizar" />
+                                <button onClick={resetForm} className="px-10 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors border border-gray-600 relative z-10 shadow-lg uppercase tracking-widest text-sm">Finalizar</button>
                                 <div className="absolute inset-0 bg-green-500/5 animate-pulse"></div>
                             </motion.div>
                         )}
@@ -357,7 +366,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                 </div>
             </div>
 
-            {/* ================= INYECCIÓN: MODAL DE DETALLES PROFUNDO (DRAWER) ================= */}
+            {/* ================= MODAL DE DETALLES PROFUNDO (DRAWER) ================= */}
             <AnimatePresence>
                 {detailsModal.isOpen && detailsModal.transaction && (
                     <div className="fixed inset-0 z-[110] flex justify-end bg-black/80 backdrop-blur-sm" onClick={() => setDetailsModal({ isOpen: false })}>
@@ -405,7 +414,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 )}
                             </div>
 
-                            <button onClick={() => setDetailsModal({ isOpen: false })} className="w-full mt-8 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-sm uppercase tracking-widest border border-gray-600 shrink-0">Cerrar Detalles</button>
+                            <button onClick={() => setDetailsModal({ isOpen: false })} className="w-full mt-4 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-sm uppercase tracking-widest border border-gray-600 shrink-0">Cerrar Detalles</button>
                         </motion.div>
                     </div>
                 )}
@@ -449,7 +458,7 @@ const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para p
                                 <div className="flex items-center gap-3 text-xs text-gray-300">
                                     <span className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center font-bold text-yellow-400">2</span>
                                     Busca la pestaña de <strong className="text-white">"Seguridad Bancaria"</strong>.
-                                1</div>
+                                </div>
                                 <div className="flex items-center gap-3 text-xs text-gray-300">
                                     <span className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center font-bold text-yellow-400">3</span>
                                     Sigue los pasos para escanear el <strong className="text-white">Código QR</strong> con tu App.

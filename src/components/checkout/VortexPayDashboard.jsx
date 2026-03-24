@@ -22,8 +22,10 @@ const VortexPayDashboard = () => {
     
     const [saldoReal, setSaldoReal] = useState(0);
     const [is2faActive, setIs2faActive] = useState(false);
+    
+    // === INYECCIÓN: PANTALLA DE CARGA DEL SALDO ===
+    const [isLoadingSaldo, setIsLoadingSaldo] = useState(true);
 
-    // === SOLUCIÓN: ESCUCHADOR CONECTADO EXACTAMENTE A "saldo_tnb" ===
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
@@ -32,7 +34,6 @@ const VortexPayDashboard = () => {
                     if (userDoc.exists()) {
                         const data = userDoc.data();
                         
-                        // Lectura exacta del campo en tu base de datos
                         setSaldoReal(parseFloat(data.saldo_tnb) || 0); 
                         
                         if (data.twoFactorSecret) {
@@ -41,10 +42,13 @@ const VortexPayDashboard = () => {
                     }
                 } catch (error) {
                     console.error("Error cargando el saldo_tnb:", error);
+                } finally {
+                    setIsLoadingSaldo(false); // Quitamos la mini pantalla de carga al terminar
                 }
             } else {
                 setSaldoReal(0);
                 setIs2faActive(false);
+                setIsLoadingSaldo(false); // Quitamos la carga si no hay usuario
             }
         });
 
@@ -189,7 +193,14 @@ const VortexPayDashboard = () => {
                     <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1 flex items-center justify-center md:justify-end gap-1">
                         <Wallet size={14} className="text-cyan-400"/> Saldo Disponible
                     </p>
-                    <p className="text-4xl font-mono font-black text-white">${Number(saldoReal).toFixed(2)}</p>
+                    {/* === INYECCIÓN: MINI LOADER DE SALDO === */}
+                    {isLoadingSaldo ? (
+                        <div className="flex justify-center md:justify-end items-center h-10 mt-1">
+                            <Loader className="animate-spin text-cyan-400" size={24} />
+                        </div>
+                    ) : (
+                        <p className="text-4xl font-mono font-black text-white">${Number(saldoReal).toFixed(2)}</p>
+                    )}
                 </div>
             </div>
 
@@ -226,7 +237,8 @@ const VortexPayDashboard = () => {
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
                                                 <span>Monto a Enviar (USD)</span>
-                                                <span onClick={() => setMonto(saldoReal.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: ${Number(saldoReal).toFixed(2)}</span>
+                                                {/* === INYECCIÓN: LOADER EN EL BOTÓN MÁX === */}
+                                                <span onClick={() => !isLoadingSaldo && setMonto(saldoReal.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: {isLoadingSaldo ? '...' : `$${Number(saldoReal).toFixed(2)}`}</span>
                                             </label>
                                             
                                             <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-cyan-500 transition-colors">
@@ -269,7 +281,8 @@ const VortexPayDashboard = () => {
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
                                                 <span>Monto a Retirar (USD)</span>
-                                                <span onClick={() => setMonto(saldoReal.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: ${Number(saldoReal).toFixed(2)}</span>
+                                                {/* === INYECCIÓN: LOADER EN EL BOTÓN MÁX === */}
+                                                <span onClick={() => !isLoadingSaldo && setMonto(saldoReal.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: {isLoadingSaldo ? '...' : `$${Number(saldoReal).toFixed(2)}`}</span>
                                             </label>
                                             
                                             <div className="flex items-center w-full bg-black/50 border border-gray-700 rounded-xl px-4 focus-within:border-green-500 transition-colors">

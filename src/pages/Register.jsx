@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight, ShieldCheck, Phone, Hash } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 // --- INYECCIÓN DE SEGURIDAD BANCARIA ---
-import { registrarConPerfilSeguro, loginConGoogle } from './firebase'; 
+import { registrarConPerfilSeguro, loginConGoogle, db } from './firebase'; // db importado
+import { collection, query, where, getDocs } from 'firebase/firestore'; // INYECCIÓN: Herramientas de Firestore
 import axios from 'axios';
 
 const Register = () => {
@@ -29,12 +30,23 @@ const Register = () => {
         setError('');
 
         try {
+            // 🛡️ REGLA: VERIFICAR GAMERTAG ÚNICO ANTES DE CREAR LA CUENTA
+            const gamertagBuscado = username.trim(); 
+            const q = query(collection(db, "usuarios"), where("gamertag", "==", gamertagBuscado));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                setError("Ese Gamertag ya está en uso. Por favor, elige uno diferente.");
+                setIsLoading(false);
+                return; // Detenemos la creación de la cuenta aquí mismo
+            }
+
             const datosDelFormulario = {
                 nombre_real: nombre,
                 apellido_real: apellido,
                 cedula_identidad: cedula,
                 telefono: telefono,
-                gamertag: username,
+                gamertag: gamertagBuscado, // Guardamos el nombre limpio de espacios
                 origen_registro: "formulario_completo"
             };
             
@@ -50,6 +62,7 @@ const Register = () => {
                 setError('Este correo ya está registrado. Intenta iniciar sesión.');
             } else {
                 setError('Error de seguridad al crear la cuenta. Verifica los datos.');
+                console.error(err);
             }
         } finally {
             setIsLoading(false);

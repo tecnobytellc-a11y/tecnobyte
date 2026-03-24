@@ -12,8 +12,7 @@ import { signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 // INYECCIÓN: Agregados iconos de historial
-import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays, Lock, CheckCircle2 } from 'lucide-react';
-import axios from 'axios';
+import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays, Lock, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 const PRESET_AVATARS = [
     ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=ProGamer${i}&backgroundColor=b6e3f4,c0aede,d1d4f9`),

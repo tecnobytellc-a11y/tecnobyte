@@ -176,18 +176,12 @@ const GamificationDashboard = () => {
         e.target.value = ''; 
     };
 
-    // --- INYECCIÓN: LÓGICA REAL DE ACTIVACIÓN 2FA ---
     const handleStart2FASetup = async (method) => {
-        if (method === 'email') {
-            alert('¡Fase 2! Pronto conectaremos esto con Resend para enviarte el código a tu correo.');
-            return;
-        }
         if (method === 'passkey') {
             alert('¡Fase 3! Pronto activaremos los sensores biométricos (Huella/FaceID) con WebAuthn.');
             return;
         }
 
-        // Lógica actual para la App (Google Authenticator)
         setTwoFAMethod(method);
         setIs2FASetupOpen(true);
         setIsProcessing2FA(true);
@@ -196,17 +190,33 @@ const GamificationDashboard = () => {
 
         try {
             const idToken = await auth.currentUser.getIdToken(true);
-            const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-generate', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${idToken}` }
-            });
-            const data = await res.json();
             
-            if (data.success) {
-                setQrCodeUrl(data.qrCodeUrl);
-                setTempSecret(data.secret);
-            } else {
-                setError2FA('Error al generar el código QR desde el servidor.');
+            if (method === 'email') {
+                // RUTA NUEVA: Generar código al correo
+                const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-email-generate', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const data = await res.json();
+                
+                if (!data.success) {
+                    setError2FA(data.message || 'Error enviando el correo.');
+                }
+            } 
+            else if (method === 'app') {
+                // RUTA ORIGINAL: Generar QR de Google Authenticator
+                const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-generate', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    setQrCodeUrl(data.qrCodeUrl);
+                    setTempSecret(data.secret);
+                } else {
+                    setError2FA('Error al generar el código QR.');
+                }
             }
         } catch (err) {
             setError2FA('Error de conexión con el servidor.');
@@ -240,25 +250,36 @@ const GamificationDashboard = () => {
 
         try {
             const idToken = await auth.currentUser.getIdToken(true);
-           // INYECCIÓN: URL completa hacia tu servidor privado
-            const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-verify', {
+            let endpoint = '';
+            let payload = {};
+
+            if (twoFAMethod === 'email') {
+                endpoint = 'https://api-paypal-secure.vercel.app/api/2fa-email-verify';
+                payload = { codigo: authCode, isSetup: true };
+            } else {
+                endpoint = 'https://api-paypal-secure.vercel.app/api/2fa-verify';
+                payload = { codigo: authCode, secret: tempSecret };
+            }
+
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${idToken}`
                 },
-                body: JSON.stringify({ codigo: authCode, secret: tempSecret })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
 
             if (data.success) {
                 setSetupStep(2); // Éxito
-                setUserData(prev => ({ ...prev, twoFactorSecret: tempSecret })); // Actualizar UI local
+                const secretValue = twoFAMethod === 'email' ? 'EMAIL_OTP_ENABLED' : tempSecret;
+                setUserData(prev => ({ ...prev, twoFactorSecret: secretValue, twoFactorType: twoFAMethod })); 
             } else {
                 setError2FA(data.message || 'Código incorrecto. Intenta de nuevo.');
             }
         } catch (err) {
-            setError2FA('Error al verificar el código con el servidor.');
+            setError2FA('Error al verificar el código.');
         }
         setIsProcessing2FA(false);
     };
@@ -610,10 +631,20 @@ const GamificationDashboard = () => {
                                                                     <div className="flex justify-center py-8"><Loader className="animate-spin text-indigo-500" size={32} /></div>
                                                                 ) : (
                                                                     <div className="flex flex-col items-center space-y-4">
-                                                                        <div className="bg-white p-3 rounded-lg">
-                                                                            <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
-                                                                        </div>
-                                                                        <p className="text-xs text-gray-400 text-center max-w-xs">Escanea este código con tu aplicación de autenticación para vincular tu cuenta.</p>
+                                                                        {twoFAMethod === 'app' ? (
+                                                                            <>
+                                                                                <div className="bg-white p-3 rounded-lg">
+                                                                                    <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                                                                                </div>
+                                                                                <p className="text-xs text-gray-400 text-center max-w-xs">Escanea este código con tu aplicación de autenticación.</p>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <Mail size={64} className="text-pink-400 mb-2 animate-bounce" />
+                                                                                <p className="text-sm font-bold text-pink-400">Revisa tu bandeja de entrada</p>
+                                                                                <p className="text-xs text-gray-400 text-center max-w-xs">Te hemos enviado un código de 6 dígitos a tu correo. Tienes 5 minutos para ingresarlo.</p>
+                                                                            </>
+                                                                        )}
                                                                         
                                                                         <form onSubmit={handleVerify2FACode} className="w-full max-w-xs mt-4">
                                                                             <div className="flex gap-2">

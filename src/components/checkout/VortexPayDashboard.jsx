@@ -4,17 +4,7 @@ import { Send, ArrowDownToLine, Wallet, ShieldCheck, Zap, History, Loader, Alert
 import { auth, db } from '../../pages/firebase'; // Ajusta la ruta según tu proyecto
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-// 🔥 HELPER: Generador simulado de ID de Transacción Bancaria (Ej: VTX4A9F R2T1)
-const generateNumericTxId = () => {
-    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let result = 'VTX';
-    for (let i = 0; i < 8; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-};
-
-const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para pruebas
+const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pasa como prop
     const [activeTab, setActiveTab] = useState('enviar'); // 'enviar', 'retirar', 'historial'
     const [monto, setMonto] = useState('');
     const [destinatario, setDestinatario] = useState('');
@@ -30,7 +20,7 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para p
     // --- INYECCIÓN: ESTADOS PARA EL MODAL DE DETALLES PROFUNDO (DRAWER) ---
     const [detailsModal, setDetailsModal] = useState({ isOpen: false, transaction: null });
 
-    // Matemáticas de Comisiones en Tiempo Real
+    // Matemáticas de Comisiones en Tiempo Real (solo para visualización)
     const numMonto = parseFloat(monto) || 0;
     
     // P2P: 1.5%
@@ -61,71 +51,84 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para p
 
         setStatus('processing');
         
-        // Aquí irá la llamada blindada al backend en el futuro. 
-        // Por ahora simulamos el tiempo de proceso bancario.
-        setTimeout(() => {
-            setStatus('success');
-            const txId = generateNumericTxId(); // Generamos el ID único para la simulación
-            if (activeTab === 'enviar') {
-                setMensaje(`¡Envío exitoso! ID: ${txId}. Se han transferido $${recibeAmigo.toFixed(2)} TNB a ${destinatario}. Comisión cobrada: $${comisionP2P.toFixed(2)}`);
-            } else {
-                setMensaje(`¡Retiro solicitado! ID: ${txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20. Un administrador lo procesará tras verificar seguridad.`);
+        try {
+            // --- INYECCIÓN: PROTOCOLO DE SEGURIDAD BANCARIA EN EL CLIENTE ---
+            const user = auth.currentUser;
+            if (!user) {
+                setStatus('idle');
+                alert("Debes estar logueado para realizar esta acción.");
+                return;
             }
-        }, 3000);
+            // Obtenemos el Token de ID blindado
+            const idToken = await user.getIdToken();
+
+            // Decidimos a qué endpoint blindado llamar
+            const endpoint = activeTab === 'enviar' ? '/api/vortex-pay-transfer' : '/api/vortex-pay-withdraw';
+            const body = activeTab === 'enviar' ? { destinatario, monto, codigo2fa } : { walletBsc, monto, codigo2fa };
+
+            // Llamada blindada al servidor
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setStatus('success');
+                if (activeTab === 'enviar') {
+                    setMensaje(`¡Envío exitoso! ID de Transacción: ${data.txId}. Se han transferido $${recibeAmigo.toFixed(2)} TNB a ${destinatario}. Comisión cobrada: $${comisionP2P.toFixed(2)}`);
+                } else {
+                    setMensaje(`¡Retiro solicitado! ID de Transacción: ${data.txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20. Un administrador lo procesará tras verificar seguridad.`);
+                }
+            } else {
+                setStatus('idle');
+                alert(`Error: ${data.message}`);
+            }
+
+        } catch (error) {
+            console.error('Error procesando Vortex Pay:', error);
+            setStatus('idle');
+            alert("Ocurrió un error inesperado. Por favor, intenta de nuevo o contacta a soporte.");
+        }
     };
 
-    const cargarHistorialFalso = () => {
+    const cargarHistorialReal = async () => {
         setIsLoadingHistory(true);
-        setTimeout(() => {
-            setTransacciones([
-                { 
-                    id: 1, 
-                    type: 'debit', 
-                    amount: 15.00, 
-                    source: 'Envío a Jesus_Ve', 
-                    date: '23 Mar 2026', 
-                    status: 'Completado',
-                    // INJECTIONS
-                    txId: generateNumericTxId(),
-                    vortexType: 'P2P',
-                    comision: 0.225,
-                    recipient: 'jesus_ve@tecnobyte.io',
-                    emisor: 'tu_correo@ejemplo.com'
-                },
-                { 
-                    id: 2, 
-                    type: 'credit', 
-                    amount: 50.00, 
-                    source: 'Recarga de Saldo TNB', 
-                    date: '21 Mar 2026', 
-                    status: 'Completado',
-                    // INJECTIONS
-                    txId: generateNumericTxId(),
-                    vortexType: 'RECARGA',
-                    comision: 0.00
-                },
-                { 
-                    id: 3, 
-                    type: 'debit', 
-                    amount: 100.00, 
-                    source: 'Retiro USDT (BSC)', 
-                    date: '15 Mar 2026', 
-                    status: 'Procesando',
-                    // INJECTIONS
-                    txId: generateNumericTxId(),
-                    vortexType: 'CRYPTO',
-                    comision: 5.73,
-                    netCrypto: 94.27,
-                    bep20Address: '0x1234...abcdBEP20AddressExample'
+        try {
+            // --- INYECCIÓN: PROTOCOLO DE SEGURIDAD BANCARIA EN EL CLIENTE ---
+            const user = auth.currentUser;
+            if (!user) return;
+            // Obtenemos el Token de ID blindado
+            const idToken = await user.getIdToken();
+
+            // Llamada blindada al servidor para obtener historial real
+            const response = await fetch('/api/vortex-pay-history', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`
                 }
-            ]);
-            setIsLoadingHistory(false);
-        }, 1000);
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setTransacciones(data.transacciones);
+            }
+
+        } catch (error) {
+            console.error('Error cargando historial Vortex Pay:', error);
+        }
+        setIsLoadingHistory(false);
     };
 
     useEffect(() => {
         if (activeTab === 'historial') {
-            cargarHistorialFalso(); // Reemplazar por Firebase luego
+            cargarHistorialReal(); // Carga real de Firebase a través del servidor
         }
     }, [activeTab]);
 
@@ -143,16 +146,14 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para p
     };
 
     return (
-        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in-up relative">
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in-up">
             
-            {/* CABECERA VORTEX */}
+            {/* CABECERA VORTEX - EXACTAMENTE IGUAL QUE ANTES */}
             <div className="bg-gradient-to-r from-[#0a0f18] to-[#11111a] border border-cyan-500/30 rounded-3xl p-8 mb-8 relative overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.15)] flex flex-col md:flex-row items-center justify-between gap-6">
-                {/* Efectos de fondo neón */}
                 <div className="absolute -left-20 -top-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 
                 <div className="relative z-10 flex items-center gap-5">
-                    {/* Logo Visual (Rombos Cruzados) */}
                     <div className="relative w-16 h-16 flex items-center justify-center">
                         <div className="absolute inset-0 border-2 border-cyan-400 rotate-45 rounded-sm shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
                         <div className="absolute inset-0 border-2 border-green-400 -rotate-45 rounded-sm shadow-[0_0_15px_rgba(74,222,128,0.5)]"></div>
@@ -174,159 +175,93 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para p
                 </div>
             </div>
 
-            {/* SISTEMA DE PESTAÑAS */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+            {/* SISTEMA DE PESTAÑAS - EXACTAMENTE IGUAL QUE ANTES */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 relative">
                 
-                {/* Menú Lateral */}
-                <div className="md:col-span-4 space-y-3">
-                    <button 
-                        onClick={() => { setActiveTab('enviar'); resetForm(); }}
-                        className={`w-full flex items-center gap-3 p-4 rounded-xl font-bold transition-all ${activeTab === 'enviar' ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-400 border shadow-[0_0_20px_rgba(6,182,212,0.15)]' : 'bg-[#11111a] border border-gray-800 text-gray-400 hover:bg-gray-900 hover:text-white'}`}
-                    >
-                        <Send size={20} /> Enviar a un Amigo
-                    </button>
-
-                    <button 
-                        onClick={() => { setActiveTab('retirar'); resetForm(); }}
-                        className={`w-full flex items-center gap-3 p-4 rounded-xl font-bold transition-all ${activeTab === 'retirar' ? 'bg-green-500/10 border-green-500/50 text-green-400 border shadow-[0_0_20px_rgba(74,222,128,0.15)]' : 'bg-[#11111a] border border-gray-800 text-gray-400 hover:bg-gray-900 hover:text-white'}`}
-                    >
-                        <ArrowDownToLine size={20} /> Retirar a USDT
-                    </button>
-
-                    <button 
-                        onClick={() => { setActiveTab('historial'); resetForm(); }}
-                        className={`w-full flex items-center gap-3 p-4 rounded-xl font-bold transition-all ${activeTab === 'historial' ? 'bg-gray-800 border-gray-600 text-white border shadow-lg' : 'bg-[#11111a] border border-gray-800 text-gray-400 hover:bg-gray-900 hover:text-white'}`}
-                    >
-                        <History size={20} /> Historial Financiero
-                    </button>
+                <div className="md:col-span-4 space-y-3 shrink-0">
+                    <button onClick={() => { setActiveTab('enviar'); resetForm(); }} className={`w-full flex items-center gap-3 p-4 rounded-xl font-bold transition-all ${activeTab === 'enviar' ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-400 border shadow-[0_0_20px_rgba(6,182,212,0.15)]' : 'bg-[#11111a] border border-gray-800 text-gray-400 hover:bg-gray-900 hover:text-white'}`}><Send size={20} /> Enviar a un Amigo</button>
+                    <button onClick={() => { setActiveTab('retirar'); resetForm(); }} className={`w-full flex items-center gap-3 p-4 rounded-xl font-bold transition-all ${activeTab === 'retirar' ? 'bg-green-500/10 border-green-500/50 text-green-400 border shadow-[0_0_20px_rgba(74,222,128,0.15)]' : 'bg-[#11111a] border border-gray-800 text-gray-400 hover:bg-gray-900 hover:text-white'}`}><ArrowDownToLine size={20} /> Retirar a USDT</button>
+                    <button onClick={() => { setActiveTab('historial'); resetForm(); }} className={`w-full flex items-center gap-3 p-4 rounded-xl font-bold transition-all ${activeTab === 'historial' ? 'bg-gray-800 border-gray-600 text-white border shadow-lg' : 'bg-[#11111a] border border-gray-800 text-gray-400 hover:bg-gray-900 hover:text-white'}`}><History size={20} /> Historial Financiero</button>
                     
-                    {/* Caja de Seguridad */}
                     <div className="bg-gradient-to-br from-gray-900 to-[#11111a] border border-gray-800 p-5 rounded-xl mt-6">
                         <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><ShieldCheck size={16}/> Protección Bancaria</h4>
-                        <p className="text-[11px] text-gray-400 leading-relaxed mb-3">
-                            Vortex Pay opera bajo cifrado AES-256. Todo movimiento de fondos requiere autenticación 2FA para proteger tu dinero contra accesos no autorizados.
-                        </p>
+                        <p className="text-[11px] text-gray-400 leading-relaxed mb-3">Vortex Pay opera bajo cifrado AES-256. Todo movimiento de fondos requiere autenticación 2FA para proteger tu dinero contra accesos no autorizados.</p>
                     </div>
                 </div>
 
-                {/* Área Principal (Formularios y Vistas) */}
-                <div className="md:col-span-8">
+                <div className="md:col-span-8 flex-grow">
                     <AnimatePresence mode="wait">
                         
-                        {/* ================= FORMULARIO P2P ================= */}
+                        {/* ================= FORMULARIO P2P - IGUAL ESTÉTICA ================= */}
                         {activeTab === 'enviar' && status === 'idle' && (
-                            <motion.div key="enviar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl">
+                            <motion.div key="enviar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 h-full">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><Zap className="text-cyan-400"/> Transferencia Inmediata</h3>
                                 <p className="text-sm text-gray-400 mb-8">Envía Saldo a cualquier usuario de la red. Tiempo estimado: Instante.</p>
                                 
                                 <form onSubmit={handleProcesar} className="space-y-6">
-                                    {/* Destinatario */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Destinatario (Correo de TecnoByte)</label>
-                                        <input type="email" required placeholder="correo@amigo.com" value={destinatario} onChange={(e) => setDestinatario(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white focus:border-cyan-500 outline-none transition-colors" />
-                                    </div>
-
-                                    {/* Monto y Desglose */}
+                                    <input type="email" required placeholder="Correo del destinatario en TecnoByte" value={destinatario} onChange={(e) => setDestinatario(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white focus:border-cyan-500 outline-none transition-colors" />
+                                    
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
-                                                <span>Monto a Enviar (USD)</span>
-                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-cyan-400 cursor-pointer hover:underline">Máx: ${saldoTnb.toFixed(2)}</span>
-                                            </label>
-                                            <div className="relative">
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">$</span>
-                                                <input type="number" step="0.01" min="0.10" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-10 pr-4 text-white font-mono text-2xl focus:border-cyan-500 outline-none transition-colors" />
-                                            </div>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">$</span>
+                                            <input type="number" step="0.01" min="0.10" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-10 pr-4 text-white font-mono text-2xl focus:border-cyan-500 outline-none transition-colors" />
                                         </div>
-                                        
-                                        {/* Ticket de Resumen Matemático */}
-                                        <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center">
-                                            <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                                <span>Monto bruto:</span> <span>${numMonto.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-xs text-red-400/80 mb-2 border-b border-gray-800 pb-2">
-                                                <span>Comisión Vortex (1.5%):</span> <span>-${comisionP2P.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm font-bold text-cyan-400">
-                                                <span>Tu amigo recibe:</span> <span>${recibeAmigo > 0 ? recibeAmigo.toFixed(2) : '0.00'}</span>
-                                            </div>
+                                        <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center text-xs">
+                                            <div className="flex justify-between text-gray-400 mb-2"><span>Monto bruto:</span> <span>${numMonto.toFixed(2)}</span></div>
+                                            <div className="flex justify-between text-red-400 pb-2 border-b border-gray-800"><span>Comisión Vortex (1.5%):</span> <span>-${comisionP2P.toFixed(2)}</span></div>
+                                            <div className="flex justify-between text-sm font-bold text-cyan-400 mt-2"><span>Tu amigo recibe:</span> <span>${recibeAmigo > 0 ? recibeAmigo.toFixed(2) : '0.00'}</span></div>
                                         </div>
                                     </div>
 
-                                    {/* Campo 2FA Obligatorio */}
                                     <div className="bg-cyan-900/10 border border-cyan-500/20 p-5 rounded-xl">
                                         <label className="block text-xs font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
                                         <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-cyan-500 outline-none transition-colors" />
                                     </div>
 
-                                    <button type="submit" disabled={!monto || !destinatario || codigo2fa.length < 6} className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] mt-4">
-                                        Procesar Transferencia
-                                    </button>
+                                    <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Procesar Transferencia</button>
                                 </form>
                             </motion.div>
                         )}
 
-                        {/* ================= FORMULARIO RETIRO CRYPTO ================= */}
+                        {/* ================= FORMULARIO CRYPTO - IGUAL ESTÉTICA ================= */}
                         {activeTab === 'retirar' && status === 'idle' && (
-                            <motion.div key="retirar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl">
+                            <motion.div key="retirar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 h-full">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><ArrowDownToLine className="text-green-400"/> Retiro a Billetera BSC</h3>
                                 <p className="text-sm text-gray-400 mb-8">Convierte tu Saldo a Tether (USDT) a través de la red Binance Smart Chain (BEP20).</p>
                                 
                                 <form onSubmit={handleProcesar} className="space-y-6">
-                                    {/* Wallet */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Dirección USDT (Red BEP20)</label>
-                                        <input type="text" required placeholder="Ej: 0x1234abcd..." value={walletBsc} onChange={(e) => setWalletBsc(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white font-mono text-sm focus:border-green-500 outline-none transition-colors" />
-                                        <p className="text-[10px] text-yellow-500 mt-2 flex items-center gap-1"><AlertTriangle size={12}/> Verifica bien la dirección. Las transferencias crypto son irreversibles.</p>
-                                    </div>
+                                    <input type="text" required placeholder="Dirección USDT (Red BEP20) Ej: 0x..." value={walletBsc} onChange={(e) => setWalletBsc(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white font-mono text-sm focus:border-green-500 outline-none transition-colors" />
+                                    <p className="text-[10px] text-yellow-500 mt-2 flex items-center gap-1"><AlertTriangle size={12}/> Verifica bien la dirección. Las transferencias crypto son irreversibles.</p>
 
-                                    {/* Monto y Desglose */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex justify-between">
-                                                <span>Monto a Retirar (USD)</span>
-                                                <span onClick={() => setMonto(saldoTnb.toString())} className="text-green-400 cursor-pointer hover:underline">Máx: ${saldoTnb.toFixed(2)}</span>
-                                            </label>
-                                            <div className="relative">
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">$</span>
-                                                <input type="number" step="0.01" min="10.00" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-10 pr-4 text-white font-mono text-2xl focus:border-green-500 outline-none transition-colors" />
-                                            </div>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">$</span>
+                                            <input type="number" step="0.01" min="10.00" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-10 pr-4 text-white font-mono text-2xl focus:border-green-500 outline-none transition-colors" />
                                         </div>
-                                        
-                                        {/* Ticket de Resumen Matemático Crypto */}
-                                        <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center">
-                                            <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                                <span>Retiro bruto:</span> <span>${numMonto.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-xs text-red-400/80 mb-2 border-b border-gray-800 pb-2">
-                                                <span>Comisión de Red (5.4% + $0.33):</span> <span>-${comisionCrypto.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm font-bold text-green-400">
-                                                <span>Recibes en USDT:</span> <span>{recibeCrypto > 0 ? recibeCrypto.toFixed(2) : '0.00'} USDT</span>
-                                            </div>
+                                        <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center text-xs">
+                                            <div className="flex justify-between text-gray-400 mb-2"><span>Retiro bruto:</span> <span>${numMonto.toFixed(2)}</span></div>
+                                            <div className="flex justify-between text-red-400 pb-2 border-b border-gray-800"><span>Comisión Red (5.4% + $0.33):</span> <span>-${comisionCrypto.toFixed(2)}</span></div>
+                                            <div className="flex justify-between text-sm font-bold text-green-400 mt-2"><span>Recibes en USDT:</span> <span>{recibeCrypto > 0 ? recibeCrypto.toFixed(2) : '0.00'} USDT</span></div>
                                         </div>
                                     </div>
 
-                                    {/* Campo 2FA Obligatorio */}
                                     <div className="bg-green-900/10 border border-green-500/20 p-5 rounded-xl">
                                         <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
                                         <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-green-500 outline-none transition-colors" />
                                     </div>
 
-                                    <button type="submit" disabled={!monto || !walletBsc || codigo2fa.length < 6 || recibeCrypto <= 0} className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(74,222,128,0.3)] mt-4">
-                                        Confirmar Retiro
-                                    </button>
+                                    <button type="submit" disabled={recibeCrypto <= 0} className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Confirmar Retiro</button>
                                 </form>
                             </motion.div>
                         )}
 
-                        {/* ================= HISTORIAL CON INYECCIONES ================= */}
+                        {/* ================= HISTORIAL CON INYECCIONES PROFUNDAS ================= */}
                         {activeTab === 'historial' && (
-                            <motion.div key="historial" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 h-full min-h-[500px]">
-                                <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><History className="text-gray-300"/> Movimientos Financieros</h3>
-                                <p className="text-sm text-gray-400 mb-6">Registro de todos tus envíos y retiros de Vortex Pay.</p>
-
-                                <div className="space-y-3">
+                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 h-full space-y-6">
+                                <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><History className="text-gray-300"/> Registro Financiero Real</h3>
+                                <p className="text-sm text-gray-400 mb-6">Registro auditado de todos tus movimientos en la red.</p>
+                                
+                                <div className="space-y-3 overflow-y-auto pr-2 hide-scrollbar h-full min-h-[400px]">
                                     {isLoadingHistory ? (
                                         <div className="py-12 flex justify-center"><Loader className="animate-spin text-cyan-400" size={40} /></div>
                                     ) : transacciones.length > 0 ? (
@@ -341,54 +276,43 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para p
                                                         <div className="flex items-center gap-2 text-[10px] font-mono">
                                                             <span className="flex items-center gap-1 text-gray-500"><CalendarDays size={10} /> {tx.date}</span>
                                                             <span className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${tx.status === 'Completado' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{tx.status}</span>
-                                                            {/* INYECCIÓN: Visualización del ID de Transacción */}
+                                                            {/* INYECCIÓN VISUAL: ID DE TRANSACCIÓN */}
                                                             <span className="text-cyan-600">ID: {tx.txId}</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
-                                                {/* INYECCIÓN: Lado derecho con Monto y Botón de Ojo */}
                                                 <div className="flex items-center gap-4 relative z-10">
                                                     <div className={`font-mono font-bold text-lg ${tx.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
                                                         {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
                                                     </div>
-                                                    {/* INYECCIÓN: Botón Ver Detalles (Ojo) */}
-                                                    <button 
-                                                        onClick={() => setDetailsModal({ isOpen: true, transaction: tx })}
-                                                        className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-                                                        title="Ver Detalles Completos"
-                                                    >
-                                                        <Eye size={16} />
-                                                    </button>
+                                                    {/* INYECCIÓN VISUAL: BOTÓN DEL OJO */}
+                                                    <button onClick={() => setDetailsModal({ isOpen: true, transaction: tx })} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white transition-colors" title="Ver Detalles Profundos"><Eye size={16}/></button>
                                                 </div>
-                                                {/* Efecto de fondo al hover */}
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-800/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></div>
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-800/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 pointer-events-none"></div>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="text-center py-12">
-                                            <p className="text-gray-500">No hay movimientos recientes.</p>
-                                        </div>
+                                        <div className="text-center py-12"><p className="text-gray-500">No hay movimientos registrados.</p></div>
                                     )}
                                 </div>
                             </motion.div>
                         )}
 
-                        {/* ================= ESTADOS DE PROCESAMIENTO ================= */}
+                        {/* ESTADOS DE PROCESAMIENTO - IGUAL ESTÉTICA */}
                         {status === 'processing' && (
-                            <motion.div key="processing" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full min-h-[500px]">
+                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full space-y-4">
                                 <Loader className={`animate-spin mb-6 ${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'}`} size={64} />
-                                <h3 className="text-2xl font-bold text-white mb-2">Asegurando Transacción</h3>
-                                <p className="text-gray-400 text-sm max-w-sm mx-auto">Validando código 2FA y asegurando los fondos a través del protocolo cifrado...</p>
+                                <h3 className="text-2xl font-bold text-white mb-2">Asegurando Bóveda</h3>
+                                <p className="text-gray-400 text-sm max-w-sm mx-auto">Validando código 2FA de capa bancaria y blindando fondos a través del protocolo cifrado...</p>
                             </motion.div>
                         )}
 
                         {status === 'success' && (
-                            <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-br from-[#11111a] to-gray-900 border border-gray-700 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full min-h-[500px] relative overflow-hidden shadow-green-500/20 shadow-2xl">
-                                <CheckCircle2 className={`${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'} mb-6 relativa z-10`} size={80} strokeWidth={1.5} />
-                                <h3 className="text-3xl font-bold text-white mb-4 relativa z-10">¡Operación Aprobada!</h3>
-                                <p className="text-gray-300 font-medium mb-10 relativa z-10 max-w-md mx-auto leading-relaxed">{mensaje}</p>
-                                <button onClick={resetForm} className="px-10 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors border border-gray-600 relativa z-10 shadow-lg uppercase tracking-widest text-sm">Finalizar</button>
+                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-br from-[#11111a] to-gray-900 border border-green-700 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full relative overflow-hidden shadow-green-500/20 shadow-2xl space-y-4">
+                                <CheckCircle2 className={`${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'} mb-6 relative z-10`} size={80} strokeWidth={1.5} />
+                                <h3 className="text-3xl font-bold text-white mb-4 relative z-10">¡Operación Certificada!</h3>
+                                <p className="text-gray-300 font-medium mb-10 relative z-10 max-w-md mx-auto leading-relaxed">{mensaje}</p>
+                                <button onClick={resetForm} className="px-10 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors border border-gray-600 relative z-10 shadow-lg uppercase tracking-widest text-sm Finalizar" />
                                 <div className="absolute inset-0 bg-green-500/5 animate-pulse"></div>
                             </motion.div>
                         )}
@@ -401,99 +325,51 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para p
             <AnimatePresence>
                 {detailsModal.isOpen && detailsModal.transaction && (
                     <div className="fixed inset-0 z-[110] flex justify-end bg-black/80 backdrop-blur-sm" onClick={() => setDetailsModal({ isOpen: false })}>
-                        {/* Contenedor del Drawer */}
-                        <motion.div 
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="w-full max-w-lg h-full bg-[#0a0f18] border-l border-gray-800 shadow-2xl p-8 flex flex-col"
-                            onClick={(e) => e.stopPropagation()} // Evitar cerrar al hacer clic dentro
-                        >
-                            {/* Cabecera */}
-                            <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-800 shrink-0">
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2 font-orbitron tracking-wider">
-                                    <ShieldCheck className="text-cyan-400" /> Detalles del Protocolo
-                                </h3>
+                        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="w-full max-w-lg h-full bg-[#0a0f18] border-l border-gray-800 shadow-2xl p-8 flex flex-col space-y-6" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-800 shrink-0">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2 font-orbitron tracking-wider"><ShieldCheck className="text-cyan-400" /> Detalles del Protocolo</h3>
                                 <button onClick={() => setDetailsModal({ isOpen: false })} className="p-2 text-gray-500 hover:text-white rounded-full hover:bg-gray-800"><X size={20}/></button>
                             </div>
 
-                            {/* Contenido Dinámico */}
                             <div className="flex-grow space-y-6 overflow-y-auto pr-2 hide-scrollbar">
-                                {/* Encabezado Principal */}
                                 <div className="text-center p-6 bg-gray-900 rounded-2xl border border-gray-800 relative overflow-hidden">
-                                    <div className="absolute -left-10 -top-10 opacity-5">
-                                        {detailsModal.transaction.type === 'credit' ? <ArrowDownRight size={120} className="text-green-500" /> : <ArrowUpRight size={120} className="text-red-500" />}
-                                    </div>
-                                    <div className={`inline-flex p-4 rounded-full mb-3 relative z-10 ${detailsModal.transaction.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                                        {detailsModal.transaction.type === 'credit' ? <ArrowDownRight size={32} /> : <ArrowUpRight size={32} />}
-                                    </div>
-                                    <p className="text-sm text-gray-400 mb-1 relative z-10">{detailsModal.transaction.source}</p>
-                                    <p className={`text-4xl font-black font-mono relative z-10 ${detailsModal.transaction.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
-                                        {detailsModal.transaction.type === 'credit' ? '+' : '-'}${detailsModal.transaction.amount.toFixed(2)}
-                                    </p>
-                                    <span className={`mt-3 relative z-10 inline-block text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${detailsModal.transaction.status === 'Completado' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{detailsModal.transaction.status}</span>
+                                    <div className={`inline-flex p-4 rounded-full mb-3 ${detailsModal.transaction.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{detailsModal.transaction.type === 'credit' ? <ArrowDownRight size={32} /> : <ArrowUpRight size={32} />}</div>
+                                    <p className="text-sm text-gray-400 mb-1">{detailsModal.transaction.source}</p>
+                                    <p className={`text-4xl font-black font-mono ${detailsModal.transaction.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>{detailsModal.transaction.type === 'credit' ? '+' : '-'}${detailsModal.transaction.amount.toFixed(2)}</p>
+                                    <span className={`mt-3 inline-block text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${detailsModal.transaction.status === 'Completado' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{detailsModal.transaction.status}</span>
                                 </div>
 
-                                {/* Datos Básicos */}
                                 <div className="space-y-3 bg-[#11111a] p-5 rounded-2xl border border-gray-800">
-                                    <DetailItem label="Fecha y Hora" value={detailsModal.transaction.date} icon={CalendarDays} />
-                                    
-                                    {/* ID DE TRANSACCIÓN BANCARIA */}
-                                    <div className="flex justify-between items-center py-2 border-b border-gray-800/50">
-                                        <span className="text-xs text-gray-500 flex items-center gap-1.5"><KeyRound size={14}/> ID de Transacción</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-mono text-cyan-400 font-bold">{detailsModal.transaction.txId}</span>
-                                            <button onClick={() => copyToClipboard(detailsModal.transaction.txId, 'ID')} className="text-gray-600 hover:text-cyan-400"><Copy size={12}/></button>
-                                        </div>
-                                    </div>
+                                    <div className="flex justify-between items-center text-xs border-b border-gray-800/50 pb-2"><span className="text-gray-500 flex items-center gap-1.5"><CalendarDays size={14}/> Fecha</span> <span className="text-gray-300">{detailsModal.transaction.date}</span></div>
+                                    <div className="flex justify-between items-center text-xs"><span className="text-gray-500 flex items-center gap-1.5"><KeyRound size={14}/> ID Único de Protocolo</span> <span className="text-cyan-400 font-mono font-bold">{detailsModal.transaction.txId}</span></div>
                                 </div>
 
-                                {/* --- INYECCIÓN DE LÓGICA CONDICIONAL P2P --- */}
                                 {detailsModal.transaction.vortexType === 'P2P' && (
-                                    <div className="space-y-4 bg-gray-900 p-5 rounded-2xl border border-gray-800">
-                                        <h4 className="text-xs font-black text-white uppercase tracking-widest mb-4">Rastreo P2P</h4>
-                                        <DetailItem label="Emisor" value={detailsModal.transaction.emisor} icon={Mail} />
-                                        
-                                        {/* CORREO AL CUAL ENVIÉ */}
-                                        <DetailItem label="Receptor (Correo)" value={detailsModal.transaction.recipient} icon={Mail} highlight />
-
-                                        <div className="border-t border-gray-800 pt-4 mt-4 space-y-2 text-xs">
-                                            <div className="flex justify-between text-gray-400"><span>Monto Bruto:</span> <span>${detailsModal.transaction.amount.toFixed(2)}</span></div>
-                                            <div className="flex justify-between text-red-400"><span>Comisión Vortex (1.5%):</span> <span>-${detailsModal.transaction.comision.toFixed(3)}</span></div>
-                                            <div className="flex justify-between text-cyan-400 font-bold text-sm"><span>Monto Neto Recibido:</span> <span>${(detailsModal.transaction.amount - detailsModal.transaction.comision).toFixed(2)}</span></div>
+                                    <div className="bg-gray-900 p-5 rounded-2xl border border-gray-800 space-y-4">
+                                        <h4 className="text-xs font-black text-white uppercase tracking-widest mb-2 flex items-center gap-1.5"><Zap size={14} className="text-cyan-400"/> Rastreo P2P</h4>
+                                        <div className="text-xs space-y-3">
+                                            <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Emisor</span> <span className="text-gray-300">{detailsModal.transaction.emisor}</span></div>
+                                            <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Receptor</span> <span className="text-white font-bold">{detailsModal.transaction.recipient}</span></div>
+                                            <div className="flex justify-between"><span className="text-gray-500">Comisión (1.5%)</span> <span className="text-red-400">-${detailsModal.transaction.comision.toFixed(3)}</span></div>
+                                            <div className="flex justify-between pt-2 border-t border-gray-800 text-sm font-bold text-cyan-400"><span>Tu amigo recibió neto:</span> <span>${(detailsModal.transaction.amount - detailsModal.transaction.comision).toFixed(2)}</span></div>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* --- INYECCIÓN DE LÓGICA CONDICIONAL CRYPTO --- */}
                                 {detailsModal.transaction.vortexType === 'CRYPTO' && (
-                                    <div className="space-y-4 bg-gray-900 p-5 rounded-2xl border border-gray-800">
-                                        <h4 className="text-xs font-black text-white uppercase tracking-widest mb-4">Detalles de Retiro Blockchain</h4>
-                                        <DetailItem label="Red de Salida" value="Binance Smart Chain (BEP20)" />
-                                        
-                                        {/* CUENTA BEP20 A LA CUAL ENVIÉ */}
-                                        <div className="space-y-2">
-                                            <span className="text-xs text-gray-500">Dirección BEP20 de Destino</span>
-                                            <div className="flex items-center gap-3 bg-black border border-gray-700 p-3 rounded-lg text-sm text-green-400 font-mono break-all">
-                                                {detailsModal.transaction.bep20Address}
-                                                <button onClick={() => copyToClipboard(detailsModal.transaction.bep20Address, 'Dirección')} className="text-gray-600 hover:text-green-400 flex-shrink-0"><Copy size={14}/></button>
-                                            </div>
-                                        </div>
-
-                                        <div className="border-t border-gray-800 pt-4 mt-4 space-y-2 text-xs">
-                                            <div className="flex justify-between text-gray-400"><span>Monto Bruto TNB:</span> <span>${detailsModal.transaction.amount.toFixed(2)}</span></div>
-                                            <div className="flex justify-between text-red-400"><span>Comisión Red (5.4% + $0.33):</span> <span>-${detailsModal.transaction.comision.toFixed(2)}</span></div>
-                                            <div className="flex justify-between text-green-400 font-bold text-sm"><span>Monto Neto Recibido USDT:</span> <span>{detailsModal.transaction.netCrypto.toFixed(2)} USDT</span></div>
+                                    <div className="bg-gray-900 p-5 rounded-2xl border border-gray-800 space-y-4">
+                                        <h4 className="text-xs font-black text-white uppercase tracking-widest mb-2 flex items-center gap-1.5"><ArrowDownToLine size={14} className="text-green-400"/> Rastreo Blockchain</h4>
+                                        <div className="text-xs space-y-3">
+                                            <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Red de Salida</span> <span className="text-gray-300">BEP20</span></div>
+                                            <div className="space-y-1.5 border-b border-gray-800 pb-2"><span className="text-gray-500">Dirección de Destino</span> <div className="flex items-center gap-2 bg-black border border-gray-700 p-2 rounded-lg text-sm text-green-400 font-mono break-all">{detailsModal.transaction.bep20Address} <button onClick={() => copyToClipboard(detailsModal.transaction.bep20Address, 'Dirección')} className="text-gray-600 hover:text-green-400"><Copy size={12}/></button></div></div>
+                                            <div className="flex justify-between"><span className="text-gray-500">Comisión Red (5.4%+$0.33)</span> <span className="text-red-400">-${detailsModal.transaction.comision.toFixed(2)}</span></div>
+                                            <div className="flex justify-between pt-2 border-t border-gray-800 text-sm font-bold text-green-400"><span>Recibiste neto USDT:</span> <span>{detailsModal.transaction.netCrypto.toFixed(2)} USDT</span></div>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Botón de cierre inferior */}
-                            <button onClick={() => setDetailsModal({ isOpen: false })} className="w-full mt-8 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-sm uppercase tracking-widest border border-gray-600 shadow-lg shrink-0">
-                                Cerrar Detalles
-                            </button>
+                            <button onClick={() => setDetailsModal({ isOpen: false })} className="w-full mt-4 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-sm uppercase tracking-widest border border-gray-600 shrink-0">Cerrar Detalles</button>
                         </motion.div>
                     </div>
                 )}
@@ -501,13 +377,5 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo simulado para p
         </div>
     );
 };
-
-// Componente pequeño reutilizable para los items de detalle
-const DetailItem = ({ label, value, icon: Icon, highlight = false }) => (
-    <div className="flex justify-between items-center py-2 border-b border-gray-800/50 gap-2">
-        <span className="text-xs text-gray-500 flex items-center gap-1.5 shrink-0">{Icon && <Icon size={14}/>} {label}</span>
-        <span className={`text-sm font-medium ${highlight ? 'text-white font-bold' : 'text-gray-300'} break-all text-right`}>{value}</span>
-    </div>
-);
 
 export default VortexPayDashboard;

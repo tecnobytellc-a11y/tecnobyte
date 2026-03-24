@@ -25,6 +25,7 @@ import AutomatedFlowWrapper from './components/checkout/AutomatedFlowWrapper';
 import BinanceAutomatedCheckout from './components/checkout/BinanceAutomatedCheckout';
 import TnbAutomatedCheckout from './components/checkout/TnbAutomatedCheckout';
 import PaymentProofStep from './components/checkout/PaymentProofStep';
+import VortexPayDashboard from './components/checkout/VortexPayDashboard';
 
 import SuccessScreen from './components/verification/SuccessScreen';
 import OrderVerification from './components/verification/OrderVerification';

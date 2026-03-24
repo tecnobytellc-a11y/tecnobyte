@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ArrowDownToLine, Wallet, ShieldCheck, Zap, History, Loader, AlertTriangle, CheckCircle2, Lock, ArrowUpRight, ArrowDownRight, CalendarDays, Eye, X, Copy, Mail, KeyRound, UserCog } from 'lucide-react';
 import { auth, db } from '../../pages/firebase'; 
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import axios from 'axios';
 
 const VortexPayDashboard = () => { 
     const [activeTab, setActiveTab] = useState('enviar'); 
@@ -22,6 +23,9 @@ const VortexPayDashboard = () => {
     
     const [saldoReal, setSaldoReal] = useState(0);
     const [is2faActive, setIs2faActive] = useState(false);
+    const [twoFactorType, setTwoFactorType] = useState(null); 
+    const [isSendingEmail, setIsSendingEmail] = useState(false); 
+    const [emailSentMessage, setEmailSentMessage] = useState('');
     
     // === INYECCIÓN: PANTALLA DE CARGA DEL SALDO ===
     const [isLoadingSaldo, setIsLoadingSaldo] = useState(true);
@@ -38,6 +42,7 @@ const VortexPayDashboard = () => {
                         
                         if (data.twoFactorSecret) {
                             setIs2faActive(true); 
+                            setTwoFactorType(data.twoFactorType || 'app');
                         }
                     }
                 } catch (error) {
@@ -61,6 +66,28 @@ const VortexPayDashboard = () => {
     const comisionCrypto = (numMonto * 0.054) + 0.33;
     const recibeCrypto = numMonto - comisionCrypto;
 
+const handleRequestEmailCode = async () => {
+        if (!auth.currentUser) return;
+        setIsSendingEmail(true);
+        setEmailSentMessage('');
+
+        try {
+            const res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-generate', {
+                userId: auth.currentUser.uid,
+                email: auth.currentUser.email
+            });
+
+            if (res.data.success) {
+                setEmailSentMessage('✅ Código enviado a tu correo.');
+            } else {
+                setEmailSentMessage('❌ Error: ' + res.data.message);
+            }
+        } catch (error) {
+            setEmailSentMessage('❌ Error enviando el código.');
+        }
+        setIsSendingEmail(false);
+    };
+    
     const handleProcesar = async (e) => {
         e.preventDefault();
 
@@ -175,6 +202,35 @@ const VortexPayDashboard = () => {
         setCodigo2fa('');
     };
 
+    const render2FAInput = (colorColor, borderFocus) => (
+        <div className={`bg-${colorColor}-900/10 border border-${colorColor}-500/20 p-5 rounded-xl relative`}>
+            <div className="flex justify-between items-center mb-3">
+                <label className={`block text-xs font-bold text-${colorColor}-400 uppercase tracking-widest flex items-center gap-2`}>
+                    <Lock size={14}/> Código de Seguridad 2FA
+                </label>
+                {twoFactorType === 'email' && (
+                    <button 
+                        type="button" 
+                        onClick={handleRequestEmailCode}
+                        disabled={isSendingEmail}
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border border-${colorColor}-500/50 hover:bg-${colorColor}-500/20 text-${colorColor}-400 flex items-center gap-1 transition-colors`}
+                    >
+                        {isSendingEmail ? <Loader size={12} className="animate-spin" /> : <Mail size={12} />}
+                        {isSendingEmail ? 'Enviando...' : 'Pedir Código'}
+                    </button>
+                )}
+            </div>
+            
+            <input type="text" maxLength="6" required placeholder={twoFactorType === 'email' ? "Revisa tu correo" : "Revisa Google Auth / Authy"} value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className={`w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-${borderFocus} outline-none transition-colors`} />
+            
+            {emailSentMessage && (
+                <p className={`text-[10px] font-bold mt-2 text-right ${emailSentMessage.includes('✅') ? 'text-green-400' : 'text-red-400'}`}>
+                    {emailSentMessage}
+                </p>
+            )}
+        </div>
+    );
+    
     return (
         <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in-up relative">
             
@@ -262,10 +318,7 @@ const VortexPayDashboard = () => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-cyan-900/10 border border-cyan-500/20 p-5 rounded-xl relative">
-                                        <label className="block text-xs font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
-                                        <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-cyan-500 outline-none transition-colors" />
-                                    </div>
+                                    {render2FAInput('cyan', 'cyan-500')}
 
                                     <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Procesar Transferencia</button>
                                 </form>
@@ -306,10 +359,7 @@ const VortexPayDashboard = () => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-green-900/10 border border-green-500/20 p-5 rounded-xl relative">
-                                        <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
-                                        <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-green-500 outline-none transition-colors" />
-                                    </div>
+                                    {render2FAInput('green', 'green-500')}
 
                                     <button type="submit" disabled={recibeCrypto <= 0} className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Confirmar Retiro</button>
                                 </form>

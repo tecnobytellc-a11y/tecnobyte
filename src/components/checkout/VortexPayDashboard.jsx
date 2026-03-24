@@ -93,7 +93,8 @@ const VortexPayDashboard = () => {
         
         try {
             const idToken = await auth.currentUser.getIdToken(true);
-            const endpoint = activeTab === 'enviar' ? '/api/vortex-pay-transfer' : '/api/vortex-pay-withdraw';
+            // === INYECCIÓN: SE CAMBIÓ LA RUTA PARA USAR EL PUENTE /PRIVATE-API/ ===
+            const endpoint = activeTab === 'enviar' ? '/private-api/vortex-pay-transfer' : '/private-api/vortex-pay-withdraw';
             // Generador nativo del navegador para llaves inconfundibles (Anti-Doble Clic)
             const idempotencyKey = crypto.randomUUID(); 
             

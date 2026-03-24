@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ArrowDownToLine, Wallet, ShieldCheck, Zap, History, Loader, AlertTriangle, CheckCircle2, Lock, ArrowUpRight, ArrowDownRight, CalendarDays, Eye, X, Copy, Mail, KeyRound, UserCog } from 'lucide-react';
-import { auth, db } from '../../pages/firebase'; // Asegúrate de que la ruta sea la correcta
+import { auth, db } from '../../pages/firebase'; 
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 const VortexPayDashboard = () => { 
-    const [activeTab, setActiveTab] = useState('enviar'); // 'enviar', 'retirar', 'historial'
+    const [activeTab, setActiveTab] = useState('enviar'); 
     const [monto, setMonto] = useState('');
     const [destinatario, setDestinatario] = useState('');
     const [walletBsc, setWalletBsc] = useState('');
     const [codigo2fa, setCodigo2fa] = useState('');
     
-    const [status, setStatus] = useState('idle'); // idle, processing, success, error
+    const [status, setStatus] = useState('idle'); 
     const [mensaje, setMensaje] = useState('');
     
     const [transacciones, setTransacciones] = useState([]);
@@ -20,20 +20,19 @@ const VortexPayDashboard = () => {
     const [detailsModal, setDetailsModal] = useState({ isOpen: false, transaction: null });
     const [is2faActivationModalOpen, setIs2faActivationModalOpen] = useState(false);
     
-    // --- PRODUCCIÓN: ESTADOS REALES DESDE FIREBASE ---
     const [saldoReal, setSaldoReal] = useState(0);
     const [is2faActive, setIs2faActive] = useState(false);
 
-    // Cargar datos reales del usuario al entrar al panel
     useEffect(() => {
         const fetchUserData = async () => {
             if (auth.currentUser) {
                 const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
                 if (userDoc.exists()) {
                     const data = userDoc.data();
-                    setSaldoReal(data.tecnoPoints_acumulados || 0); // Cargamos tu saldo real
+                    // === CORRECCIÓN APLICADA AQUÍ: SALDO TNB ===
+                    setSaldoReal(data.saldoTnb || 0); 
                     if (data.twoFactorSecret) {
-                        setIs2faActive(true); // Verificamos si tienes 2FA real configurado
+                        setIs2faActive(true); 
                     }
                 }
             }
@@ -41,14 +40,9 @@ const VortexPayDashboard = () => {
         fetchUserData();
     }, []);
 
-    // Matemáticas de Comisiones en Tiempo Real
     const numMonto = parseFloat(monto) || 0;
-    
-    // P2P: 1.5%
     const comisionP2P = numMonto * 0.015;
     const recibeAmigo = numMonto - comisionP2P;
-
-    // Crypto: 5.4% + $0.33
     const comisionCrypto = (numMonto * 0.054) + 0.33;
     const recibeCrypto = numMonto - comisionCrypto;
 
@@ -60,7 +54,6 @@ const VortexPayDashboard = () => {
             return;
         }
 
-        // VERIFICACIÓN REAL DE 2FA
         if (!is2faActive) {
             setIs2faActivationModalOpen(true);
             return; 
@@ -84,7 +77,6 @@ const VortexPayDashboard = () => {
         setStatus('processing');
         
         try {
-            // --- CONEXIÓN BLINDADA A VERCEL ---
             const idToken = await auth.currentUser.getIdToken(true);
             const endpoint = activeTab === 'enviar' ? '/api/vortex-pay-transfer' : '/api/vortex-pay-withdraw';
             const payload = activeTab === 'enviar' ? { destinatario, monto, codigo2fa } : { walletBsc, monto, codigo2fa };
@@ -107,7 +99,6 @@ const VortexPayDashboard = () => {
                 } else {
                     setMensaje(`¡Retiro solicitado! ID: ${data.txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20. Un administrador lo procesará tras verificar seguridad.`);
                 }
-                // Actualizamos el saldo visualmente sin tener que recargar la página
                 setSaldoReal(prev => prev - numMonto);
             } else {
                 setStatus('idle');
@@ -120,7 +111,6 @@ const VortexPayDashboard = () => {
         }
     };
 
-    // --- PRODUCCIÓN: CARGA DE HISTORIAL REAL DESDE FIREBASE ---
     const cargarHistorialReal = async () => {
         if (!auth.currentUser) return;
         setIsLoadingHistory(true);
@@ -133,7 +123,6 @@ const VortexPayDashboard = () => {
                 const data = docSnap.data();
                 historyData.push({
                     ...data,
-                    // Si viene del servidor como Timestamp, lo formateamos bonito
                     date: data.date && data.date.toDate ? data.date.toDate().toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Reciente'
                 });
             });

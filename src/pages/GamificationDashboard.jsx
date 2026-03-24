@@ -13,6 +13,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 // INYECCIÓN: Agregados iconos de historial
 import axios from 'axios';
+import { startRegistration } from '@simplewebauthn/browser';
 import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays, Lock, CheckCircle2, AlertTriangle, Mail, Fingerprint } from 'lucide-react';
 
 const PRESET_AVATARS = [
@@ -177,8 +178,56 @@ const GamificationDashboard = () => {
     };
 
     const handleStart2FASetup = async (method) => {
-        if (method === 'passkey') {
-            alert('¡Fase 3! Pronto activaremos los sensores biométricos (Huella/FaceID) con WebAuthn.');
+if (method === 'passkey') {
+            setTwoFAMethod(method);
+            setIs2FASetupOpen(true);
+            setIsProcessing2FA(true);
+            setError2FA('');
+            
+            try {
+                // 1. Pedir el "Desafío" de seguridad al servidor
+                const resOpts = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-passkey-register-start', {
+                    userId: auth.currentUser.uid,
+                    email: auth.currentUser.email || userData?.email
+                });
+
+                if (!resOpts.data.success) {
+                    setError2FA('Error obteniendo parámetros de seguridad biométrica.');
+                    setIsProcessing2FA(false);
+                    return;
+                }
+
+                // 2. DESPERTAR LOS SENSORES DEL DISPOSITIVO (Huella, FaceID, PIN)
+                let attResp;
+                try {
+                    attResp = await startRegistration(resOpts.data.options);
+                } catch (error) {
+                    if (error.name === 'NotAllowedError') {
+                        setError2FA('Cancelaste la verificación o tu dispositivo la bloqueó.');
+                    } else {
+                        setError2FA('Tu dispositivo no soporta Llaves de Acceso o hubo un error.');
+                    }
+                    setIsProcessing2FA(false);
+                    return;
+                }
+
+                // 3. Enviar la firma biométrica al servidor para guardarla
+                const resFinish = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-passkey-register-finish', {
+                    userId: auth.currentUser.uid,
+                    response: attResp,
+                    isSetup: true
+                });
+
+                if (resFinish.data.success) {
+                    setSetupStep(2); // ¡Éxito! Pantalla verde.
+                    setUserData(prev => ({ ...prev, twoFactorSecret: 'PASSKEY_ENABLED', twoFactorType: 'passkey' }));
+                } else {
+                    setError2FA('El servidor rechazó la firma biométrica.');
+                }
+            } catch (err) {
+                setError2FA(err.response?.data?.message || 'Error de conexión con el servidor.');
+            }
+            setIsProcessing2FA(false);
             return;
         }
 

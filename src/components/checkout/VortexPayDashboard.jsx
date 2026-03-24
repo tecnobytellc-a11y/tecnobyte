@@ -93,9 +93,11 @@ const VortexPayDashboard = () => {
         
         try {
             const idToken = await auth.currentUser.getIdToken(true);
-            // === INYECCIÓN: SE CAMBIÓ LA RUTA PARA USAR EL PUENTE /PRIVATE-API/ ===
-            const endpoint = activeTab === 'enviar' ? '/private-api/vortex-pay-transfer' : '/private-api/vortex-pay-withdraw';
-            // Generador nativo del navegador para llaves inconfundibles (Anti-Doble Clic)
+            // === INYECCIÓN: URL ABSOLUTA DIRECTA AL SERVIDOR ===
+            const endpoint = activeTab === 'enviar' 
+                ? 'https://api-paypal-secure.vercel.app/api/vortex-pay-transfer' 
+                : 'https://api-paypal-secure.vercel.app/api/vortex-pay-withdraw';
+                
             const idempotencyKey = crypto.randomUUID(); 
             
             const payload = activeTab === 'enviar' 

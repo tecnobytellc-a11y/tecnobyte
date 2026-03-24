@@ -94,7 +94,12 @@ const VortexPayDashboard = () => {
         try {
             const idToken = await auth.currentUser.getIdToken(true);
             const endpoint = activeTab === 'enviar' ? '/api/vortex-pay-transfer' : '/api/vortex-pay-withdraw';
-            const payload = activeTab === 'enviar' ? { destinatario, monto, codigo2fa } : { walletBsc, monto, codigo2fa };
+            // Generador nativo del navegador para llaves inconfundibles (Anti-Doble Clic)
+            const idempotencyKey = crypto.randomUUID(); 
+            
+            const payload = activeTab === 'enviar' 
+                ? { destinatario, monto, codigo2fa, idempotencyKey } 
+                : { walletBsc, monto, codigo2fa, idempotencyKey };
 
             const response = await fetch(endpoint, {
                 method: 'POST',

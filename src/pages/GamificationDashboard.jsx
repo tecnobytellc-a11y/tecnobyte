@@ -190,7 +190,8 @@ const GamificationDashboard = () => {
 
         try {
             const idToken = await auth.currentUser.getIdToken(true);
-            const res = await fetch('/api/2fa-generate', {
+            // INYECCIÓN: URL completa hacia tu servidor privado
+            const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-generate', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${idToken}` }
             });
@@ -216,7 +217,8 @@ const GamificationDashboard = () => {
 
         try {
             const idToken = await auth.currentUser.getIdToken(true);
-            const res = await fetch('/api/2fa-verify', {
+           // INYECCIÓN: URL completa hacia tu servidor privado
+            const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-verify', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -343,13 +345,13 @@ const GamificationDashboard = () => {
                                 </button>
                             ))}
                             
-                            {/* --- INYECCIÓN: BOTÓN VORTEX PAY EN EL MENÚ LATERAL --- */}
+                           {/* --- INYECCIÓN: BOTÓN VORTEX PAY ALINEADO --- */}
                             <button
                                 onClick={() => window.location.href = 'https://www.tecnobyte.lat/vortex-pay'}
                                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm bg-gradient-to-r from-cyan-500/10 to-green-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20"
                             >
-                                <img src="/vertexpay.png" alt="Vortex Pay" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
-                                <span className="text-base tracking-wide">Vortex Pay</span>
+                                <img src="/vertexpay.png" alt="Vortex Pay" className="w-[19px] h-[19px] object-contain drop-shadow-[0_0_5px_rgba(6,182,212,0.5)]" />
+                                Vortex Pay
                             </button>
 
                             <div className="w-full h-px bg-gray-800 my-4"></div>

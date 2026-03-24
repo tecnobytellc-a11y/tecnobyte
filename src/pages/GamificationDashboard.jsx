@@ -13,7 +13,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 // INYECCIÓN: Agregados iconos de historial
 import axios from 'axios';
-import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays, Lock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { User, Shield, Wallet, LogOut, Loader, Settings, Edit3, Store, Camera, Trash2, Smartphone, QrCode, UploadCloud, X, History, ArrowUpRight, ArrowDownRight, CalendarDays, Lock, CheckCircle2, AlertTriangle, Fingerprint } from 'lucide-react';
 
 const PRESET_AVATARS = [
     ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=ProGamer${i}&backgroundColor=b6e3f4,c0aede,d1d4f9`),
@@ -178,11 +178,16 @@ const GamificationDashboard = () => {
 
     // --- INYECCIÓN: LÓGICA REAL DE ACTIVACIÓN 2FA ---
     const handleStart2FASetup = async (method) => {
-        if (method === 'sms') {
-            alert('La verificación por SMS estará disponible pronto. Por favor usa la App de Autenticación.');
+        if (method === 'email') {
+            alert('¡Fase 2! Pronto conectaremos esto con Resend para enviarte el código a tu correo.');
+            return;
+        }
+        if (method === 'passkey') {
+            alert('¡Fase 3! Pronto activaremos los sensores biométricos (Huella/FaceID) con WebAuthn.');
             return;
         }
 
+        // Lógica actual para la App (Google Authenticator)
         setTwoFAMethod(method);
         setIs2FASetupOpen(true);
         setIsProcessing2FA(true);
@@ -191,7 +196,6 @@ const GamificationDashboard = () => {
 
         try {
             const idToken = await auth.currentUser.getIdToken(true);
-            // INYECCIÓN: URL completa hacia tu servidor privado
             const res = await fetch('https://api-paypal-secure.vercel.app/api/2fa-generate', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${idToken}` }
@@ -208,6 +212,24 @@ const GamificationDashboard = () => {
             setError2FA('Error de conexión con el servidor.');
         }
         setIsProcessing2FA(false);
+    };
+
+    // --- INYECCIÓN: DESACTIVAR 2FA ---
+    const handleDisable2FA = async () => {
+        const confirmacion = window.confirm("⚠️ ¿Seguro que deseas desactivar la Verificación en 2 Pasos? Tu Saldo TNB y tus TecnoPoints quedarán menos protegidos frente a accesos no autorizados.");
+        if (!confirmacion) return;
+
+        try {
+            await updateDoc(doc(db, "usuarios", auth.currentUser.uid), {
+                twoFactorSecret: null,
+                twoFactorType: null
+            });
+            setUserData(prev => ({ ...prev, twoFactorSecret: null, twoFactorType: null }));
+            alert("✅ Seguridad 2FA desactivada correctamente.");
+        } catch (error) {
+            console.error("Error desactivando 2FA:", error);
+            alert("Hubo un error al desactivar la seguridad.");
+        }
     };
 
     const handleVerify2FACode = async (e) => {
@@ -519,16 +541,20 @@ const GamificationDashboard = () => {
                                     </form>
 
                                     <div className="bg-gradient-to-r from-gray-900 to-indigo-900/20 p-6 rounded-xl border border-indigo-500/30 relative overflow-hidden">
-                                        {/* INYECCIÓN: Lógica de 2FA Visual */}
                                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 relative z-10">
                                             <div>
                                                 <h3 className="font-bold text-indigo-400 mb-1 flex items-center gap-2"><Settings size={16}/> Verificación en 2 Pasos (2FA)</h3>
                                                 <p className="text-sm text-gray-400">Añade una capa extra de seguridad a tu Saldo TNB y tus TecnoPoints.</p>
                                             </div>
                                             {userData?.twoFactorSecret ? (
-                                                <span className="px-4 py-1.5 bg-green-500/20 text-green-400 border border-green-500/50 font-bold rounded-full text-xs flex items-center gap-2">
-                                                    <Shield size={14} /> Activo
-                                                </span>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="px-4 py-1.5 bg-green-500/20 text-green-400 border border-green-500/50 font-bold rounded-full text-xs flex items-center gap-2">
+                                                        <Shield size={14} /> Activo ({userData?.twoFactorType === 'email' ? 'Correo' : userData?.twoFactorType === 'passkey' ? 'Huella/Face ID' : 'App'})
+                                                    </span>
+                                                    <button onClick={handleDisable2FA} className="px-4 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold rounded-full text-xs flex items-center gap-2 transition-all">
+                                                        <Trash2 size={14}/> Desactivar
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <span className="px-4 py-1.5 bg-red-500/20 text-red-400 border border-red-500/50 font-bold rounded-full text-xs flex items-center gap-2">
                                                     <AlertTriangle size={14} /> Desactivado
@@ -537,19 +563,31 @@ const GamificationDashboard = () => {
                                         </div>
 
                                         {!userData?.twoFactorSecret && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
-                                                <button onClick={() => handleStart2FASetup('app')} className="p-4 border border-gray-700 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/10 transition-all text-left flex items-start gap-4">
-                                                    <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400"><QrCode size={24} /></div>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+                                                {/* 1. APP AUTHENTICATOR */}
+                                                <button onClick={() => handleStart2FASetup('app')} className="p-4 border border-gray-700 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/10 transition-all text-left flex flex-col gap-3">
+                                                    <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 w-max"><QrCode size={24} /></div>
                                                     <div>
                                                         <h4 className="text-white font-bold text-sm">App de Autenticación</h4>
-                                                        <p className="text-xs text-gray-400 mt-1">Usa Google Authenticator o Authy (Recomendado).</p>
+                                                        <p className="text-[11px] text-gray-400 mt-1">Google Auth / Authy.</p>
                                                     </div>
                                                 </button>
-                                                <button onClick={() => handleStart2FASetup('sms')} className="p-4 border border-gray-700 rounded-xl hover:border-cyan-500 hover:bg-cyan-500/10 transition-all text-left flex items-start gap-4">
-                                                    <div className="p-2 bg-cyan-500/20 rounded-lg text-cyan-400"><Smartphone size={24} /></div>
+                                                
+                                                {/* 2. CORREO ELECTRÓNICO */}
+                                                <button onClick={() => handleStart2FASetup('email')} className="p-4 border border-gray-700 rounded-xl hover:border-pink-500 hover:bg-pink-500/10 transition-all text-left flex flex-col gap-3">
+                                                    <div className="p-2 bg-pink-500/20 rounded-lg text-pink-400 w-max"><Mail size={24} /></div>
                                                     <div>
-                                                        <h4 className="text-white font-bold text-sm">Mensaje SMS</h4>
-                                                        <p className="text-xs text-gray-400 mt-1">Recibe un código por mensaje de texto.</p>
+                                                        <h4 className="text-white font-bold text-sm">Correo (OTP)</h4>
+                                                        <p className="text-[11px] text-gray-400 mt-1">Recibe un código en tu email.</p>
+                                                    </div>
+                                                </button>
+
+                                                {/* 3. PASSKEYS (HUELLA / FACE ID) */}
+                                                <button onClick={() => handleStart2FASetup('passkey')} className="p-4 border border-gray-700 rounded-xl hover:border-cyan-500 hover:bg-cyan-500/10 transition-all text-left flex flex-col gap-3">
+                                                    <div className="p-2 bg-cyan-500/20 rounded-lg text-cyan-400 w-max"><Fingerprint size={24} /></div>
+                                                    <div>
+                                                        <h4 className="text-white font-bold text-sm">Llave de Acceso</h4>
+                                                        <p className="text-[11px] text-gray-400 mt-1">Huella, Face ID o PIN.</p>
                                                     </div>
                                                 </button>
                                             </div>

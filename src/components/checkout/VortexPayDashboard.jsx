@@ -23,7 +23,7 @@ const VortexPayDashboard = () => {
     const [saldoReal, setSaldoReal] = useState(0);
     const [is2faActive, setIs2faActive] = useState(false);
 
-    // === SOLUCIÓN: ESCUCHADOR DE AUTENTICACIÓN EN TIEMPO REAL ===
+    // === SOLUCIÓN: ESCUCHADOR CONECTADO EXACTAMENTE A "saldo_tnb" ===
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
@@ -31,17 +31,18 @@ const VortexPayDashboard = () => {
                     const userDoc = await getDoc(doc(db, "usuarios", user.uid));
                     if (userDoc.exists()) {
                         const data = userDoc.data();
-                        // Lee exactamente tu saldoTnb de la base de datos
-                        setSaldoReal(data.saldoTnb || 0); 
+                        
+                        // Lectura exacta del campo en tu base de datos
+                        setSaldoReal(parseFloat(data.saldo_tnb) || 0); 
+                        
                         if (data.twoFactorSecret) {
                             setIs2faActive(true); 
                         }
                     }
                 } catch (error) {
-                    console.error("Error cargando el saldoTnb:", error);
+                    console.error("Error cargando el saldo_tnb:", error);
                 }
             } else {
-                // Si no hay usuario logueado, mantiene en 0
                 setSaldoReal(0);
                 setIs2faActive(false);
             }

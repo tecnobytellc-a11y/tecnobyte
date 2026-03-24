@@ -239,8 +239,17 @@ const AppContent = () => {
                     
                     <Route path="/perfil" element={<GamificationDashboard />} />
                     
-                    <Route path="/login" element={<Login />} />
+                   <Route path="/login" element={<Login />} />
                     <Route path="/registro" element={<Register />} />
+
+                    {/* 🔥 INYECCIÓN TEMPORAL PARA SIMULACIÓN VISUAL DE VORTEX PAY */}
+                    {/* Podrás ver el panel entrando a tupagina.com/vortex-pay */}
+                    <Route path="/vortex-pay" element={
+                        <div className="pt-24"> {/* Añadimos padding superior para que no lo tape el Navbar */}
+                            <VortexPayDashboard saldoTnb={755.50} /> {/* Saldo simulado para la prueba */}
+                        </div>
+                    } />
+
                 </Routes>
             </main>
 

@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/private-auth/:path*",
+      "source": "/private-api/:path*",
       "destination": "https://api-paypal-secure.vercel.app/api/:path*"
     }
   ]

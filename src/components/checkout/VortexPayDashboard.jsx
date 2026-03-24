@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowDownToLine, Wallet, ShieldCheck, Zap, History, Loader, AlertTriangle, CheckCircle2, Lock, ArrowUpRight, ArrowDownRight, CalendarDays, Eye, X, Copy, Mail, KeyRound } from 'lucide-react';
-import { auth, db } from '../../pages/firebase'; // Ajusta la ruta según tu proyecto
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { Send, ArrowDownToLine, Wallet, ShieldCheck, Zap, History, Loader, AlertTriangle, CheckCircle2, Lock, ArrowUpRight, ArrowDownRight, CalendarDays, Eye, X, Copy, Mail, KeyRound, UserCog } from 'lucide-react';
+// import { auth, db } from '../../pages/firebase'; // Descomentar para producción
 
-const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pasa como prop
+// 🔥 HELPER: Generador simulado de ID de Transacción Bancaria (Ej: VTX4A9F R2T1)
+const generateNumericTxId = () => {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = 'VTX';
+    for (let i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};
+
+const VortexPayDashboard = ({ saldoTnb = 755.50 }) => { // Saldo simulado para pruebas
     const [activeTab, setActiveTab] = useState('enviar'); // 'enviar', 'retirar', 'historial'
     const [monto, setMonto] = useState('');
     const [destinatario, setDestinatario] = useState('');
@@ -20,7 +29,13 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
     // --- INYECCIÓN: ESTADOS PARA EL MODAL DE DETALLES PROFUNDO (DRAWER) ---
     const [detailsModal, setDetailsModal] = useState({ isOpen: false, transaction: null });
 
-    // Matemáticas de Comisiones en Tiempo Real (solo para visualización)
+    // --- INYECCIÓN: ESTADO PARA EL MODAL DE ACTIVACIÓN 2FA ---
+    const [is2faActivationModalOpen, setIs2faActivationModalOpen] = useState(false);
+    
+    // SIMULACIÓN DE ESTADO DE USUARIO (Para producción, esto vendrá de Firebase)
+    const [is2faActiveSimulated, setIs2faActiveSimulated] = useState(false); // Cambiar a true para probar el flujo normal
+
+    // Matemáticas de Comisiones en Tiempo Real
     const numMonto = parseFloat(monto) || 0;
     
     // P2P: 1.5%
@@ -33,6 +48,12 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
 
     const handleProcesar = async (e) => {
         e.preventDefault();
+
+        // --- INYECCIÓN: PROTOCOLO DE SEGURIDAD BANCARIA (VERIFICACIÓN DE ACTIVACIÓN 2FA) ---
+        if (!is2faActiveSimulated) {
+            setIs2faActivationModalOpen(true);
+            return; // Bloqueamos la transacción
+        }
 
         if (numMonto <= 0 || numMonto > saldoTnb) {
             alert("Monto inválido o fondos insuficientes.");
@@ -51,84 +72,71 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
 
         setStatus('processing');
         
-        try {
-            // --- INYECCIÓN: PROTOCOLO DE SEGURIDAD BANCARIA EN EL CLIENTE ---
-            const user = auth.currentUser;
-            if (!user) {
-                setStatus('idle');
-                alert("Debes estar logueado para realizar esta acción.");
-                return;
-            }
-            // Obtenemos el Token de ID blindado
-            const idToken = await user.getIdToken();
-
-            // Decidimos a qué endpoint blindado llamar
-            const endpoint = activeTab === 'enviar' ? '/api/vortex-pay-transfer' : '/api/vortex-pay-withdraw';
-            const body = activeTab === 'enviar' ? { destinatario, monto, codigo2fa } : { walletBsc, monto, codigo2fa };
-
-            // Llamada blindada al servidor
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
-                },
-                body: JSON.stringify(body)
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                setStatus('success');
-                if (activeTab === 'enviar') {
-                    setMensaje(`¡Envío exitoso! ID de Transacción: ${data.txId}. Se han transferido $${recibeAmigo.toFixed(2)} TNB a ${destinatario}. Comisión cobrada: $${comisionP2P.toFixed(2)}`);
-                } else {
-                    setMensaje(`¡Retiro solicitado! ID de Transacción: ${data.txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20. Un administrador lo procesará tras verificar seguridad.`);
-                }
+        // Aquí irá la llamada blindada al backend en el futuro. 
+        // Por ahora simulamos el tiempo de proceso bancario.
+        setTimeout(() => {
+            setStatus('success');
+            const txId = generateNumericTxId(); // Generamos el ID único para la simulación
+            if (activeTab === 'enviar') {
+                setMensaje(`¡Envío exitoso! ID: ${txId}. Se han transferido $${recibeAmigo.toFixed(2)} TNB a ${destinatario}. Comisión cobrada: $${comisionP2P.toFixed(2)}`);
             } else {
-                setStatus('idle');
-                alert(`Error: ${data.message}`);
+                setMensaje(`¡Retiro solicitado! ID: ${txId}. $${recibeCrypto.toFixed(2)} USDT en camino a tu billetera BEP20. Un administrador lo procesará tras verificar seguridad.`);
             }
-
-        } catch (error) {
-            console.error('Error procesando Vortex Pay:', error);
-            setStatus('idle');
-            alert("Ocurrió un error inesperado. Por favor, intenta de nuevo o contacta a soporte.");
-        }
+        }, 3000);
     };
 
-    const cargarHistorialReal = async () => {
+    const cargarHistorialFalso = () => {
         setIsLoadingHistory(true);
-        try {
-            // --- INYECCIÓN: PROTOCOLO DE SEGURIDAD BANCARIA EN EL CLIENTE ---
-            const user = auth.currentUser;
-            if (!user) return;
-            // Obtenemos el Token de ID blindado
-            const idToken = await user.getIdToken();
-
-            // Llamada blindada al servidor para obtener historial real
-            const response = await fetch('/api/vortex-pay-history', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${idToken}`
+        setTimeout(() => {
+            setTransacciones([
+                { 
+                    id: 1, 
+                    type: 'debit', 
+                    amount: 15.00, 
+                    source: 'Envío a Jesus_Ve', 
+                    date: '23 Mar 2026', 
+                    status: 'Completado',
+                    // INJECTIONS
+                    txId: generateNumericTxId(),
+                    vortexType: 'P2P',
+                    comision: 0.225,
+                    recipient: 'jesus_ve@tecnobyte.io',
+                    emisor: 'tu_correo@ejemplo.com'
+                },
+                { 
+                    id: 2, 
+                    type: 'credit', 
+                    amount: 50.00, 
+                    source: 'Recarga de Saldo TNB', 
+                    date: '21 Mar 2026', 
+                    status: 'Completado',
+                    // INJECTIONS
+                    txId: generateNumericTxId(),
+                    vortexType: 'RECARGA',
+                    comision: 0.00
+                },
+                { 
+                    id: 3, 
+                    type: 'debit', 
+                    amount: 100.00, 
+                    source: 'Retiro USDT (BSC)', 
+                    date: '15 Mar 2026', 
+                    status: 'Procesando',
+                    // INJECTIONS
+                    txId: generateNumericTxId(),
+                    vortexType: 'CRYPTO',
+                    comision: 5.73,
+                    netCrypto: 94.27,
+                    bep20Address: '0x1234...abcdBEP20AddressExample'
                 }
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                setTransacciones(data.transacciones);
-            }
-
-        } catch (error) {
-            console.error('Error cargando historial Vortex Pay:', error);
-        }
-        setIsLoadingHistory(false);
+            ]);
+            setIsLoadingHistory(false);
+        }, 1000);
     };
 
     useEffect(() => {
         if (activeTab === 'historial') {
-            cargarHistorialReal(); // Carga real de Firebase a través del servidor
+            cargarHistorialFalso(); // Reemplazar por Firebase luego
         }
     }, [activeTab]);
 
@@ -146,7 +154,7 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
     };
 
     return (
-        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in-up">
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in-up relative">
             
             {/* CABECERA VORTEX - EXACTAMENTE IGUAL QUE ANTES */}
             <div className="bg-gradient-to-r from-[#0a0f18] to-[#11111a] border border-cyan-500/30 rounded-3xl p-8 mb-8 relative overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.15)] flex flex-col md:flex-row items-center justify-between gap-6">
@@ -199,13 +207,21 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                                 <p className="text-sm text-gray-400 mb-8">Envía Saldo a cualquier usuario de la red. Tiempo estimado: Instante.</p>
                                 
                                 <form onSubmit={handleProcesar} className="space-y-6">
-                                    <input type="email" required placeholder="Correo del destinatario en TecnoByte" value={destinatario} onChange={(e) => setDestinatario(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white focus:border-cyan-500 outline-none transition-colors" />
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Destinatario */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Destinatario (Correo de TecnoByte)</label>
+                                        <input type="email" required placeholder="correo@amigo.com" value={destinatario} onChange={(e) => setDestinatario(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white focus:border-cyan-500 outline-none transition-colors" />
+                                    </div>
+
+                                    {/* Monto y Desglose */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
                                         <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">$</span>
-                                            <input type="number" step="0.01" min="0.10" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-10 pr-4 text-white font-mono text-2xl focus:border-cyan-500 outline-none transition-colors" />
+                                            {/* --- AJUSTE: Signo de Dólar arreglado --- */}
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl z-10">$</span>
+                                            <input type="number" step="0.01" min="0.10" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-12 pr-4 text-white font-mono text-2xl focus:border-cyan-500 outline-none transition-colors relative z-0" />
                                         </div>
+                                        
+                                        {/* Ticket de Resumen Matemático */}
                                         <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center text-xs">
                                             <div className="flex justify-between text-gray-400 mb-2"><span>Monto bruto:</span> <span>${numMonto.toFixed(2)}</span></div>
                                             <div className="flex justify-between text-red-400 pb-2 border-b border-gray-800"><span>Comisión Vortex (1.5%):</span> <span>-${comisionP2P.toFixed(2)}</span></div>
@@ -213,9 +229,13 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                                         </div>
                                     </div>
 
-                                    <div className="bg-cyan-900/10 border border-cyan-500/20 p-5 rounded-xl">
+                                    {/* Campo 2FA Obligatorio */}
+                                    <div className="bg-cyan-900/10 border border-cyan-500/20 p-5 rounded-xl relative">
                                         <label className="block text-xs font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
                                         <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-cyan-500 outline-none transition-colors" />
+                                        
+                                        {/* INYECCIÓN VISUAL: Botón simulado para activar 2FA (Para pruebas) */}
+                                        <button type="button" onClick={() => setIs2faActiveSimulated(!is2faActiveSimulated)} className="absolute top-2 right-2 text-[9px] px-2 py-0.5 rounded bg-gray-800 text-gray-500">Simular: {is2faActiveSimulated ? '2FA ON' : '2FA OFF'}</button>
                                     </div>
 
                                     <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Procesar Transferencia</button>
@@ -223,21 +243,31 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                             </motion.div>
                         )}
 
-                        {/* ================= FORMULARIO CRYPTO - IGUAL ESTÉTICA ================= */}
+                        {/* ================= FORMULARIO RETIRO CRYPTO - IGUAL ESTÉTICA ================= */}
                         {activeTab === 'retirar' && status === 'idle' && (
                             <motion.div key="retirar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 h-full">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><ArrowDownToLine className="text-green-400"/> Retiro a Billetera BSC</h3>
                                 <p className="text-sm text-gray-400 mb-8">Convierte tu Saldo a Tether (USDT) a través de la red Binance Smart Chain (BEP20).</p>
                                 
                                 <form onSubmit={handleProcesar} className="space-y-6">
-                                    <input type="text" required placeholder="Dirección USDT (Red BEP20) Ej: 0x..." value={walletBsc} onChange={(e) => setWalletBsc(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white font-mono text-sm focus:border-green-500 outline-none transition-colors" />
-                                    <p className="text-[10px] text-yellow-500 mt-2 flex items-center gap-1"><AlertTriangle size={12}/> Verifica bien la dirección. Las transferencias crypto son irreversibles.</p>
+                                    {/* Wallet */}
+                                    <div className="space-y-2"> {/* --- AJUSTE: Contenedor para pegar el mensaje --- */}
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Dirección USDT (Red BEP20)</label>
+                                        <input type="text" required placeholder="Ej: 0x1234abcd..." value={walletBsc} onChange={(e) => setWalletBsc(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-white font-mono text-sm focus:border-green-500 outline-none transition-colors" />
+                                        
+                                        {/* --- AJUSTE: Mensaje Crypto pegado debajo --- */}
+                                        <p className="text-[10px] text-yellow-500 mt-1 flex items-center gap-1"><AlertTriangle size={12}/> Verifica bien la dirección. Las transferencias crypto son irreversibles.</p>
+                                    </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Monto y Desglose */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
                                         <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">$</span>
-                                            <input type="number" step="0.01" min="10.00" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-10 pr-4 text-white font-mono text-2xl focus:border-green-500 outline-none transition-colors" />
+                                            {/* --- AJUSTE: Signo de Dólar arreglado --- */}
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl z-10">$</span>
+                                            <input type="number" step="0.01" min="10.00" required placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full bg-black/50 border border-gray-700 rounded-xl py-4 pl-12 pr-4 text-white font-mono text-2xl focus:border-green-500 outline-none transition-colors relative z-0" />
                                         </div>
+                                        
+                                        {/* Ticket de Resumen Matemático Crypto */}
                                         <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 flex flex-col justify-center text-xs">
                                             <div className="flex justify-between text-gray-400 mb-2"><span>Retiro bruto:</span> <span>${numMonto.toFixed(2)}</span></div>
                                             <div className="flex justify-between text-red-400 pb-2 border-b border-gray-800"><span>Comisión Red (5.4% + $0.33):</span> <span>-${comisionCrypto.toFixed(2)}</span></div>
@@ -245,9 +275,13 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                                         </div>
                                     </div>
 
-                                    <div className="bg-green-900/10 border border-green-500/20 p-5 rounded-xl">
+                                    {/* Campo 2FA Obligatorio */}
+                                    <div className="bg-green-900/10 border border-green-500/20 p-5 rounded-xl relative">
                                         <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Lock size={14}/> Código de Seguridad 2FA</label>
                                         <input type="text" maxLength="6" required placeholder="Ingresa los 6 dígitos" value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-center tracking-[0.5em] text-white font-mono text-xl focus:border-green-500 outline-none transition-colors" />
+                                        
+                                        {/* INYECCIÓN VISUAL: Botón simulado para activar 2FA (Para pruebas) */}
+                                        <button type="button" onClick={() => setIs2faActiveSimulated(!is2faActiveSimulated)} className="absolute top-2 right-2 text-[9px] px-2 py-0.5 rounded bg-gray-800 text-gray-500">Simular: {is2faActiveSimulated ? '2FA ON' : '2FA OFF'}</button>
                                     </div>
 
                                     <button type="submit" disabled={recibeCrypto <= 0} className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">Confirmar Retiro</button>
@@ -257,7 +291,7 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
 
                         {/* ================= HISTORIAL CON INYECCIONES PROFUNDAS ================= */}
                         {activeTab === 'historial' && (
-                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 h-full space-y-6">
+                            <motion.div key="historial" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-6 md:p-8 h-full space-y-6">
                                 <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><History className="text-gray-300"/> Registro Financiero Real</h3>
                                 <p className="text-sm text-gray-400 mb-6">Registro auditado de todos tus movimientos en la red.</p>
                                 
@@ -281,11 +315,13 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                                                         </div>
                                                     </div>
                                                 </div>
+                                                
+                                                {/* INYECCIÓN: Lado derecho con Monto y Botón de Ojo */}
                                                 <div className="flex items-center gap-4 relative z-10">
                                                     <div className={`font-mono font-bold text-lg ${tx.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
                                                         {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
                                                     </div>
-                                                    {/* INYECCIÓN VISUAL: BOTÓN DEL OJO */}
+                                                    {/* INYECCIÓN VISUAL: Botón Ver Detalles (Ojo) */}
                                                     <button onClick={() => setDetailsModal({ isOpen: true, transaction: tx })} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white transition-colors" title="Ver Detalles Profundos"><Eye size={16}/></button>
                                                 </div>
                                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-800/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 pointer-events-none"></div>
@@ -298,9 +334,9 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                             </motion.div>
                         )}
 
-                        {/* ESTADOS DE PROCESAMIENTO - IGUAL ESTÉTICA */}
+                        {/* ================= ESTADOS DE PROCESAMIENTO - IGUAL ESTÉTICA ================= */}
                         {status === 'processing' && (
-                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full space-y-4">
+                            <motion.div key="processing" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#11111a] border border-gray-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full space-y-4">
                                 <Loader className={`animate-spin mb-6 ${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'}`} size={64} />
                                 <h3 className="text-2xl font-bold text-white mb-2">Asegurando Bóveda</h3>
                                 <p className="text-gray-400 text-sm max-w-sm mx-auto">Validando código 2FA de capa bancaria y blindando fondos a través del protocolo cifrado...</p>
@@ -308,7 +344,7 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                         )}
 
                         {status === 'success' && (
-                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-br from-[#11111a] to-gray-900 border border-green-700 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full relative overflow-hidden shadow-green-500/20 shadow-2xl space-y-4">
+                            <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-br from-[#11111a] to-gray-900 border border-gray-700 rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full relative overflow-hidden shadow-green-500/20 shadow-2xl space-y-4">
                                 <CheckCircle2 className={`${activeTab === 'enviar' ? 'text-cyan-400' : 'text-green-400'} mb-6 relative z-10`} size={80} strokeWidth={1.5} />
                                 <h3 className="text-3xl font-bold text-white mb-4 relative z-10">¡Operación Certificada!</h3>
                                 <p className="text-gray-300 font-medium mb-10 relative z-10 max-w-md mx-auto leading-relaxed">{mensaje}</p>
@@ -369,11 +405,68 @@ const VortexPayDashboard = ({ saldoTnb = 150.00 }) => { // Saldo real que se pas
                                 )}
                             </div>
 
-                            <button onClick={() => setDetailsModal({ isOpen: false })} className="w-full mt-4 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-sm uppercase tracking-widest border border-gray-600 shrink-0">Cerrar Detalles</button>
+                            <button onClick={() => setDetailsModal({ isOpen: false })} className="w-full mt-8 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-sm uppercase tracking-widest border border-gray-600 shrink-0">Cerrar Detalles</button>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* ================= INYECCIÓN: MODAL DE REQUISITO DE ACTIVACIÓN DE 2FA ================= */}
+            <AnimatePresence>
+                {is2faActivationModalOpen && (
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#0a0f18] border border-yellow-500/50 rounded-2xl w-full max-w-md p-8 shadow-[0_0_50px_rgba(234,179,8,0.2)] relative overflow-hidden space-y-6">
+                            
+                            {/* Efecto de fondo amarillo */}
+                            <div className="absolute -left-10 -top-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                            {/* Cabecera del Modal */}
+                            <div className="flex justify-between items-center relative z-10 border-b border-gray-800 pb-4">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2 font-orbitron tracking-wider">
+                                    <Lock className="text-yellow-400" /> Requisito de Seguridad
+                                </h3>
+                                <button onClick={() => setIs2faActivationModalOpen(false)} className="p-2 text-gray-500 hover:text-white rounded-full hover:bg-gray-800"><X size={20}/></button>
+                            </div>
+
+                            {/* Cuerpo del Mensaje */}
+                            <div className="flex flex-col items-center text-center space-y-4 relative z-10 py-4">
+                                <div className="p-4 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 mb-2">
+                                    <UserCog size={48} strokeWidth={1.5} />
+                                </div>
+                                <h4 className="text-lg font-bold text-white">Debes activar tu 2FA</h4>
+                                <p className="text-sm text-gray-400 leading-relaxed">
+                                    Para garantizar la seguridad bancaria de tu cuenta, Vortex Pay requiere que la Autenticación de Dos Factores (2FA) esté activada antes de realizar cualquier envío o retiro de fondos.
+                                </p>
+                            </div>
+
+                            {/* Indicaciones paso a paso */}
+                            <div className="bg-black/50 border border-gray-800 rounded-xl p-5 space-y-3 relative z-10">
+                                <h5 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">¿Cómo activarlo?</h5>
+                                <div className="flex items-center gap-3 text-xs text-gray-300">
+                                    <span className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center font-bold text-yellow-400">1</span>
+                                    Ve a la sección de <strong className="text-white">"Mi Perfil"</strong> en el menú principal.
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-gray-300">
+                                    <span className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center font-bold text-yellow-400">2</span>
+                                    Busca la pestaña de <strong className="text-white">"Seguridad Bancaria"</strong>.
+                                1</div>
+                                <div className="flex items-center gap-3 text-xs text-gray-300">
+                                    <span className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center font-bold text-yellow-400">3</span>
+                                    Sigue los pasos para escanear el <strong className="text-white">Código QR</strong> con tu App.
+                                </div>
+                            </div>
+
+                            {/* Botones de acción */}
+                            <div className="flex gap-3 pt-4 relative z-10 border-t border-gray-800">
+                                <button onClick={() => setIs2faActivationModalOpen(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest border border-gray-600 shadow-lg">Entendido</button>
+                                {/* Este botón debería llevar realmente a la página de perfil en el futuro */}
+                                <button onClick={() => alert("Redirigiendo a Perfil... (Lógica para FASE 2)")} className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black py-3 rounded-xl transition-all text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(234,179,8,0.3)]">Ir a Mi Perfil</button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
         </div>
     );
 };

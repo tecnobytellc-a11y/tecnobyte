@@ -36,6 +36,14 @@ const RegisterContent = () => {
     // --- INYECCIÓN: Control del flujo de Google ---
     const [isGoogleFlow, setIsGoogleFlow] = useState(false); 
 
+    // ============================================================
+    // --- 🛡️ INYECCIÓN: ESTADOS PARA VERIFICACIÓN OTP DE REGISTRO ---
+    const [showOtpVerification, setShowOtpVerification] = useState(false);
+    const [otpCode, setOtpCode] = useState('');
+    const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+    const [otpError, setOtpError] = useState('');
+    // ============================================================
+
     const navigate = useNavigate();
 
     const handleRegister = async (e) => {
@@ -87,13 +95,31 @@ const RegisterContent = () => {
                     cajas_normales: 0,
                     cajas_miticas: 0,
                     kyc_verificado: false,
+                    correo_verificado: false, // INYECCIÓN: Inicia como falso
                     fecha_registro: new Date()
                 }, { merge: true });
+            } else {
+                // INYECCIÓN: Si no es flujo Google, igual aseguramos que tenga correo_verificado falso al inicio
+                await setDoc(doc(db, "usuarios", usuarioCreado.uid), { correo_verificado: false }, { merge: true });
             }
 
-            // Guardamos su ID y mostramos la pantalla de Didit
+            // Guardamos su ID 
             setUserUid(usuarioCreado.uid);
-            setShowKycPrompt(true);
+            
+            // ============================================================
+            // --- 🛡️ INYECCIÓN: ENVIAR OTP Y MOSTRAR PANTALLA DE VERIFICACIÓN ---
+            try {
+                await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-generate', { 
+                    userId: usuarioCreado.uid, 
+                    email: email 
+                });
+                setShowOtpVerification(true); // Mostramos el OTP en lugar del KYC
+            } catch (err) {
+                console.error("Error enviando OTP de registro:", err);
+                // Si el correo falla por error del servidor, avanzamos al KYC temporalmente
+                setShowKycPrompt(true); 
+            }
+            // ============================================================
             
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
@@ -106,6 +132,38 @@ const RegisterContent = () => {
             setIsLoading(false);
         }
     };
+
+    // ============================================================
+    // --- 🛡️ INYECCIÓN: LÓGICA DE VERIFICACIÓN OTP ---
+    const handleVerifyOtp = async (e) => {
+        e.preventDefault();
+        setIsVerifyingOtp(true);
+        setOtpError('');
+        
+        try {
+            const res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-verify', { 
+                userId: userUid, 
+                codigo: otpCode, 
+                isSetup: true 
+            });
+            
+            if (res.data.success) {
+                // Marcar correo como verificado en la Bóveda
+                await setDoc(doc(db, "usuarios", userUid), { correo_verificado: true }, { merge: true });
+                
+                // Pasar a la pantalla de KYC
+                setShowOtpVerification(false);
+                setShowKycPrompt(true);
+            } else {
+                setOtpError('Código incorrecto o expirado.');
+            }
+        } catch (err) {
+            setOtpError(err.response?.data?.message || 'Código incorrecto. Intenta de nuevo.');
+        } finally {
+            setIsVerifyingOtp(false);
+        }
+    };
+    // ============================================================
 
     // --- LÓGICA OPCIONAL KYC (DIDIT) ---
     const handleStartKYC = async () => {
@@ -190,7 +248,35 @@ const RegisterContent = () => {
                 transition={{ duration: 0.4 }}
                 className="w-full max-w-lg bg-gray-900/70 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-10"
             >
-                {showKycPrompt ? (
+                {/* --- 🛡️ INYECCIÓN: PANTALLA OTP DE REGISTRO --- */}
+                {showOtpVerification ? (
+                    <div className="text-center py-6 animate-fade-in">
+                        <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                            <Mail size={40} className="text-purple-400" />
+                        </div>
+                        <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-wider">Verifica tu Correo</h3>
+                        <p className="text-gray-400 text-sm mb-6 px-4">
+                            Hemos enviado un código de 6 dígitos a <strong className="text-white">{email}</strong>. Ingrésalo para activar tu cuenta.
+                        </p>
+                        
+                        {otpError && <div className="mb-4 text-red-400 text-xs font-mono">{otpError}</div>}
+
+                        <form onSubmit={handleVerifyOtp} className="space-y-4">
+                            <input 
+                                type="text" 
+                                maxLength="6" 
+                                required 
+                                value={otpCode} 
+                                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))} 
+                                placeholder="000000" 
+                                className="w-full max-w-[200px] mx-auto bg-black/50 border border-purple-500/50 rounded-xl py-3 text-center text-white tracking-[0.5em] font-mono text-2xl focus:border-purple-400 outline-none transition-colors block"
+                            />
+                            <button type="submit" disabled={isVerifyingOtp || otpCode.length < 6} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 mt-4 disabled:opacity-50">
+                                {isVerifyingOtp ? "Verificando..." : "Activar Cuenta Segura"}
+                            </button>
+                        </form>
+                    </div>
+                ) : showKycPrompt ? (
                     <div className="text-center py-6 animate-fade-in">
                         <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
                             <ShieldCheck size={40} className="text-green-400" />

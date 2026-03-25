@@ -12,7 +12,7 @@ import axios from 'axios';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 
 // ⚠️ IMPORTANTE: Pon aquí tu Client ID de Google Cloud Console
-const GOOGLE_CLIENT_ID = "1041926671048-ur6u4o9m66p2s0s9nd0v3u3q0ssi6qok.apps.googleusercontent.com"; 
+const GOOGLE_CLIENT_ID = "727089895868-4p8kk8aliean850eafm61s2stjalbju3.apps.googleusercontent.com"; 
 
 const RegisterContent = () => {
     // Todos los estados para recolectar la información del usuario

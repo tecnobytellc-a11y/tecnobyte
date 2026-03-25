@@ -75,6 +75,7 @@ const RegisterContent = () => {
             // 🔹 CREACIÓN DE CUENTA DEFINITIVA (Para ambos flujos)
             // Aquí es donde realmente Firebase se entera de que existe el usuario y se guarda el expediente seguro
             const usuarioCreado = await registrarConPerfilSeguro(email, password, datosDelFormulario);
+            const finalUid = auth.currentUser?.uid || usuarioCreado.uid;
             
             if (isGoogleFlow) {
                 // 🔹 FLUJO GOOGLE: El usuario ya está autenticado, solo guardamos sus datos y contraseña
@@ -86,7 +87,7 @@ const RegisterContent = () => {
                 }
 
                 // Creamos su perfil en la base de datos usando usuarioCreado.uid
-                await setDoc(doc(db, "usuarios", usuarioCreado.uid), {
+                await setDoc(doc(db, "usuarios", finalUid), {
                     ...datosDelFormulario,
                     email: email,
                     saldo_tnb: 0,
@@ -100,24 +101,24 @@ const RegisterContent = () => {
                 }, { merge: true });
             } else {
                 // INYECCIÓN: Si no es flujo Google, igual aseguramos que tenga correo_verificado falso al inicio
-                await setDoc(doc(db, "usuarios", usuarioCreado.uid), { correo_verificado: false }, { merge: true });
+                await setDoc(doc(db, "usuarios", finalUid), { correo_verificado: false }, { merge: true });
             }
 
             // Guardamos su ID 
-            setUserUid(usuarioCreado.uid);
+            setUserUid(finalUid);
             
             // ============================================================
-            // --- 🛡️ INYECCIÓN: ENVIAR OTP Y MOSTRAR PANTALLA DE VERIFICACIÓN ---
+            // --- 🛡️ INYECCIÓN: BLOQUEO ESTRICTO EN PANTALLA OTP ---
+            setShowOtpVerification(true); // 🚨 BLOQUEO ABSOLUTO: No hay escape al KYC
+            
             try {
                 await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-generate', { 
-                    userId: usuarioCreado.uid, 
+                    userId: finalUid, 
                     email: email 
                 });
-                setShowOtpVerification(true); // Mostramos el OTP en lugar del KYC
             } catch (err) {
                 console.error("Error enviando OTP de registro:", err);
-                // Si el correo falla por error del servidor, avanzamos al KYC temporalmente
-                setShowKycPrompt(true); 
+                setOtpError("El servidor demoró en responder. Por favor, haz clic en 'Reenviar Código' abajo.");
             }
             // ============================================================
             
@@ -134,24 +135,25 @@ const RegisterContent = () => {
     };
 
     // ============================================================
-    // --- 🛡️ INYECCIÓN: LÓGICA DE VERIFICACIÓN OTP ---
+    // --- 🛡️ INYECCIÓN: LÓGICA DE VERIFICACIÓN OTP REFORZADA ---
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
         setIsVerifyingOtp(true);
         setOtpError('');
         
         try {
+            const finalUid = auth.currentUser?.uid || userUid;
             const res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-verify', { 
-                userId: userUid, 
+                userId: finalUid, 
                 codigo: otpCode, 
                 isSetup: true 
             });
             
             if (res.data.success) {
                 // Marcar correo como verificado en la Bóveda
-                await setDoc(doc(db, "usuarios", userUid), { correo_verificado: true }, { merge: true });
+                await setDoc(doc(db, "usuarios", finalUid), { correo_verificado: true }, { merge: true });
                 
-                // Pasar a la pantalla de KYC
+                // Pasar a la pantalla de KYC (¡Por fin los dejamos pasar!)
                 setShowOtpVerification(false);
                 setShowKycPrompt(true);
             } else {
@@ -161,6 +163,21 @@ const RegisterContent = () => {
             setOtpError(err.response?.data?.message || 'Código incorrecto. Intenta de nuevo.');
         } finally {
             setIsVerifyingOtp(false);
+        }
+    };
+
+    // --- NUEVO: FUNCIÓN PARA REENVIAR EL CÓDIGO SI VERCEL FALLA ---
+    const handleResendOtp = async () => {
+        setOtpError('');
+        try {
+            const finalUid = auth.currentUser?.uid || userUid;
+            await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-generate', { 
+                userId: finalUid, 
+                email: email 
+            });
+            alert(`¡Nuevo código enviado a ${email}!`);
+        } catch (err) {
+            setOtpError("Error al reenviar el código. Intenta de nuevo en unos segundos.");
         }
     };
     // ============================================================
@@ -248,7 +265,7 @@ const RegisterContent = () => {
                 transition={{ duration: 0.4 }}
                 className="w-full max-w-lg bg-gray-900/70 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-10"
             >
-                {/* --- 🛡️ INYECCIÓN: PANTALLA OTP DE REGISTRO --- */}
+                {/* --- 🛡️ INYECCIÓN: PANTALLA OTP DE REGISTRO BLINDADA --- */}
                 {showOtpVerification ? (
                     <div className="text-center py-6 animate-fade-in">
                         <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
@@ -273,6 +290,9 @@ const RegisterContent = () => {
                             />
                             <button type="submit" disabled={isVerifyingOtp || otpCode.length < 6} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 mt-4 disabled:opacity-50">
                                 {isVerifyingOtp ? "Verificando..." : "Activar Cuenta Segura"}
+                            </button>
+                            <button type="button" onClick={handleResendOtp} className="w-full text-xs text-purple-400 hover:text-white transition-colors mt-3 font-bold uppercase tracking-wider">
+                                ¿No te llegó? Reenviar Código
                             </button>
                         </form>
                     </div>

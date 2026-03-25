@@ -3,7 +3,12 @@ import { ShoppingCart } from 'lucide-react';
 import DynamicIcon from '../ui/DynamicIcon';
 import { CUSTOM_ICONS } from '../../config/constants';
 import { motion } from 'framer-motion';
-import { auth } from '../../pages/firebase';
+
+// --- INYECCIÓN: Se agregó 'db' para leer el rango
+import { auth, db } from '../../pages/firebase';
+import { doc, getDoc } from 'firebase/firestore'; 
+// ------------------------------------------------
+
 // INYECCIÓN: Importar el observador de sesión de Firebase
 import { onAuthStateChanged } from 'firebase/auth'; 
 
@@ -14,10 +19,37 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
   // --- INYECCIÓN: ESTADO DE SESIÓN EN TIEMPO REAL ---
   const [activeUser, setActiveUser] = useState(null);
 
+  // --- INYECCIÓN: ESTADO PARA RANGO VIP Y CASHBACK ---
+  const [cashbackPct, setCashbackPct] = useState(0);
+
   useEffect(() => {
     // Escucha activamente si el usuario está logueado para no pedirle el correo
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
         setActiveUser(user);
+        
+        // --- INYECCIÓN: LECTURA DEL RANGO AL INICIAR SESIÓN ---
+        if (user) {
+            try {
+                const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    const pts = data.tecnoPoints_acumulados || 0;
+                    const rangoActual = data.rango || '';
+                    if (pts >= 15000 || rangoActual.toLowerCase() === 'diamante') {
+                        setCashbackPct(5);
+                    } else if (pts >= 5000 || rangoActual.toLowerCase() === 'oro') {
+                        setCashbackPct(2);
+                    } else {
+                        setCashbackPct(0);
+                    }
+                }
+            } catch (error) {
+                console.error("Error leyendo rango VIP:", error);
+            }
+        } else {
+            setCashbackPct(0);
+        }
+        // -----------------------------------------------------
     });
     return () => unsubscribe();
   }, []);
@@ -85,6 +117,16 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
 
   const customIconUrl = CUSTOM_ICONS[service.title];
 
+  // --- INYECCIÓN: FILTRO DE EXCLUSIÓN EXACTO PARA EL BADGE ---
+  const isExcludedFromCashback = 
+    service.isTnbRecharge || 
+    service.title.toLowerCase().includes('cambio paypal a usdt') || 
+    service.title.toLowerCase().includes('cambio paypal a bolívares') || 
+    service.title.toLowerCase().includes('recarga saldo tnb');
+
+  const showCashbackBadge = cashbackPct > 0 && !isExcludedFromCashback;
+  // -----------------------------------------------------------
+
   return (
     <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
@@ -110,6 +152,15 @@ const ProductCard = ({ service, addToCart, exchangeRateBs, idx, multipackages })
         )}
         
         <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
+
+        {/* --- INYECCIÓN: ETIQUETA VISUAL VIP --- */}
+        {showCashbackBadge && (
+            <div className="mb-3 inline-flex items-center gap-1.5 bg-gradient-to-r from-yellow-500/20 to-yellow-600/10 border border-yellow-500/50 text-yellow-400 text-[10px] font-black uppercase tracking-widest py-1 px-2.5 rounded-lg shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                <span className="text-xs">💎</span> {cashbackPct}% Cashback VIP
+            </div>
+        )}
+        {/* -------------------------------------- */}
+
         <p className="text-gray-400 text-sm mb-4">{service.description}</p>
         
         {packages && selectedPkg && (

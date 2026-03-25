@@ -102,6 +102,42 @@ const GamificationDashboard = () => {
         }
     }, [userData]);
 
+    // =================================================================
+    // --- 🎁 INYECCIÓN: GATILLO SILENCIOSO PARA CAJA MENSUAL VIP ---
+    // =================================================================
+    useEffect(() => {
+        const reclamarCajaMensual = async () => {
+            // Solo intentamos si ya cargó el usuario y tenemos su ID
+            if (auth.currentUser && userData) {
+                try {
+                    const response = await axios.post('https://api-paypal-secure.vercel.app/api/gamification/check-monthly-box', {
+                        userId: auth.currentUser.uid
+                    });
+
+                    // Si el servidor dice que sí le tocaba y se la acaba de asignar:
+                    if (response.data.success && response.data.claimed) {
+                        // 1. Alerta de celebración
+                        alert(`💎 ¡Beneficio VIP! ${response.data.message}\nRevisa tu inventario de cajas de botín.`);
+                        
+                        // 2. Refrescamos los datos en tiempo real para que la caja aparezca sin recargar la página
+                        const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
+                        if(userDoc.exists()) setUserData(userDoc.data());
+                    }
+                } catch (error) {
+                    console.error("Escáner de caja mensual VIP falló silenciosamente:", error);
+                }
+            }
+        };
+
+        // Ejecutar el escáner (usamos un setTimeout pequeño para no entorpecer la carga principal)
+        const temporizador = setTimeout(() => {
+            reclamarCajaMensual();
+        }, 2000);
+
+        return () => clearTimeout(temporizador);
+    }, [auth.currentUser?.uid]); 
+    // =================================================================
+
     // --- FUNCIONES DE ACCIÓN ---
     const handleLogout = async () => {
         await signOut(auth);

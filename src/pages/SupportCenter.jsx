@@ -3,6 +3,9 @@ import { MessageCircle, CheckCircle, Clock, FileText, X, Send, User, Bot, PlusCi
 // 1. Importamos las herramientas de Firebase directamente aquí
 import { db } from './firebase'; // (Ajusta los '../' según la carpeta donde esté tu archivo firebase.js)
 
+// INYECCIÓN: Herramientas de firestore necesarias (se asume que las tienes, pero por si acaso las llamamos)
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, onSnapshot, orderBy } from 'firebase/firestore';
+
 export default function SupportCenter() {
   const [activeTab, setActiveTab] = useState('abiertos');
   const [searchQuery, setSearchQuery] = useState('');
@@ -179,6 +182,28 @@ export default function SupportCenter() {
               clientIp = dataIp.ip;
           } catch(e) {}
 
+          // =================================================================
+          // --- 👑 INYECCIÓN: LECTURA DEL RANGO PARA EL SOPORTE VIP ---
+          let rangoDelCliente = 'Invitado';
+          try {
+              const qUsuarios = query(collection(db, "usuarios"), where("email", "==", startForm.email.toLowerCase().trim()));
+              const snapUsuarios = await getDocs(qUsuarios);
+              
+              if (!snapUsuarios.empty) {
+                  const userData = snapUsuarios.docs[0].data();
+                  const pts = userData.tecnoPoints_acumulados || 0;
+                  const rangoGuardado = (userData.rango || '').toLowerCase();
+                  
+                  if (pts >= 15000 || rangoGuardado === 'diamante') rangoDelCliente = 'Diamante';
+                  else if (pts >= 5000 || rangoGuardado === 'oro') rangoDelCliente = 'Oro';
+                  else if (pts >= 1000 || rangoGuardado === 'plata') rangoDelCliente = 'Plata';
+                  else rangoDelCliente = 'Bronce';
+              }
+          } catch (errorRango) {
+              console.error("Error leyendo rango del cliente para el chat:", errorRango);
+          }
+          // =================================================================
+
           const newCaseData = {
               orderId: startForm.orderId,
               userEmail: startForm.email,
@@ -186,6 +211,7 @@ export default function SupportCenter() {
               device: navigator.userAgent,
               status: 'ia_chat', // 🚀 AHORA NACE COMO IA
               adminId: null,
+              rango: rangoDelCliente, // --- INYECCIÓN: SE GUARDA EL RANGO EN EL TICKET ---
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               lastMessage: 'Chat Iniciado por el Cliente'

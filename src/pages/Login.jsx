@@ -12,7 +12,7 @@ import axios from 'axios';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 
 // ⚠️ Usamos tu ID de Google directamente aquí (puedes cambiarlo si necesitas)
-const GOOGLE_CLIENT_ID = "1041926671048-ur6u4o9m66p2s0s9nd0v3u3q0ssi6qok.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "727089895868-4p8kk8aliean850eafm61s2stjalbju3.apps.googleusercontent.com";
 
 const LoginContent = () => {
     const [showPassword, setShowPassword] = useState(false);

@@ -3,13 +3,19 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Bot, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 // --- INYECCIÓN DE SEGURIDAD Y FIREBASE FIRESTORE ---
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore'; // INYECCIÓN: Agregado updateDoc
 import { signOut, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { loginConCorreo, loginConGoogle, recuperarContrasenaEmail, db, auth } from './firebase'; // Ajusta la ruta ('../../') si es necesario
 import axios from 'axios';
 
 // --- INYECCIÓN: LIBRERÍA SILENCIOSA DE GOOGLE ---
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
+
+// ============================================================
+// --- 🛡️ INYECCIÓN: DEPENDENCIAS PARA 2FA DE LOGIN ---
+import { startAuthentication } from '@simplewebauthn/browser';
+import { QrCode, Fingerprint, AlertTriangle, Key } from 'lucide-react';
+// ============================================================
 
 // ⚠️ Usamos tu ID de Google directamente aquí (puedes cambiarlo si necesitas)
 const GOOGLE_CLIENT_ID = "727089895868-4p8kk8aliean850eafm61s2stjalbju3.apps.googleusercontent.com";
@@ -23,6 +29,121 @@ const LoginContent = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
+    // ============================================================
+    // --- 🛡️ INYECCIÓN: ESTADOS MAESTROS PARA LA BARRERA 2FA ---
+    const [show2FA, setShow2FA] = useState(false);
+    const [twoFAType, setTwoFAType] = useState(''); 
+    const [twoFASecret, setTwoFASecret] = useState('');
+    const [twoFACode, setTwoFACode] = useState('');
+    const [isVerifying2FA, setIsVerifying2FA] = useState(false);
+    const [twoFAError, setTwoFAError] = useState('');
+    const [isFallbackMode, setIsFallbackMode] = useState(false);
+
+    // FUNCIÓN INTERCEPTORA: Revisa si el usuario tiene 2FA antes de dejarlo pasar
+    const check2FAAndNavigate = async (user) => {
+        try {
+            const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+            if (userDoc.exists() && userDoc.data().twoFactorSecret) {
+                const tipo = userDoc.data().twoFactorType;
+                setTwoFAType(tipo);
+                setTwoFASecret(userDoc.data().twoFactorSecret);
+                setShow2FA(true); // Levanta el escudo visual
+
+                if (tipo === 'email') {
+                    // Si es por correo, le disparamos el código de una vez
+                    await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-generate', { userId: user.uid, email: user.email });
+                } else if (tipo === 'passkey') {
+                    // Si es huella, activamos el sensor
+                    triggerPasskeyAuth(user);
+                }
+                return false; // NO navega al perfil
+            }
+            navigate('/perfil'); // Si no tiene 2FA, pasa libre
+            return true;
+        } catch (err) {
+            console.error("Error validando 2FA:", err);
+            navigate('/perfil'); // En caso de fallo de red, salvavidas para no dejarlo afuera
+            return true;
+        }
+    };
+
+    const triggerPasskeyAuth = async (user) => {
+        setTwoFAError('');
+        try {
+            const resOpts = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-passkey-auth-start', { userId: user.uid });
+            if (resOpts.data.success) {
+                const asseResp = await startAuthentication(resOpts.data.options);
+                const resFinish = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-passkey-auth-finish', { userId: user.uid, response: asseResp });
+                if (resFinish.data.success) {
+                    navigate('/perfil'); // Éxito biométrico
+                } else {
+                    setTwoFAError('Firma biométrica rechazada.');
+                }
+            } else {
+                setTwoFAError('No se pudo iniciar la biometría.');
+            }
+        } catch (err) {
+            setTwoFAError('La verificación por huella/rostro fue cancelada o falló.');
+        }
+    };
+
+    const handleFallback2FA = async () => {
+        setIsFallbackMode(true);
+        setTwoFAError('');
+        try {
+            await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-generate', { userId: auth.currentUser.uid, email: auth.currentUser.email });
+            alert("Código de emergencia enviado a tu correo registrado.");
+        } catch (err) {
+            setTwoFAError("Error al enviar código de emergencia.");
+        }
+    };
+
+    const handleVerify2FA = async (e) => {
+        e.preventDefault();
+        setIsVerifying2FA(true);
+        setTwoFAError('');
+
+        try {
+            let res;
+            if (twoFAType === 'email' || isFallbackMode) {
+                res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-email-verify', {
+                    userId: auth.currentUser.uid,
+                    codigo: twoFACode,
+                    isSetup: false
+                });
+            } else if (twoFAType === 'app') {
+                const idToken = await auth.currentUser.getIdToken(true);
+                res = await axios.post('https://api-paypal-secure.vercel.app/api/2fa-verify', 
+                    { codigo: twoFACode, secret: twoFASecret },
+                    { headers: { 'Authorization': `Bearer ${idToken}` } }
+                );
+            }
+
+            if (res.data.success) {
+                if (isFallbackMode) {
+                    // Si usó el salvavidas, eliminamos el método problemático
+                    await updateDoc(doc(db, "usuarios", auth.currentUser.uid), { twoFactorSecret: null, twoFactorType: null });
+                    alert("⚠️ Hemos desactivado tu método 2FA anterior por seguridad. Por favor, reconfigúralo en tu perfil.");
+                }
+                navigate('/perfil'); // ¡Acceso concedido!
+            } else {
+                setTwoFAError('Código incorrecto o expirado.');
+            }
+        } catch (err) {
+            setTwoFAError(err.response?.data?.message || 'Código incorrecto. Intenta de nuevo.');
+        } finally {
+            setIsVerifying2FA(false);
+        }
+    };
+
+    const cancel2FA = async () => {
+        await signOut(auth); // Lo desconectamos de verdad
+        setShow2FA(false);
+        setTwoFACode('');
+        setIsFallbackMode(false);
+    };
+    // ============================================================
+
     // Lógica real de Firebase para Correo/Contraseña
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -30,7 +151,9 @@ const LoginContent = () => {
         setError(''); // Limpiamos errores previos
         try {
             await loginConCorreo(email, password);
-            navigate('/perfil'); // Envía al usuario a su panel si entra con éxito
+            // --- 🛡️ INYECCIÓN: Reemplazamos la redirección directa por el escáner 2FA ---
+            await check2FAAndNavigate(auth.currentUser);
+            // navigate('/perfil'); // Envía al usuario a su panel si entra con éxito (COMENTADO)
         } catch (err) {
             setError('Credenciales inválidas o correo no registrado.');
         } finally {
@@ -66,7 +189,9 @@ const LoginContent = () => {
                 const credential = GoogleAuthProvider.credential(null, tokenResponse.access_token);
                 await signInWithCredential(auth, credential);
                 
-                navigate('/perfil');
+                // --- 🛡️ INYECCIÓN: Reemplazamos redirección directa de Google por el escáner 2FA ---
+                await check2FAAndNavigate(auth.currentUser);
+                // navigate('/perfil'); (COMENTADO)
 
             } catch (err) {
                 console.error("Error en Google Silencioso:", err);
@@ -113,6 +238,63 @@ const LoginContent = () => {
                 transition={{ duration: 0.5 }}
                 className="w-full max-w-md bg-gray-900/60 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-2xl relative z-10"
             >
+                {/* ============================================================ */}
+                {/* --- 🛡️ INYECCIÓN: INTERFAZ VISUAL DEL ESCUDO 2FA --- */}
+                {show2FA ? (
+                    <div className="text-center py-4 animate-fade-in">
+                        <div className="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+                            {twoFAType === 'email' || isFallbackMode ? <Mail size={40} className="text-indigo-400" /> : 
+                             twoFAType === 'passkey' ? <Fingerprint size={40} className="text-cyan-400" /> : 
+                             <QrCode size={40} className="text-purple-400" />}
+                        </div>
+                        
+                        <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-wider">Seguridad 2FA</h3>
+                        
+                        <p className="text-gray-400 text-sm mb-6 px-2">
+                            {isFallbackMode ? "Modo de emergencia activo. Revisa tu correo." :
+                             twoFAType === 'email' ? "Hemos enviado un código a tu correo registrado." :
+                             twoFAType === 'passkey' ? "Esperando validación biométrica de tu dispositivo." :
+                             "Abre tu App de Autenticación e ingresa el código de 6 dígitos."}
+                        </p>
+
+                        {twoFAError && <div className="mb-4 bg-red-500/10 border border-red-500/50 text-red-400 text-xs text-center p-3 rounded-lg font-mono">{twoFAError}</div>}
+
+                        {twoFAType !== 'passkey' || isFallbackMode ? (
+                            <form onSubmit={handleVerify2FA} className="space-y-4">
+                                <input 
+                                    type="text" 
+                                    maxLength="6" 
+                                    required 
+                                    value={twoFACode} 
+                                    onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, ''))} 
+                                    placeholder="000000" 
+                                    className="w-full max-w-[200px] mx-auto bg-black/50 border border-indigo-500/50 rounded-xl py-3 text-center text-white tracking-[0.5em] font-mono text-2xl focus:border-indigo-400 outline-none transition-colors block"
+                                />
+                                <button type="submit" disabled={isVerifying2FA || twoFACode.length < 6} className="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 mt-4 disabled:opacity-50">
+                                    {isVerifying2FA ? "Validando..." : "Autorizar Acceso"}
+                                </button>
+                            </form>
+                        ) : (
+                            <button onClick={() => triggerPasskeyAuth(auth.currentUser)} className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 mt-4">
+                                Reintentar Huella / Rostro
+                            </button>
+                        )}
+
+                        {/* EL SALVAVIDAS: Solo si es App o Passkey y no estamos ya en fallback */}
+                        {(twoFAType === 'app' || twoFAType === 'passkey') && !isFallbackMode && (
+                            <button type="button" onClick={handleFallback2FA} className="w-full mt-4 text-xs text-yellow-400 hover:text-yellow-300 font-bold uppercase tracking-wider flex items-center justify-center gap-1 transition-colors">
+                                <AlertTriangle size={14} /> ¿Tienes problemas para usar este método 2FA?
+                            </button>
+                        )}
+
+                        <button onClick={cancel2FA} className="w-full mt-6 text-xs text-gray-500 hover:text-gray-300 transition-colors uppercase font-bold tracking-wider">
+                            Cancelar e ir al Inicio
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                {/* ============================================================ */}
+
                 <div className="absolute -top-12 left-1/2 -translate-x-1/2">
                     <div className="w-24 h-24 bg-gray-900 rounded-full border border-gray-800 flex items-center justify-center p-2 shadow-xl shadow-cyan-500/20">
                         <div className="w-full h-full bg-gradient-to-tr from-indigo-600 to-cyan-500 rounded-full flex items-center justify-center">
@@ -229,6 +411,8 @@ const LoginContent = () => {
                     <ShieldCheck size={14} className="text-green-500" />
                     Autenticación encriptada de extremo a extremo
                 </div>
+                    </>
+                )}
             </motion.div>
         </div>
     );

@@ -1,4 +1,7 @@
 import { SERVER_URL } from '../config/constants';
+// --- INYECCIÓN DE FIRESTORE PARA LEER RANGOS ---
+import { db, auth } from '../pages/firebase'; // Ajusta la ruta a tu firebase.js si es necesario
+import { doc, getDoc } from 'firebase/firestore';
 
 export const getGPUInfo = () => {
     try {
@@ -106,10 +109,40 @@ export const submitOrderToPrivateServer = async (order) => {
         }
     }
 
+    // ============================================================
+    // --- 💎 INYECCIÓN: LECTURA DE RANGO VIP PARA CASHBACK ---
+    let cashback_pendiente = false;
+    let cashback_porcentaje = 0;
+    
+    try {
+        const user = auth.currentUser;
+        if (user) {
+            const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                const pts = data.tecnoPoints_acumulados || 0;
+                const rangoActual = data.rango || '';
+                
+                if (pts >= 15000 || rangoActual.toLowerCase() === 'diamante') {
+                    cashback_pendiente = true;
+                    cashback_porcentaje = 5;
+                } else if (pts >= 5000 || rangoActual.toLowerCase() === 'oro') {
+                    cashback_pendiente = true;
+                    cashback_porcentaje = 2;
+                }
+            }
+        }
+    } catch (rangoError) {
+        console.error("Error al leer el rango VIP para Cashback:", rangoError);
+    }
+    // ============================================================
+
     try {
         const sanitizedOrder = {
             ...order,
             date: order.date || new Date().toISOString(),
+            // --- INYECCIÓN: ESTAMPAMOS EL CASHBACK EN LA ORDEN FINAL ---
+            ...(cashback_pendiente && { cashback_pendiente, cashback_porcentaje }),
             clientInfo: clientData,
             fullData: {
                 ...order.fullData,

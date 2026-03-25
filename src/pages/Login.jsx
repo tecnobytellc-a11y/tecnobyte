@@ -3,11 +3,18 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Bot, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 // --- INYECCIÓN DE SEGURIDAD Y FIREBASE FIRESTORE ---
-import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { signOut, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { loginConCorreo, loginConGoogle, recuperarContrasenaEmail, db, auth } from './firebase'; // Ajusta la ruta ('../../') si es necesario
+import axios from 'axios';
 
-const Login = () => {
+// --- INYECCIÓN: LIBRERÍA SILENCIOSA DE GOOGLE ---
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
+
+// ⚠️ Usamos tu ID de Google directamente aquí (puedes cambiarlo si necesitas)
+const GOOGLE_CLIENT_ID = "1041926671048-ur6u4o9m66p2s0s9nd0v3u3q0ssi6qok.apps.googleusercontent.com";
+
+const LoginContent = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -31,44 +38,48 @@ const Login = () => {
         }
     };
 
-    // 🛡️ LÓGICA BLINDADA PARA GOOGLE (Filtro Zero-Trust)
-    const handleGoogleAuth = async () => {
-        setIsLoading(true);
-        setError('');
-        try {
-            // 1. El usuario se identifica con Google y obtenemos su UID
-            const userCredential = await loginConGoogle();
-            const user = userCredential?.user || auth.currentUser;
-
-            if (user) {
-                // 2. El Guardia revisa tu base de datos
-                const uidSecreto = user.uid;
-                const userDoc = await getDoc(doc(db, "usuarios", uidSecreto));
+    // 🛡️ LÓGICA BLINDADA PARA GOOGLE (Filtro Zero-Trust Silencioso)
+    const handleGoogleSilentLogin = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            setIsLoading(true);
+            setError('');
+            try {
+                // 1. Extraemos el correo silenciosamente sin tocar Firebase Auth
+                const userInfoRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
                 
-                if (!userDoc.exists()) {
-                    // 🚨 CASO FANTASMA: No tiene perfil creado.
-                    
-                    // Lo expulsamos de la sesión temporal para que no consuma recursos
-                    await signOut(auth);
-                    
-                    // Le avisamos cordialmente (Opcional: puedes quitar este alert si prefieres que vaya directo al registro)
+                const googleEmail = userInfoRes.data.email;
+
+                // 2. Revisamos en Firestore si este correo ya hizo el registro legal
+                const q = query(collection(db, "usuarios"), where("email", "==", googleEmail));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    // 🚨 FANTASMA DETECTADO: Como no tocamos Firebase Auth, no se creó basura.
                     alert("⚠️ Cuenta no encontrada en la base de datos de TecnoByte. Por favor, completa tu registro oficial primero.");
-                    
-                    // Lo redirigimos al formulario (La lógica de registro lo atrapará y le autollenará el nombre)
-                    navigate('/registro'); // Asegúrate de que esta sea la ruta correcta a tu página de registro
-                    return; 
+                    navigate('/registro');
+                    return;
                 }
 
-                // ✅ CASO LEGAL: Tiene su Gamertag y datos completos. Lo dejamos pasar.
+                // ✅ CASO LEGAL: Tiene su Gamertag y datos completos. Convertimos el token a Firebase y lo dejamos pasar.
+                const credential = GoogleAuthProvider.credential(null, tokenResponse.access_token);
+                await signInWithCredential(auth, credential);
+                
                 navigate('/perfil');
+
+            } catch (err) {
+                console.error("Error en Google Silencioso:", err);
+                setError('No se pudo validar tu cuenta de Google. Intenta nuevamente.');
+            } finally {
+                setIsLoading(false);
             }
-        } catch (err) {
-            console.error("Error en Google Login:", err);
-            setError('Error al iniciar sesión con Google. Intenta nuevamente.');
-        } finally {
+        },
+        onError: () => {
+            setError('Conexión con Google cancelada o fallida.');
             setIsLoading(false);
         }
-    };
+    });
 
     // Lógica real para recuperar contraseña
     const handleRecuperarPassword = async (e) => {
@@ -190,7 +201,7 @@ const Login = () => {
                 <div className="mt-6">
                     <button 
                         type="button"
-                        onClick={handleGoogleAuth}
+                        onClick={() => handleGoogleSilentLogin()}
                         disabled={isLoading}
                         className="w-full bg-white hover:bg-gray-100 disabled:opacity-70 text-gray-900 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-3"
                     >
@@ -220,6 +231,15 @@ const Login = () => {
                 </div>
             </motion.div>
         </div>
+    );
+};
+
+// Envolvemos el componente para la API de Google
+const Login = () => {
+    return (
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <LoginContent />
+        </GoogleOAuthProvider>
     );
 };
 

@@ -23,7 +23,7 @@ const Login = () => {
         setError(''); // Limpiamos errores previos
         try {
             await loginConCorreo(email, password);
-            navigate('/perfil'); // Envía al usuario a su panel si entra con éxito
+            //navigate('/perfil'); // Envía al usuario a su panel si entra con éxito
         } catch (err) {
             setError('Credenciales inválidas o correo no registrado.');
         } finally {

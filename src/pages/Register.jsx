@@ -8,7 +8,13 @@ import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firesto
 import { updatePassword } from 'firebase/auth'; // INYECCIÓN: Para actualizar la contraseña de Google
 import axios from 'axios';
 
-const Register = () => {
+// --- INYECCIÓN: LIBRERÍA SILENCIOSA DE GOOGLE ---
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
+
+// ⚠️ IMPORTANTE: Pon aquí tu Client ID de Google Cloud Console
+const GOOGLE_CLIENT_ID = "1041926671048-ur6u4o9m66p2s0s9nd0v3u3q0ssi6qok.apps.googleusercontent.com"; 
+
+const RegisterContent = () => {
     // Todos los estados para recolectar la información del usuario
     const [nombre, setNombre] = useState('');
     const [apellido, setApellido] = useState('');
@@ -152,6 +158,45 @@ const Register = () => {
         }
     };
 
+    // --- INYECCIÓN: LÓGICA DE GOOGLE SILENCIOSO ---
+    const handleGoogleSilent = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            setIsLoading(true);
+            setError('');
+            try {
+                const userInfoRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+
+                const googleUser = userInfoRes.data;
+                
+                if (googleUser) {
+                    const firstName = googleUser.given_name || '';
+                    const lastName = googleUser.family_name || '';
+
+                    setNombre(firstName);
+                    setApellido(lastName);
+                    setEmail(googleUser.email);
+                    
+                    const autoPassword = "Tnb-" + Math.random().toString(36).slice(-8) + "!";
+                    setPassword(autoPassword);
+                    
+                    setIsGoogleFlow(true); 
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } catch (err) {
+                console.error("Error en Google Silencioso:", err);
+                setError('No se pudieron extraer los datos de tu cuenta de Google.');
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        onError: () => {
+            setError('Conexión con Google cancelada o fallida.');
+            setIsLoading(false);
+        }
+    });
+
     return (
         <div className="min-h-screen pt-24 pb-12 flex items-center justify-center px-4 relative overflow-hidden">
             <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-pink-600/10 rounded-full blur-[120px] pointer-events-none"></div>
@@ -293,9 +338,6 @@ const Register = () => {
                         {password.length > 0 && password.length < 6 && (
                             <p className="text-[10px] text-red-500 mt-1 ml-2">La contraseña debe tener al menos 6 caracteres.</p>
                         )}
-                        {isGoogleFlow && (
-                            <p className="text-[10px] text-green-400 mt-1 ml-2">↑ Hemos generado una contraseña segura para ti. Puedes cambiarla si lo deseas.</p>
-                        )}
                     </div>
 
                     <div className="flex items-start mt-2 mb-2">
@@ -331,7 +373,7 @@ const Register = () => {
                         </div>
 
                         <div className="mt-4">
-                            <button type="button" onClick={handleGoogleRegister} className="w-full bg-white hover:bg-gray-100 text-gray-900 font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-3 text-sm">
+                            <button type="button" onClick={() => handleGoogleSilent()} className="w-full bg-white hover:bg-gray-100 text-gray-900 font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-3 text-sm">
                                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                                     <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -359,5 +401,11 @@ const Register = () => {
         </div>
     );
 };
+
+const Register = () => (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <RegisterContent />
+    </GoogleOAuthProvider>
+);
 
 export default Register;

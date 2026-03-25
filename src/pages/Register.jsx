@@ -8,12 +8,15 @@ import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firesto
 import { updatePassword } from 'firebase/auth'; // INYECCIÓN: Para actualizar la contraseña de Google
 import axios from 'axios';
 
-// --- INYECCIÓN: LIBRERÍA SILENCIOSA DE GOOGLE ---
+// ============================================================
+// --- 🛡️ INYECCIÓN: CONFIGURACIÓN DE GOOGLE SILENCIOSO ---
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 
 // ⚠️ IMPORTANTE: Pon aquí tu Client ID de Google Cloud Console
-const GOOGLE_CLIENT_ID = "727089895868-4p8kk8aliean850eafm61s2stjalbju3.apps.googleusercontent.com"; 
+const GOOGLE_CLIENT_ID = "1041926671048-ur6u4o9m66p2s0s9nd0v3u3q0ssi6qok.apps.googleusercontent.com"; 
+// ============================================================
 
+// Renombramos internamente el componente para poder envolverlo en el Provider al final
 const RegisterContent = () => {
     // Todos los estados para recolectar la información del usuario
     const [nombre, setNombre] = useState('');
@@ -61,17 +64,21 @@ const RegisterContent = () => {
                 origen_registro: isGoogleFlow ? "google_completado" : "formulario_completo"
             };
             
+            // 🔹 CREACIÓN DE CUENTA DEFINITIVA (Para ambos flujos)
+            // Aquí es donde realmente Firebase se entera de que existe el usuario y se guarda el expediente seguro
+            const usuarioCreado = await registrarConPerfilSeguro(email, password, datosDelFormulario);
+            
             if (isGoogleFlow) {
                 // 🔹 FLUJO GOOGLE: El usuario ya está autenticado, solo guardamos sus datos y contraseña
                 try {
-                    // Le asignamos la contraseña autogenerada (o la que haya escrito) a su cuenta de Google
-                    await updatePassword(auth.currentUser, password);
+                    // Le asignamos la contraseña autogenerada (o la que haya escrito) a su cuenta
+                    await updatePassword(usuarioCreado, password);
                 } catch (pwdErr) {
                     console.warn("La contraseña no se pudo enlazar, pero el registro continuará.", pwdErr);
                 }
 
-                // Creamos su perfil en la base de datos
-                await setDoc(doc(db, "usuarios", auth.currentUser.uid), {
+                // Creamos su perfil en la base de datos usando usuarioCreado.uid
+                await setDoc(doc(db, "usuarios", usuarioCreado.uid), {
                     ...datosDelFormulario,
                     email: email,
                     saldo_tnb: 0,
@@ -81,21 +88,16 @@ const RegisterContent = () => {
                     cajas_miticas: 0,
                     kyc_verificado: false,
                     fecha_registro: new Date()
-                });
-
-                setUserUid(auth.currentUser.uid);
-                setShowKycPrompt(true);
-
-            } else {
-                // 🔹 FLUJO NORMAL: Creamos el usuario desde cero
-                const usuarioCreado = await registrarConPerfilSeguro(email, password, datosDelFormulario);
-                setUserUid(usuarioCreado.uid);
-                setShowKycPrompt(true);
+                }, { merge: true });
             }
+
+            // Guardamos su ID y mostramos la pantalla de Didit
+            setUserUid(usuarioCreado.uid);
+            setShowKycPrompt(true);
             
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
-                setError('Este correo ya está registrado. Intenta iniciar sesión.');
+                setError('Este correo ya está registrado. Intenta iniciar sesión en lugar de registrarte.');
             } else {
                 setError('Error de seguridad al crear la cuenta. Verifica los datos.');
                 console.error(err);
@@ -128,42 +130,15 @@ const RegisterContent = () => {
         }
     };
 
-    const handleGoogleRegister = async () => {
-        setError('');
-        try {
-            const userCredential = await loginConGoogle();
-            const user = userCredential?.user || auth.currentUser;
-
-            if (user) {
-                // Extraemos nombre y apellido de Google
-                const fullName = user.displayName || '';
-                const nameParts = fullName.split(' ');
-                const firstName = nameParts[0] || '';
-                const lastName = nameParts.slice(1).join(' ') || '';
-
-                setNombre(firstName);
-                setApellido(lastName);
-                setEmail(user.email);
-                
-                // Generamos una contraseña segura automática
-                setPassword("Tnb-" + Math.random().toString(36).slice(-8) + "!");
-                
-                setIsGoogleFlow(true);
-                
-                // Subimos la pantalla arriba para que vea el formulario
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        } catch (err) {
-            setError('Error al conectar con Google.');
-        }
-    };
-
-    // --- INYECCIÓN: LÓGICA DE GOOGLE SILENCIOSO ---
+    // ============================================================
+    // --- 🥷 INYECCIÓN: LÓGICA DE GOOGLE SILENCIOSO ---
+    // Esta función extrae los datos pero NO loguea al usuario en Firebase
     const handleGoogleSilent = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             setIsLoading(true);
             setError('');
             try {
+                // 1. Usamos el token para pedirle los datos directamente a Google (silenciosamente)
                 const userInfoRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
                     headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
                 });
@@ -171,17 +146,23 @@ const RegisterContent = () => {
                 const googleUser = userInfoRes.data;
                 
                 if (googleUser) {
+                    // 2. Extraemos nombre y apellido
                     const firstName = googleUser.given_name || '';
                     const lastName = googleUser.family_name || '';
 
+                    // 3. Autollenamos las casillas visualmente
                     setNombre(firstName);
                     setApellido(lastName);
                     setEmail(googleUser.email);
                     
+                    // 4. Generamos una contraseña fuerte automática y oculta para Firebase
+                    // Esto permite que el usuario luego pueda loguearse con correo si quiere.
                     const autoPassword = "Tnb-" + Math.random().toString(36).slice(-8) + "!";
                     setPassword(autoPassword);
                     
-                    setIsGoogleFlow(true); 
+                    setIsGoogleFlow(true); // Activamos el modo Google para la interfaz
+                    
+                    // 🚨 IMPORTANTE: NO redirigimos. Subimos la pantalla para que llene el Gamertag.
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             } catch (err) {
@@ -196,6 +177,7 @@ const RegisterContent = () => {
             setIsLoading(false);
         }
     });
+    // ============================================================
 
     return (
         <div className="min-h-screen pt-24 pb-12 flex items-center justify-center px-4 relative overflow-hidden">
@@ -242,9 +224,10 @@ const RegisterContent = () => {
                     </div>
                 )}
 
+                {/* --- INYECCIÓN: Alerta visual de flujo Google --- */}
                 {isGoogleFlow && (
                     <div className="mb-4 bg-green-500/10 border border-green-500/50 text-green-400 text-sm text-center p-3 rounded-lg font-mono">
-                        ¡Cuenta de Google vinculada! Completa las casillas vacías para guardar tu perfil en la base de datos.
+                        ¡Datos extraídos de Google! Completa las casillas vacías (Gamertag y Teléfono) para finalizar.
                     </div>
                 )}
 
@@ -317,6 +300,7 @@ const RegisterContent = () => {
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-purple-400">
                                 <Mail size={18} />
                             </div>
+                            {/* --- INYECCIÓN: Bloqueamos el input si viene de Google --- */}
                             <input type="email" required disabled={isGoogleFlow} value={email} onChange={(e) => setEmail(e.target.value)}
                                 className={`w-full bg-black/50 border border-gray-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-mono text-sm ${isGoogleFlow ? 'opacity-60 cursor-not-allowed' : ''}`} placeholder="tu@correo.com" />
                         </div>
@@ -329,14 +313,23 @@ const RegisterContent = () => {
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-indigo-400">
                                 <Lock size={18} />
                             </div>
-                            <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl py-3 pl-10 pr-10 text-white placeholder-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono text-sm tracking-widest" placeholder="••••••••" />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300">
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
+                            {/* --- INYECCIÓN: Bloqueamos y ocultamos input si viene de Google --- */}
+                            <input type={showPassword ? "text" : "password"} required disabled={isGoogleFlow} value={password} onChange={(e) => setPassword(e.target.value)}
+                                className={`w-full bg-black/50 border border-gray-700 rounded-xl py-3 pl-10 pr-10 text-white placeholder-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono text-sm tracking-widest ${isGoogleFlow ? 'opacity-60 cursor-not-allowed' : ''}`} placeholder="••••••••" />
+                            
+                            {/* Ocultamos el ojo si es flujo Google */}
+                            {!isGoogleFlow && (
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300">
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            )}
                         </div>
-                        {password.length > 0 && password.length < 6 && (
+                        {password.length > 0 && password.length < 6 && !isGoogleFlow && (
                             <p className="text-[10px] text-red-500 mt-1 ml-2">La contraseña debe tener al menos 6 caracteres.</p>
+                        )}
+                        {/* --- INYECCIÓN: Texto de ayuda para Google --- */}
+                        {isGoogleFlow && (
+                            <p className="text-[10px] text-green-400 mt-1 ml-2">↑ Hemos generado una contraseña segura por ti para proteger tu cuenta.</p>
                         )}
                     </div>
 
@@ -352,7 +345,8 @@ const RegisterContent = () => {
                     <motion.button 
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        disabled={isLoading || (password.length > 0 && password.length < 6)}
+                        // Ajuste de deshabilitado para incluir flujo Google
+                        disabled={isLoading || (!isGoogleFlow && password.length > 0 && password.length < 6)}
                         type="submit"
                         className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-[0_0_20px_rgba(219,39,119,0.4)] transition-all flex justify-center items-center gap-2 mt-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -364,15 +358,16 @@ const RegisterContent = () => {
                     </motion.button>
                 </form>
 
-                {/* Si ya está en flujo Google, ocultamos el botón inferior de Google para no confundir */}
+                {/* --- INYECCIÓN: Ocultamos el botón inferior si ya extrajimos datos --- */}
                 {!isGoogleFlow && (
                     <>
                         <div className="mt-6 relative flex items-center justify-center">
                             <div className="absolute border-t border-gray-800 w-full"></div>
-                            <span className="bg-gray-900 px-3 text-[10px] text-gray-500 relative z-10 font-bold uppercase tracking-wider">O usa Google</span>
+                            <span className="bg-gray-900 px-3 text-[10px] text-gray-500 relative z-10 font-bold uppercase tracking-wider">O extrae tus datos con Google</span>
                         </div>
 
                         <div className="mt-4">
+                            {/* Cambiamos la función al trigger silencioso */}
                             <button type="button" onClick={() => handleGoogleSilent()} className="w-full bg-white hover:bg-gray-100 text-gray-900 font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-3 text-sm">
                                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                                     <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -380,7 +375,7 @@ const RegisterContent = () => {
                                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                 </svg>
-                                Registro Rápido
+                                Autollenar con Google
                             </button>
                         </div>
                     </>
@@ -402,10 +397,13 @@ const RegisterContent = () => {
     );
 };
 
-const Register = () => (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <RegisterContent />
-    </GoogleOAuthProvider>
-);
-
-export default Register;
+// ============================================================
+// --- 🛡️ INYECCIÓN: EXPORT FINAL ENVUELTO EN PROVIDER ---
+export default function Register() {
+    return (
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <RegisterContent />
+        </GoogleOAuthProvider>
+    );
+}
+// ============================================================

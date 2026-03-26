@@ -20,15 +20,39 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
   const [isLoadingKyc, setIsLoadingKyc] = useState(false);
   const [userUid, setUserUid] = useState(null);
 
+  // --- 🛡️ INYECCIÓN: Estado para saber si es invitado o usuario registrado ---
+  const [isGuest, setIsGuest] = useState(true);
+  // --------------------------------------------------------------------------
+
   useEffect(() => {
       const checkUserKyc = async () => {
           const user = auth.currentUser;
           if (user) {
+              // --- 🛡️ INYECCIÓN: Modo usuario registrado activo ---
+              setIsGuest(false);
               setUserUid(user.uid);
               const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-              if (userDoc.exists() && userDoc.data().kyc_verificado === true) {
-                  setHasKyc(true);
+              if (userDoc.exists()) {
+                  const data = userDoc.data();
+                  const isKycVerified = data.kyc_verificado === true;
+                  if (isKycVerified) {
+                      setHasKyc(true);
+                  }
+                  
+                  // Autocompletamos los datos en la sombra para que pase las validaciones sin pedirle nada
+                  setPaypalData(prev => ({
+                      ...prev,
+                      email: user.email || data.email || '',
+                      firstName: data.nombre_real || data.gamertag || 'Usuario',
+                      lastName: data.apellido_real || 'Registrado',
+                      idNumber: data.cedula_identidad || data.cedula || 'N/A',
+                      phone: data.telefono || 'N/A',
+                      idDoc: isKycVerified ? 'KYC_APROBADO' : prev.idDoc 
+                  }));
               }
+              // -----------------------------------------------------------------
+          } else {
+              setIsGuest(true);
           }
       };
       checkUserKyc();
@@ -97,28 +121,46 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
         <span className={`${isBinance ? 'bg-yellow-500 text-black' : (isTarjeta ? 'bg-cyan-500 text-black' : isSaldoTnb ? 'bg-green-500 text-black' : 'bg-indigo-600 text-white')} text-xs py-1 px-2 rounded`}>API</span> 
         Configuración de {isBinance ? 'Binance Pay' : (isTarjeta ? 'Tarjeta' : isSaldoTnb ? 'Pago con Saldo TNB' : 'Facturación')}
       </h2>
-      <p className="text-gray-400 text-sm mb-6">Ingresa tus datos para generar la orden de pago.</p>
+      <p className="text-gray-400 text-sm mb-6">
+          {isGuest ? 'Ingresa tus datos para generar la orden de pago.' : 'Confirma los términos para generar la orden segura.'}
+      </p>
+      
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-            <label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label>
-            <input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email || ''} onChange={e => setPaypalData({...paypalData, email: e.target.value})} />
-        </div>
         
-        <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName || ''} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
-            <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName || ''} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-            <div>
-                <label className="block text-gray-300 text-sm mb-1">Cédula / Documento</label>
-                <input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="V-12345678" value={paypalData.idNumber || ''} onChange={e => setPaypalData({...paypalData, idNumber: e.target.value})} />
-            </div>
-            <div>
-                <label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label>
-                <input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="+584120000000" value={paypalData.phone || ''} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} />
-            </div>
-        </div>
+        {/* --- 🛡️ INYECCIÓN: Ocultamos el formulario de texto si ya es usuario registrado --- */}
+        {isGuest && (
+            <>
+                <div>
+                    <label className="block text-gray-300 text-sm mb-1">Correo Electrónico</label>
+                    <input type="email" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="tu@email.com" value={paypalData.email || ''} onChange={e => setPaypalData({...paypalData, email: e.target.value})} />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block text-gray-300 text-sm mb-1">Nombre</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.firstName || ''} onChange={e => setPaypalData({...paypalData, firstName: e.target.value})} /></div>
+                    <div><label className="block text-gray-300 text-sm mb-1">Apellido</label><input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" value={paypalData.lastName || ''} onChange={e => setPaypalData({...paypalData, lastName: e.target.value})} /></div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-gray-300 text-sm mb-1">Cédula / Documento</label>
+                        <input type="text" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="V-12345678" value={paypalData.idNumber || ''} onChange={e => setPaypalData({...paypalData, idNumber: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="block text-gray-300 text-sm mb-1">WhatsApp (Notificaciones)</label>
+                        <input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="+584120000000" value={paypalData.phone || ''} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} />
+                    </div>
+                </div>
+
+                {/* INYECCIÓN: Restauramos el input para subir la foto de los invitados */}
+                {requiresIdImage && (
+                    <div className="mt-4">
+                        <label className="block text-gray-300 text-sm mb-1">Foto del Documento de Identidad</label>
+                        <input type="file" accept="image/*" onChange={handleFileChange} className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-sm" />
+                    </div>
+                )}
+            </>
+        )}
+        {/* ---------------------------------------------------------------------------------- */}
       
         {requiresIdImage && (
             <div className="mt-4">

@@ -1,18 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ShieldCheck, FileCheck, ImageIcon, Bot, Link as LinkIcon, AlertTriangle, ArrowRight, UserCheck } from 'lucide-react';
-import { MAX_FILE_SIZE_BYTES } from '../../config/constants';
+import { ShieldCheck, UserCheck, Bot, Link as LinkIcon, AlertTriangle, ArrowRight } from 'lucide-react';
 import { auth, db } from '../../pages/firebase'; 
 import { doc, getDoc } from 'firebase/firestore';
 import axios from 'axios';
 
 const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, paymentMethod, openTerms, openPrivacy, cart }) => {
-  const idDocRef = useRef(null); 
   const isBinance = (paymentMethod === 'binance'); 
   const isTarjeta = (paymentMethod === 'tarjeta');
-  const isSaldoTnb = (paymentMethod === 'saldo_tnb'); // INYECCIÓN: Detectar Saldo TNB
+  const isSaldoTnb = (paymentMethod === 'saldo_tnb'); // Detectar Saldo TNB
   
-  // AQUÍ ESTÁ LA MAGIA: Exigimos foto siempre, EXCEPTO si es Binance, Tarjeta o SALDO TNB
-  const requiresIdImage = !isBinance && !isTarjeta && !isSaldoTnb; 
+  // AQUÍ ESTÁ LA LÓGICA DE SEGURIDAD: Exigimos KYC (Didit) siempre, EXCEPTO si es Binance, Tarjeta o SALDO TNB
+  const requiresKycValidation = !isBinance && !isTarjeta && !isSaldoTnb; 
   
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
@@ -46,8 +44,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                       firstName: data.nombre_real || data.gamertag || 'Usuario',
                       lastName: data.apellido_real || 'Registrado',
                       idNumber: data.cedula_identidad || data.cedula || 'N/A',
-                      phone: data.telefono || 'N/A',
-                      idDoc: isKycVerified ? 'KYC_APROBADO' : prev.idDoc 
+                      phone: data.telefono || 'N/A'
                   }));
               }
               // -----------------------------------------------------------------
@@ -76,30 +73,14 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
       }
   };
   
-  const handleFileChange = (e) => { 
-      const file = e.target.files[0]; 
-      if (file) { 
-          if (file.size > MAX_FILE_SIZE_BYTES) { 
-              alert("El archivo supera el límite de 1MB."); 
-              e.target.value = "";
-              return; 
-          } 
-          setPaypalData({ ...paypalData, idDoc: file }); 
-      } 
-  };
-
   const handleSubmit = (e) => { 
       e.preventDefault(); 
-      if (requiresIdImage && !hasKyc) {
+      if (requiresKycValidation && !hasKyc) {
           return alert("⚠️ Por regulaciones de seguridad, debes Verificar tu Identidad con Didit antes de continuar con este método de pago.");
       }
       if(!paypalData.email || !paypalData.firstName || !paypalData.lastName || !paypalData.idNumber) {
           return alert("Completa todos los campos obligatorios.");
       }
-      if (requiresIdImage && !paypalData.idDoc) { 
-          alert("Debes cargar la foto de tu documento de identidad para continuar."); 
-          return; 
-      } 
 
       const hasBot = cart.some(item => item.id === 20 || item.title === 'Admin. Bot');
       if (hasBot) {
@@ -113,7 +94,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
       setCheckoutStep(2); 
   };
   
-  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && paypalData.idNumber && (!requiresIdImage || paypalData.idDoc) && acceptedTerms;
+  const isFormValid = paypalData.email && paypalData.firstName && paypalData.lastName && paypalData.phone && paypalData.idNumber && acceptedTerms;
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-900 p-8 rounded-2xl border border-indigo-500/30 animate-fade-in-up">
@@ -150,19 +131,11 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                         <input type="tel" required className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white" placeholder="+584120000000" value={paypalData.phone || ''} onChange={e => setPaypalData({...paypalData, phone: e.target.value})} />
                     </div>
                 </div>
-
-                {/* INYECCIÓN: Restauramos el input para subir la foto de los invitados */}
-                {requiresIdImage && (
-                    <div className="mt-4">
-                        <label className="block text-gray-300 text-sm mb-1">Foto del Documento de Identidad</label>
-                        <input type="file" accept="image/*" onChange={handleFileChange} className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-sm" />
-                    </div>
-                )}
             </>
         )}
         {/* ---------------------------------------------------------------------------------- */}
       
-        {requiresIdImage && (
+        {requiresKycValidation && (
             <div className="mt-4">
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                     Verificación de Identidad (Requerido)
@@ -182,7 +155,7 @@ const PayPalDetailsForm = ({ paypalData, setPaypalData, setCheckoutStep, payment
                     <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-xl p-4 text-center">
                         <ShieldCheck size={32} className="text-indigo-400 mx-auto mb-2" />
                         <p className="text-gray-300 text-xs mb-3">
-                            Para usar {paymentMethod === 'paypal' ? 'PayPal' : 'este método'}, requerimos validar tu identidad por normas anti-fraude.
+                            Para usar {paymentMethod === 'paypal' ? 'PayPal' : 'este método'}, requerimos validar tu identidad por normas anti-fraude con el escáner Didit.
                         </p>
                         <button 
                             type="button"

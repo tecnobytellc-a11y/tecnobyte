@@ -240,11 +240,8 @@ const handleRequestEmailCode = async () => {
                 <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 
                 <div className="relative z-10 flex items-center gap-5">
-                    <div className="relative w-16 h-16 flex items-center justify-center">
-                        <div className="absolute inset-0 border-2 border-cyan-400 rotate-45 rounded-sm shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
-                        <div className="absolute inset-0 border-2 border-green-400 -rotate-45 rounded-sm shadow-[0_0_15px_rgba(74,222,128,0.5)]"></div>
-                        <span className="font-black text-2xl text-white z-10 font-orbitron">X</span>
-                    </div>
+                    {/* INYECCIÓN: Ícono actualizado con la imagen solicitada */}
+                    <img src="https://www.tecnobyte.lat/1001200188.png" alt="Vortex Pay Logo" className="w-16 h-16 object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
                     <div>
                         <h1 className="text-4xl font-black font-orbitron text-white tracking-widest">
                             VOR<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-green-400">TEX</span>

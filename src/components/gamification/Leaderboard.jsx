@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, X, Loader, Users, BadgeCheck } from 'lucide-react'; // INYECCIÓN: Agregamos BadgeCheck
+import { Trophy, Medal, Crown, X, Loader, Users, BadgeCheck, Flame, Crosshair } from 'lucide-react'; // INYECCIÓN: Agregamos Flame y Crosshair
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../pages/firebase'; 
 import { collection, getDocs } from 'firebase/firestore';
@@ -64,7 +64,8 @@ const Leaderboard = () => {
                 name: nombre,
                 points: puntosAsignados,
                 isSimulated: true,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${nombre}`
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${nombre}`,
+                cosmeticoActivo: null // Los bots no tienen cosméticos
             });
         }
         setTopPlayers(nuevosJugadores);
@@ -93,7 +94,10 @@ const Leaderboard = () => {
                     email: data.email || data.correo || '', // Capturamos el correo de Firebase
                     points: pts,
                     isReal: true,
-                    avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.gamertag || doc.id}`
+                    avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.gamertag || doc.id}`,
+                    // --- 💎 INYECCIÓN: Capturamos el cosmético si lo tiene ---
+                    cosmeticoActivo: data.cosmetico_activo || null
+                    // ---------------------------------------------------------
                 });
             });
             setRealUsers(users);
@@ -110,7 +114,7 @@ const Leaderboard = () => {
         }
     };
 
-    // INYECCIÓN: Filtramos a los usuarios reales para que solo pasen los que tienen 10,000 puntos o más
+    // INYECCIÓN: Filtramos a los usuarios reales para que solo pasen los que tienen 5,000 puntos o más
     const rankingCompleto = [...topPlayers, ...realUsers.filter(user => user.points >= 5000)]
         .sort((a, b) => b.points - a.points)
         .map(player => {
@@ -166,6 +170,24 @@ const Leaderboard = () => {
                                 bgGlow = 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/80 transition-colors';
                             }
 
+                            // --- 💎 INYECCIÓN: Clases visuales dinámicas basadas en el cosmético equipado ---
+                            let avatarStyles = "w-10 h-10 rounded-full bg-gray-800 object-cover relative z-10";
+                            let avatarWrapperStyles = "relative";
+                            let CosmeticElement = null;
+
+                            if (player.cosmeticoActivo === 'marca_fuego') {
+                                avatarStyles += " border-2 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]";
+                                CosmeticElement = <Flame className="absolute -bottom-2 -right-1 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)] z-20 animate-pulse" size={16} />;
+                            } else if (player.cosmeticoActivo === 'insignia_cazador') {
+                                avatarStyles += " border-2 border-green-500";
+                                CosmeticElement = <Crosshair className="absolute -top-1 -right-1 text-green-500 bg-black rounded-full p-0.5 z-20" size={16} />;
+                            } else if (player.cosmeticoActivo === 'halo_dorado') {
+                                avatarStyles += " border-2 border-yellow-400 ring-2 ring-yellow-400/50 ring-offset-1 ring-offset-black";
+                            } else {
+                                avatarStyles += " border border-gray-700"; // Default
+                            }
+                            // ----------------------------------------------------------------------------------
+
                             return (
                                 <motion.div 
                                     initial={{ opacity: 0, x: 20 }}
@@ -179,10 +201,11 @@ const Leaderboard = () => {
                                         <div className={`font-black text-xl w-6 text-center ${iconColor}`}>
                                             {index + 1}
                                         </div>
-                                        <div className="relative">
-                                            <img src={player.avatar} alt={player.name} className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 object-cover" />
-                                            {index < 3 && (
-                                                <div className="absolute -top-2 -right-2">
+                                        <div className={avatarWrapperStyles}>
+                                            <img src={player.avatar} alt={player.name} className={avatarStyles} />
+                                            {CosmeticElement}
+                                            {index < 3 && !CosmeticElement && (
+                                                <div className="absolute -top-2 -right-2 z-20">
                                                     <PositionIcon size={14} className={iconColor} />
                                                 </div>
                                             )}
@@ -258,6 +281,23 @@ const Leaderboard = () => {
                                         const isTop3 = index < 3;
                                         const isVerified = checkIsVerified(player);
 
+                                        // --- 💎 INYECCIÓN: Repetimos estilos cosméticos para el modal ---
+                                        let avatarStylesModal = "w-10 h-10 rounded-full bg-black object-cover relative z-10";
+                                        let CosmeticElementModal = null;
+
+                                        if (player.cosmeticoActivo === 'marca_fuego') {
+                                            avatarStylesModal += " border-2 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]";
+                                            CosmeticElementModal = <Flame className="absolute -bottom-2 -right-1 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)] z-20 animate-pulse" size={16} />;
+                                        } else if (player.cosmeticoActivo === 'insignia_cazador') {
+                                            avatarStylesModal += " border-2 border-green-500";
+                                            CosmeticElementModal = <Crosshair className="absolute -top-1 -right-1 text-green-500 bg-black rounded-full p-0.5 z-20" size={16} />;
+                                        } else if (player.cosmeticoActivo === 'halo_dorado') {
+                                            avatarStylesModal += " border-2 border-yellow-400 ring-2 ring-yellow-400/50 ring-offset-1 ring-offset-black";
+                                        } else {
+                                            avatarStylesModal += " border border-gray-700";
+                                        }
+                                        // ----------------------------------------------------------------
+
                                         return (
                                             <motion.div 
                                                 layout
@@ -270,7 +310,10 @@ const Leaderboard = () => {
                                                     <div className={`font-black text-lg w-8 text-center ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-orange-400' : 'text-gray-600'}`}>
                                                         #{index + 1}
                                                     </div>
-                                                    <img src={player.avatar} alt={player.name} className="w-10 h-10 rounded-full bg-black border border-gray-700 object-cover" />
+                                                    <div className="relative">
+                                                        <img src={player.avatar} alt={player.name} className={avatarStylesModal} />
+                                                        {CosmeticElementModal}
+                                                    </div>
                                                     <div>
                                                         <h4 className="text-white font-bold text-sm flex items-center gap-1">
                                                             {player.name}

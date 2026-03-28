@@ -170,18 +170,18 @@ const Leaderboard = () => {
                                 bgGlow = 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/80 transition-colors';
                             }
 
-                            // --- 💎 INYECCIÓN: Clases visuales dinámicas basadas en el cosmético equipado ---
+                            // --- 💎 INYECCIÓN: Clases visuales dinámicas (EN INGLÉS y minúsculas exactas) ---
                             let avatarStyles = "w-10 h-10 rounded-full bg-gray-800 object-cover relative z-10";
                             let avatarWrapperStyles = "relative";
                             let CosmeticElement = null;
 
-                            if (player.cosmeticoActivo === 'marca_fuego') {
+                            if (player.cosmeticoActivo === 'fire_tag') {
                                 avatarStyles += " border-2 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]";
                                 CosmeticElement = <Flame className="absolute -bottom-2 -right-1 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)] z-20 animate-pulse" size={16} />;
-                            } else if (player.cosmeticoActivo === 'insignia_cazador') {
+                            } else if (player.cosmeticoActivo === 'hunter_badge') {
                                 avatarStyles += " border-2 border-green-500";
                                 CosmeticElement = <Crosshair className="absolute -top-1 -right-1 text-green-500 bg-black rounded-full p-0.5 z-20" size={16} />;
-                            } else if (player.cosmeticoActivo === 'halo_dorado') {
+                            } else if (player.cosmeticoActivo === 'golden_halo') {
                                 avatarStyles += " border-2 border-yellow-400 ring-2 ring-yellow-400/50 ring-offset-1 ring-offset-black";
                             } else {
                                 avatarStyles += " border border-gray-700"; // Default
@@ -285,13 +285,13 @@ const Leaderboard = () => {
                                         let avatarStylesModal = "w-10 h-10 rounded-full bg-black object-cover relative z-10";
                                         let CosmeticElementModal = null;
 
-                                        if (player.cosmeticoActivo === 'marca_fuego') {
+                                        if (player.cosmeticoActivo === 'fire_tag') {
                                             avatarStylesModal += " border-2 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]";
                                             CosmeticElementModal = <Flame className="absolute -bottom-2 -right-1 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)] z-20 animate-pulse" size={16} />;
-                                        } else if (player.cosmeticoActivo === 'insignia_cazador') {
+                                        } else if (player.cosmeticoActivo === 'hunter_badge') {
                                             avatarStylesModal += " border-2 border-green-500";
                                             CosmeticElementModal = <Crosshair className="absolute -top-1 -right-1 text-green-500 bg-black rounded-full p-0.5 z-20" size={16} />;
-                                        } else if (player.cosmeticoActivo === 'halo_dorado') {
+                                        } else if (player.cosmeticoActivo === 'golden_halo') {
                                             avatarStylesModal += " border-2 border-yellow-400 ring-2 ring-yellow-400/50 ring-offset-1 ring-offset-black";
                                         } else {
                                             avatarStylesModal += " border border-gray-700";

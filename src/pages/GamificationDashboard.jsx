@@ -477,7 +477,7 @@ if (method === 'passkey') {
                                 onClick={() => window.location.href = 'https://www.tecnobyte.lat/vortex-pay'}
                                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm bg-gradient-to-r from-cyan-500/10 to-green-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20"
                             >
-                                <img src="/vertexpay.png" alt="Vortex Pay" className="w-[30px] h-[30px] object-contain drop-shadow-[0_0_5px_rgba(6,182,212,0.5)]" />
+                                <img src="/vertexpay.png" alt="Vortex Pay" className="w-[19px] h-[19px] object-contain drop-shadow-[0_0_5px_rgba(6,182,212,0.5)]" />
                                 Vortex Pay
                             </button>
 

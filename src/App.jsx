@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Facebook, Instagram, ShoppingCart } from 'lucide-react';
+import { Facebook, Instagram, ShoppingCart, Search, Filter } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './pages/firebase';
 
 // === CONFIGURATION & STORES ===
 import { SERVER_URL, RATE_API_CONFIG, INITIAL_RATE_BS, DEFAULT_CONTACT_INFO, GLOBAL_STYLES } from './config/constants';
@@ -58,6 +60,15 @@ const AppContent = () => {
     const [cart, setCart] = useState([]); 
     const [isCartOpen, setIsCartOpen] = useState(false); 
     const [activeCategory, setActiveCategory] = useState('All'); 
+
+    // --- 🔍 NUEVOS ESTADOS PARA BÚSQUEDA Y RELOADLY ---
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCountry, setSelectedCountry] = useState('All');
+    const [reloadlyCatalog, setReloadlyCatalog] = useState({});
+    const [availableCountries, setAvailableCountries] = useState(['All']);
+    const [rangoInputs, setRangoInputs] = useState({});
+    // ---------------------------------------------------
+
     const [lastOrder, setLastOrder] = useState(null); 
     const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); 
     const [checkoutStep, setCheckoutStep] = useState(0); 
@@ -112,6 +123,21 @@ const AppContent = () => {
                     const config = await configRes.json();
                     if (config.success) { setServices(config.catalog); setMultipackages(config.multipackages || {}); setContactInfo(config.contact); setLegalInfo(config.legal); setSocialLinks(config.social); }
                 }
+
+                // 🔥 INYECCIÓN: Cargar Catálogo de Reloadly desde Firebase
+                const reloadlySnapshot = await getDocs(collection(db, "catalogo_reloadly"));
+                const catalog = {};
+                const paises = new Set(['All']);
+
+                reloadlySnapshot.forEach(doc => {
+                    const paquetes = doc.data().paquetes;
+                    catalog[doc.id] = paquetes;
+                    if(paquetes && paquetes.length > 0 && paquetes[0].pais) paises.add(paquetes[0].pais);
+                });
+                
+                setReloadlyCatalog(catalog);
+                setAvailableCountries(Array.from(paises).sort());
+
             } catch (error) {} finally { setIsLoadingSecurity(false); setIsLoadingCatalog(false); }
         }; init();
     }, []);
@@ -168,6 +194,22 @@ const AppContent = () => {
         }, 300); 
     };
 
+    // --- 🛠️ INYECCIÓN: FUNCIONES PARA FILTRAR EL CATÁLOGO 🛠️ ---
+    const filteredServices = services.filter(service => {
+        const matchesCategory = activeCategory === 'All' || service.category === activeCategory;
+        const matchesSearch = service.title.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    const filteredReloadly = Object.entries(reloadlyCatalog).filter(([nombreMarcaPais, paquetes]) => {
+        const marcaStr = nombreMarcaPais.toLowerCase();
+        const searchStr = searchTerm.toLowerCase();
+        const matchesSearch = marcaStr.includes(searchStr);
+        const matchesCountry = selectedCountry === 'All' || (paquetes.length > 0 && paquetes[0].pais === selectedCountry);
+        const matchesCategory = activeCategory === 'All' || activeCategory === 'Gift Cards';
+        return matchesSearch && matchesCountry && matchesCategory;
+    });
+
     if (isLoadingSecurity || isLoadingCatalog) return <div className="fixed inset-0 bg-[#0a0a12] flex flex-col items-center justify-center z-[100]"><div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div><h2 className="text-white font-orbitron text-xl tracking-widest animate-pulse">CARGANDO TIENDA</h2><p className="text-gray-500 text-xs mt-2 font-mono">Conectando con el servidor...</p></div>;
     if (isBlocked) return <BlockedScreen />;
 
@@ -187,19 +229,123 @@ const AppContent = () => {
                         <>
                             <Hero exchangeRate={exchangeRateBs} />
                             <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+                                
+                                {/* 🔥 INYECCIÓN: BARRA DE BÚSQUEDA Y FILTROS */}
+                                <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between bg-gray-900/50 p-4 rounded-xl border border-gray-800">
+                                    <div className="relative w-full md:w-1/2">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                                        <input 
+                                            type="text" 
+                                            placeholder="Buscar juegos, gift cards, apps..." 
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-indigo-500 transition-all"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    
+                                    {(activeCategory === 'Gift Cards' || searchTerm.length > 0) && (
+                                        <div className="relative w-full md:w-1/3 flex items-center">
+                                            <Filter className="absolute left-3 text-indigo-400" size={18} />
+                                            <select 
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white appearance-none focus:outline-none focus:border-indigo-500"
+                                                value={selectedCountry}
+                                                onChange={(e) => setSelectedCountry(e.target.value)}
+                                            >
+                                                {availableCountries.map(country => (
+                                                    <option key={country} value={country}>{country === 'All' ? 'Todos los Países' : country}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="flex flex-wrap justify-center gap-4 mb-12">
-                                    {['All', ...new Set(services.map(s => s.category))].map(cat => ( 
+                                    {['All', ...new Set([...services.map(s => s.category), 'Gift Cards'])].map(cat => ( 
                                         <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all font-bold tracking-wide ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900/80 border-gray-700 text-gray-400 hover:border-indigo-400 hover:text-white'}`}>{cat}</button> 
                                     ))}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {(activeCategory === 'All' ? services : services.filter(s => s.category === activeCategory))
-                                    .map((service, idx) => ( 
+                                    {filteredServices.map((service, idx) => ( 
                                         service.category === 'Exchange' 
                                             ? <ExchangeCard key={`exc-${service.id || idx}`} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} /> 
                                             : <ProductCard key={`prod-${service.id || idx}`} service={service} addToCart={addToCart} exchangeRateBs={exchangeRateBs} idx={idx} multipackages={multipackages} /> 
                                     ))}
+
+                                    {/* 🔥 INYECCIÓN: RENDERIZADO DEL CATÁLOGO RELOADLY */}
+                                    {filteredReloadly.map(([nombreMarcaPais, paquetes]) => (
+                                        <div key={nombreMarcaPais} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all flex flex-col p-5 group">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors">{nombreMarcaPais}</h3>
+                                                <span className="text-[10px] bg-gray-800 text-gray-400 px-2 py-1 rounded font-mono border border-gray-700">{paquetes[0].pais}</span>
+                                            </div>
+
+                                            {paquetes[0].isFixed === false ? (
+                                                <div className="mt-auto">
+                                                    <p className="text-xs text-gray-500 mb-2 font-mono">
+                                                        Mín: {paquetes[0].minAmount} | Máx: {paquetes[0].maxAmount} {paquetes[0].moneda}
+                                                    </p>
+                                                    <div className="flex gap-2">
+                                                        <input 
+                                                            type="number" 
+                                                            placeholder={`Monto`}
+                                                            className="w-full bg-black border border-gray-700 rounded p-2 text-white text-sm focus:border-indigo-500"
+                                                            value={rangoInputs[nombreMarcaPais] || ''}
+                                                            onChange={(e) => setRangoInputs({...rangoInputs, [nombreMarcaPais]: e.target.value})}
+                                                        />
+                                                        <button 
+                                                            onClick={() => {
+                                                                const val = parseFloat(rangoInputs[nombreMarcaPais]);
+                                                                if(val >= paquetes[0].minAmount && val <= paquetes[0].maxAmount) {
+                                                                    addToCart({
+                                                                        id: `${paquetes[0].id}_${val}`,
+                                                                        title: `${nombreMarcaPais} (${val} ${paquetes[0].moneda})`,
+                                                                        price: val,
+                                                                        category: 'Gift Cards',
+                                                                        reloadlyId: paquetes[0].reloadlyId,
+                                                                        isFixed: false
+                                                                    });
+                                                                    setRangoInputs({...rangoInputs, [nombreMarcaPais]: ''});
+                                                                } else { alert("Monto fuera de rango"); }
+                                                            }}
+                                                            className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded flex items-center justify-center transition-colors"
+                                                        >
+                                                            <ShoppingCart size={18} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-auto max-h-40 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                                                    {paquetes.sort((a,b)=> a.price - b.price).map(p => (
+                                                        <div key={p.id} className="flex justify-between items-center bg-black/50 p-2 rounded border border-gray-800">
+                                                            <span className="text-sm font-bold text-gray-300">{p.price} {p.moneda}</span>
+                                                            <button 
+                                                                onClick={() => addToCart({
+                                                                    id: p.id,
+                                                                    title: `${nombreMarcaPais} - ${p.title}`,
+                                                                    price: p.price,
+                                                                    category: 'Gift Cards',
+                                                                    reloadlyId: p.reloadlyId,
+                                                                    isFixed: true
+                                                                })}
+                                                                className="text-xs bg-gray-800 hover:bg-indigo-600 border border-gray-700 px-3 py-1 rounded transition-colors text-white flex items-center gap-1"
+                                                            >
+                                                                <ShoppingCart size={14} /> Add
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
+
+                                {/* 🔥 INYECCIÓN: ESTADO VACÍO (NO SE ENCONTRÓ PRODUCTO) */}
+                                {filteredServices.length === 0 && filteredReloadly.length === 0 && (
+                                    <div className="text-center py-20 text-gray-500 col-span-full">
+                                        <Search size={48} className="mx-auto mb-4 opacity-20" />
+                                        <p className="text-xl">No encontramos productos para "{searchTerm}"</p>
+                                    </div>
+                                )}
                             </div>
                         </>
                     } />

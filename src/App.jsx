@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from
 import { Facebook, Instagram, ShoppingCart, Search, Filter } from 'lucide-react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from './firebase';
+import { auth, db } from './pages/firebase';
 
 // === CONFIGURATION & STORES ===
 import { SERVER_URL, RATE_API_CONFIG, INITIAL_RATE_BS, DEFAULT_CONTACT_INFO, GLOBAL_STYLES } from './config/constants';

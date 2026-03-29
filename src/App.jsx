@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Facebook, Instagram, ShoppingCart, Search, Filter } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from './pages/firebase';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from './firebase';
 
 // === CONFIGURATION & STORES ===
 import { SERVER_URL, RATE_API_CONFIG, INITIAL_RATE_BS, DEFAULT_CONTACT_INFO, GLOBAL_STYLES } from './config/constants';
@@ -56,18 +57,24 @@ const AppContent = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [view, setView] = useState('home'); // Retrocompatibility for navbar
+    const [view, setView] = useState('home'); 
     const [cart, setCart] = useState([]); 
     const [isCartOpen, setIsCartOpen] = useState(false); 
     const [activeCategory, setActiveCategory] = useState('All'); 
 
-    // --- 🔍 NUEVOS ESTADOS PARA BÚSQUEDA Y RELOADLY ---
+    // --- 🔍 ESTADOS DE BÚSQUEDA Y PAGINACIÓN ---
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCountry, setSelectedCountry] = useState('All');
     const [reloadlyCatalog, setReloadlyCatalog] = useState({});
     const [availableCountries, setAvailableCountries] = useState(['All']);
     const [rangoInputs, setRangoInputs] = useState({});
-    // ---------------------------------------------------
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 24;
+
+    // --- 💎 ESTADOS VIP Y CASHBACK ---
+    const [activeUser, setActiveUser] = useState(null);
+    const [cashbackPct, setCashbackPct] = useState(0);
+    // ---------------------------------------------
 
     const [lastOrder, setLastOrder] = useState(null); 
     const [exchangeRateBs, setExchangeRateBs] = useState(INITIAL_RATE_BS); 
@@ -91,7 +98,6 @@ const AppContent = () => {
     const requiresGroupLink = cart.some(item => item.requiresLink || item.title === 'Admin. Bot' || item.id === 20);
     const isExchangeAvailable = (() => { const now = new Date(); const venDate = new Date(now.toLocaleString("en-US", {timeZone: "America/Caracas"})); const day = venDate.getDay(); return day >= 1 && day <= 4; })();
 
-    // Handle view changes and sync with React Router
     useEffect(() => {
         if (view === 'checkout' && location.pathname !== '/checkout') {
             navigate('/checkout');
@@ -104,6 +110,35 @@ const AppContent = () => {
         if (location.pathname === '/') setView('home');
         else if (location.pathname === '/checkout') setView('checkout');
     }, [location.pathname]);
+
+    // --- 💎 LECTURA DE RANGO VIP EN TIEMPO REAL ---
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            setActiveUser(user);
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        const pts = data.tecnoPoints_acumulados || 0;
+                        const rangoActual = data.rango || '';
+                        if (pts >= 15000 || rangoActual.toLowerCase() === 'diamante') {
+                            setCashbackPct(5);
+                        } else if (pts >= 5000 || rangoActual.toLowerCase() === 'oro') {
+                            setCashbackPct(2);
+                        } else {
+                            setCashbackPct(0);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error leyendo rango VIP:", error);
+                }
+            } else {
+                setCashbackPct(0);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         const init = async () => {
@@ -124,7 +159,7 @@ const AppContent = () => {
                     if (config.success) { setServices(config.catalog); setMultipackages(config.multipackages || {}); setContactInfo(config.contact); setLegalInfo(config.legal); setSocialLinks(config.social); }
                 }
 
-                // 🔥 INYECCIÓN: Cargar Catálogo de Reloadly desde Firebase
+                // Cargar Catálogo de Reloadly
                 const reloadlySnapshot = await getDocs(collection(db, "catalogo_reloadly"));
                 const catalog = {};
                 const paises = new Set(['All']);
@@ -194,7 +229,7 @@ const AppContent = () => {
         }, 300); 
     };
 
-    // --- 🛠️ INYECCIÓN: FUNCIONES PARA FILTRAR EL CATÁLOGO 🛠️ ---
+    // --- 🛠️ SISTEMA DE FILTRADO UNIFICADO Y PAGINACIÓN 🛠️ ---
     const filteredServices = services.filter(service => {
         const matchesCategory = activeCategory === 'All' || service.category === activeCategory;
         const matchesSearch = service.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -210,10 +245,20 @@ const AppContent = () => {
         return matchesSearch && matchesCountry && matchesCategory;
     });
 
+    // Unimos todos los productos en una sola lista para paginarlos sin congelar la pantalla
+    const unifiedList = [
+        ...filteredServices.map(s => ({ type: 'original', data: s })),
+        ...filteredReloadly.map(r => ({ type: 'reloadly', data: r }))
+    ];
+
+    const totalPages = Math.ceil(unifiedList.length / ITEMS_PER_PAGE);
+    const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+    const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+    const currentItems = unifiedList.slice(indexOfFirstItem, indexOfLastItem);
+
     if (isLoadingSecurity || isLoadingCatalog) return <div className="fixed inset-0 bg-[#0a0a12] flex flex-col items-center justify-center z-[100]"><div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div><h2 className="text-white font-orbitron text-xl tracking-widest animate-pulse">CARGANDO TIENDA</h2><p className="text-gray-500 text-xs mt-2 font-mono">Conectando con el servidor...</p></div>;
     if (isBlocked) return <BlockedScreen />;
 
-    // Detect Boveda Secreta
     const urlParams = new URLSearchParams(window.location.search);
     const cofreId = urlParams.get('cofre');
     if (cofreId) return <BovedaSecreta cofreId={cofreId} />;
@@ -230,120 +275,215 @@ const AppContent = () => {
                             <Hero exchangeRate={exchangeRateBs} />
                             <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
                                 
-                                {/* 🔥 INYECCIÓN: BARRA DE BÚSQUEDA Y FILTROS */}
-                                <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between bg-gray-900/50 p-4 rounded-xl border border-gray-800">
-                                    <div className="relative w-full md:w-1/2">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                                        <input 
-                                            type="text" 
-                                            placeholder="Buscar juegos, gift cards, apps..." 
-                                            className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-indigo-500 transition-all"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                    </div>
-                                    
-                                    {(activeCategory === 'Gift Cards' || searchTerm.length > 0) && (
-                                        <div className="relative w-full md:w-1/3 flex items-center">
-                                            <Filter className="absolute left-3 text-indigo-400" size={18} />
-                                            <select 
-                                                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white appearance-none focus:outline-none focus:border-indigo-500"
-                                                value={selectedCountry}
-                                                onChange={(e) => setSelectedCountry(e.target.value)}
-                                            >
-                                                {availableCountries.map(country => (
-                                                    <option key={country} value={country}>{country === 'All' ? 'Todos los Países' : country}</option>
-                                                ))}
-                                            </select>
+                                {/* 🌟 MÓDULO DE BÚSQUEDA CENTRADO Y PREMIUM 🌟 */}
+                                <div className="max-w-3xl mx-auto mb-12 bg-gray-900/60 p-6 rounded-2xl border border-gray-800 shadow-[0_0_30px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+                                    <h2 className="text-center text-white font-orbitron font-bold text-xl mb-4 tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">
+                                        BUSCADOR GLOBAL
+                                    </h2>
+                                    <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
+                                        <div className="relative w-full md:w-2/3">
+                                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-indigo-400" size={20} />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Buscar juegos, gift cards, apps..." 
+                                                className="w-full pl-12 pr-4 py-3 bg-black/50 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner"
+                                                value={searchTerm}
+                                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                            />
                                         </div>
-                                    )}
+                                        
+                                        {(activeCategory === 'Gift Cards' || searchTerm.length > 0) && (
+                                            <div className="relative w-full md:w-1/3 flex items-center">
+                                                <Filter className="absolute left-4 text-indigo-400" size={18} />
+                                                <select 
+                                                    className="w-full pl-12 pr-4 py-3 bg-black/50 border border-gray-700 rounded-xl text-white appearance-none focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-inner cursor-pointer"
+                                                    value={selectedCountry}
+                                                    onChange={(e) => { setSelectedCountry(e.target.value); setCurrentPage(1); }}
+                                                >
+                                                    {availableCountries.map(country => (
+                                                        <option key={country} value={country}>{country === 'All' ? '🌐 Todos los Países' : `📍 ${country}`}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
+                                {/* CATEGORÍAS */}
                                 <div className="flex flex-wrap justify-center gap-4 mb-12">
                                     {['All', ...new Set([...services.map(s => s.category), 'Gift Cards'])].map(cat => ( 
-                                        <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2 rounded-full border transition-all font-bold tracking-wide ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900/80 border-gray-700 text-gray-400 hover:border-indigo-400 hover:text-white'}`}>{cat}</button> 
+                                        <button key={cat} onClick={() => { setActiveCategory(cat); setCurrentPage(1); }} className={`px-6 py-2 rounded-full border transition-all font-bold tracking-wide ${activeCategory === cat ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-gray-900/80 border-gray-700 text-gray-400 hover:border-indigo-400 hover:text-white'}`}>{cat}</button> 
                                     ))}
                                 </div>
+
+                                {/* GRILLA PAGINADA */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {filteredServices.map((service, idx) => ( 
-                                        service.category === 'Exchange' 
-                                            ? <ExchangeCard key={`exc-${service.id || idx}`} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} /> 
-                                            : <ProductCard key={`prod-${service.id || idx}`} service={service} addToCart={addToCart} exchangeRateBs={exchangeRateBs} idx={idx} multipackages={multipackages} /> 
-                                    ))}
+                                    {currentItems.map((item, idx) => {
+                                        if (item.type === 'original') {
+                                            const service = item.data;
+                                            return service.category === 'Exchange' 
+                                                ? <ExchangeCard key={`exc-${service.id || idx}`} service={service} addToCart={addToCart} exchangeRate={exchangeRateBs} isAvailable={isExchangeAvailable} /> 
+                                                : <ProductCard key={`prod-${service.id || idx}`} service={service} addToCart={addToCart} exchangeRateBs={exchangeRateBs} idx={idx} multipackages={multipackages} />;
+                                        } else {
+                                            const [nombreMarcaPais, paquetes] = item.data;
+                                            if (!paquetes || paquetes.length === 0) return null;
 
-                                    {/* 🔥 INYECCIÓN: RENDERIZADO DEL CATÁLOGO RELOADLY */}
-                                    {filteredReloadly.map(([nombreMarcaPais, paquetes]) => (
-                                        <div key={nombreMarcaPais} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all flex flex-col p-5 group">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors">{nombreMarcaPais}</h3>
-                                                <span className="text-[10px] bg-gray-800 text-gray-400 px-2 py-1 rounded font-mono border border-gray-700">{paquetes[0].pais}</span>
-                                            </div>
+                                            return (
+                                                <div key={nombreMarcaPais} className="relative bg-[#13131a] border border-gray-800 rounded-2xl overflow-hidden hover:border-indigo-500/50 hover:shadow-[0_0_20px_rgba(79,70,229,0.15)] transition-all flex flex-col group shadow-lg">
+                                                    
+                                                    {/* 💎 INSIGNIA CASHBACK LÓGICA 💎 */}
+                                                    {cashbackPct > 0 && (
+                                                        <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-500/80 to-yellow-600/90 border border-yellow-500/50 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-[0_0_10px_rgba(234,179,8,0.4)] z-10 flex items-center gap-1">
+                                                            <span>💎</span> +{cashbackPct}% Cashback VIP
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* PORTADA DE LA TARJETA */}
+                                                    <div className="h-28 bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-black flex flex-col items-center justify-center relative overflow-hidden border-b border-gray-800">
+                                                        <div className="absolute inset-0 bg-black/30 group-hover:bg-transparent transition-all"></div>
+                                                        <h3 className="text-3xl font-black text-white/90 tracking-widest uppercase z-10 drop-shadow-lg">{paquetes[0].pais}</h3>
+                                                        <span className="text-[10px] font-mono text-indigo-300 z-10 mt-1 uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded">Digital Delivery</span>
+                                                    </div>
 
-                                            {paquetes[0].isFixed === false ? (
-                                                <div className="mt-auto">
-                                                    <p className="text-xs text-gray-500 mb-2 font-mono">
-                                                        Mín: {paquetes[0].minAmount} | Máx: {paquetes[0].maxAmount} {paquetes[0].moneda}
-                                                    </p>
-                                                    <div className="flex gap-2">
-                                                        <input 
-                                                            type="number" 
-                                                            placeholder={`Monto`}
-                                                            className="w-full bg-black border border-gray-700 rounded p-2 text-white text-sm focus:border-indigo-500"
-                                                            value={rangoInputs[nombreMarcaPais] || ''}
-                                                            onChange={(e) => setRangoInputs({...rangoInputs, [nombreMarcaPais]: e.target.value})}
-                                                        />
-                                                        <button 
-                                                            onClick={() => {
-                                                                const val = parseFloat(rangoInputs[nombreMarcaPais]);
-                                                                if(val >= paquetes[0].minAmount && val <= paquetes[0].maxAmount) {
-                                                                    addToCart({
-                                                                        id: `${paquetes[0].id}_${val}`,
-                                                                        title: `${nombreMarcaPais} (${val} ${paquetes[0].moneda})`,
-                                                                        price: val,
-                                                                        category: 'Gift Cards',
-                                                                        reloadlyId: paquetes[0].reloadlyId,
-                                                                        isFixed: false
-                                                                    });
-                                                                    setRangoInputs({...rangoInputs, [nombreMarcaPais]: ''});
-                                                                } else { alert("Monto fuera de rango"); }
-                                                            }}
-                                                            className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded flex items-center justify-center transition-colors"
-                                                        >
-                                                            <ShoppingCart size={18} />
-                                                        </button>
+                                                    <div className="p-5 flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-[#0a0a12]">
+                                                        <div className="mb-4">
+                                                            <h3 className="text-lg font-bold text-white leading-tight group-hover:text-indigo-400 transition-colors">{nombreMarcaPais.split(' - ')[0]}</h3>
+                                                            <span className="text-xs text-indigo-400/80 font-mono mt-1 block">Gift Card • {paquetes[0].moneda}</span>
+                                                        </div>
+
+                                                        {paquetes[0].isFixed === false ? (
+                                                            /* RANGO LIBRE CON DISEÑO ADAPTADO */
+                                                            <div className="mt-auto pt-4 border-t border-gray-800">
+                                                                <p className="text-[11px] text-gray-500 mb-2 font-mono flex justify-between">
+                                                                    <span>Mín: {paquetes[0].minAmount}</span>
+                                                                    <span>Máx: {paquetes[0].maxAmount}</span>
+                                                                </p>
+                                                                <div className="flex gap-2">
+                                                                    <div className="relative w-full">
+                                                                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">$</span>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            placeholder="0.00"
+                                                                            className="w-full bg-black border border-gray-700 rounded-lg pl-8 pr-2 py-2 text-white text-sm focus:border-indigo-500 outline-none"
+                                                                            value={(typeof rangoInputs[nombreMarcaPais] === 'string' ? rangoInputs[nombreMarcaPais] : '') || ''}
+                                                                            onChange={(e) => setRangoInputs({...rangoInputs, [nombreMarcaPais]: e.target.value})}
+                                                                        />
+                                                                    </div>
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            const val = parseFloat(rangoInputs[nombreMarcaPais]);
+                                                                            if(val >= paquetes[0].minAmount && val <= paquetes[0].maxAmount) {
+                                                                                addToCart({
+                                                                                    id: `${paquetes[0].id}_${val}`,
+                                                                                    title: `${nombreMarcaPais} (${val} ${paquetes[0].moneda})`,
+                                                                                    price: val,
+                                                                                    category: 'Gift Cards',
+                                                                                    reloadlyId: paquetes[0].reloadlyId,
+                                                                                    isFixed: false,
+                                                                                    cashback: cashbackPct // INYECCIÓN: Lógica Cashback aplicada
+                                                                                });
+                                                                                setRangoInputs({...rangoInputs, [nombreMarcaPais]: ''});
+                                                                            } else { alert(`El monto debe estar entre ${paquetes[0].minAmount} y ${paquetes[0].maxAmount}`); }
+                                                                        }}
+                                                                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center justify-center transition-colors shadow-lg"
+                                                                    >
+                                                                        <ShoppingCart size={18} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            /* MENÚ DESPLEGABLE PARA PRECIOS FIJOS */
+                                                            <div className="mt-auto pt-4 border-t border-gray-800">
+                                                                <select 
+                                                                    className="w-full bg-black border border-gray-700 text-white text-sm rounded-lg p-2.5 mb-3 focus:border-indigo-500 outline-none"
+                                                                    onChange={(e) => {
+                                                                        const p = paquetes.find(x => x.id === e.target.value);
+                                                                        if(p) setRangoInputs({...rangoInputs, [nombreMarcaPais]: p});
+                                                                    }}
+                                                                    defaultValue=""
+                                                                >
+                                                                    <option value="" disabled>Selecciona un paquete...</option>
+                                                                    {paquetes.sort((a,b)=> a.price - b.price).map(p => (
+                                                                        <option key={p.id} value={p.id}>{p.title || p.price} {p.moneda} - ${p.price}</option>
+                                                                    ))}
+                                                                </select>
+                                                                
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const selected = rangoInputs[nombreMarcaPais];
+                                                                        if(selected && typeof selected === 'object') {
+                                                                            addToCart({
+                                                                                id: selected.id,
+                                                                                title: `${nombreMarcaPais} - ${selected.title || selected.price}`,
+                                                                                price: selected.price,
+                                                                                category: 'Gift Cards',
+                                                                                reloadlyId: selected.reloadlyId,
+                                                                                isFixed: true,
+                                                                                cashback: cashbackPct // INYECCIÓN: Lógica Cashback aplicada
+                                                                            });
+                                                                        } else {
+                                                                            alert("Por favor selecciona un paquete primero.");
+                                                                        }
+                                                                    }}
+                                                                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg"
+                                                                >
+                                                                    <ShoppingCart size={18} /> Agregar al Carrito
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className="mt-auto max-h-40 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
-                                                    {paquetes.sort((a,b)=> a.price - b.price).map(p => (
-                                                        <div key={p.id} className="flex justify-between items-center bg-black/50 p-2 rounded border border-gray-800">
-                                                            <span className="text-sm font-bold text-gray-300">{p.price} {p.moneda}</span>
-                                                            <button 
-                                                                onClick={() => addToCart({
-                                                                    id: p.id,
-                                                                    title: `${nombreMarcaPais} - ${p.title}`,
-                                                                    price: p.price,
-                                                                    category: 'Gift Cards',
-                                                                    reloadlyId: p.reloadlyId,
-                                                                    isFixed: true
-                                                                })}
-                                                                className="text-xs bg-gray-800 hover:bg-indigo-600 border border-gray-700 px-3 py-1 rounded transition-colors text-white flex items-center gap-1"
-                                                            >
-                                                                <ShoppingCart size={14} /> Add
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                            );
+                                        }
+                                    })}
                                 </div>
 
-                                {/* 🔥 INYECCIÓN: ESTADO VACÍO (NO SE ENCONTRÓ PRODUCTO) */}
-                                {filteredServices.length === 0 && filteredReloadly.length === 0 && (
+                                {/* ESTADO VACÍO */}
+                                {unifiedList.length === 0 && (
                                     <div className="text-center py-20 text-gray-500 col-span-full">
                                         <Search size={48} className="mx-auto mb-4 opacity-20" />
                                         <p className="text-xl">No encontramos productos para "{searchTerm}"</p>
+                                    </div>
+                                )}
+
+                                {/* 🌟 CONTROLES DE PAGINACIÓN 🌟 */}
+                                {totalPages > 1 && (
+                                    <div className="flex justify-center items-center gap-2 mt-16">
+                                        <button 
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-4 py-2 rounded-lg bg-gray-800 text-white disabled:opacity-40 hover:bg-indigo-600 transition-colors font-bold text-sm"
+                                        >
+                                            Anterior
+                                        </button>
+                                        
+                                        <div className="flex gap-1 overflow-x-auto max-w-[200px] sm:max-w-none custom-scrollbar pb-1">
+                                            {[...Array(totalPages)].map((_, i) => {
+                                                const page = i + 1;
+                                                if (page === 1 || page === totalPages || (page >= currentPage - 2 && page <= currentPage + 2)) {
+                                                    return (
+                                                        <button 
+                                                            key={page} 
+                                                            onClick={() => setCurrentPage(page)}
+                                                            className={`w-10 h-10 rounded-lg font-bold transition-all flex-shrink-0 ${currentPage === page ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}
+                                                        >
+                                                            {page}
+                                                        </button>
+                                                    );
+                                                } else if (page === currentPage - 3 || page === currentPage + 3) {
+                                                    return <span key={page} className="text-gray-600 px-1 flex items-end pb-2">...</span>;
+                                                }
+                                                return null;
+                                            })}
+                                        </div>
+
+                                        <button 
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-4 py-2 rounded-lg bg-gray-800 text-white disabled:opacity-40 hover:bg-indigo-600 transition-colors font-bold text-sm"
+                                        >
+                                            Siguiente
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -380,19 +520,14 @@ const AppContent = () => {
                     } />
 
                     <Route path="/verificar-orden/:orderId" element={<OrderVerificationWrapper />} />
-                    
                     <Route path="/resoluciones" element={<SupportCenter />} />
-                    
                     <Route path="/perfil" element={<GamificationDashboard />} />
-                    
-                   <Route path="/login" element={<Login />} />
+                    <Route path="/login" element={<Login />} />
                     <Route path="/registro" element={<Register />} />
 
-                    {/* 🔥 INYECCIÓN TEMPORAL PARA SIMULACIÓN VISUAL DE VORTEX PAY */}
-                    {/* Podrás ver el panel entrando a tupagina.com/vortex-pay */}
                     <Route path="/vortex-pay" element={
-                        <div className="pt-24"> {/* Añadimos padding superior para que no lo tape el Navbar */}
-                            <VortexPayDashboard saldoTnb={755.50} /> {/* Saldo simulado para la prueba */}
+                        <div className="pt-24">
+                            <VortexPayDashboard saldoTnb={755.50} />
                         </div>
                     } />
 
@@ -442,14 +577,12 @@ const AppContent = () => {
             <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Términos y Condiciones" content={legalInfo.terms} />
             <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Política de Privacidad y Aviso Legal" content={legalInfo.privacy} />
             
-            {/* AI & Marketing Overlay Components */}
             <TecnoBot />
             <SocialProofPopup />
         </div>
     );
 };
 
-// Wrapper para params de React Router
 const OrderVerificationWrapper = () => {
     const { pathname } = useLocation();
     const orderId = pathname.split('/').pop();

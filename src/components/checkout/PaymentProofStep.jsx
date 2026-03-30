@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Ticket, ShieldCheck, FileCheck, ImageIcon, Check, Loader, UserCheck } from 'lucide-react';
+import { Ticket, ShieldCheck, FileCheck, ImageIcon, Check, Loader, UserCheck, Copy } from 'lucide-react';
 import { convertToBase64 } from '../../utils/helpers';
 import { MAX_FILE_SIZE_BYTES } from '../../config/constants';
 import { submitOrderToPrivateServer } from '../../utils/security';
@@ -124,6 +124,47 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
       }
   };
 
+  // --- 📋 FUNCIÓN PARA COPIAR DATOS DE PAGO Y MONTO ---
+    const handleCopyPaymentData = () => {
+        if (!contactInfo || !contactInfo[paymentMethod]) {
+            alert("No hay datos de pago disponibles para copiar.");
+            return;
+        }
+
+        const info = contactInfo[paymentMethod];
+        let textToCopy = "🏦 DATOS DE PAGO:\n\n";
+
+        // 1. Extraemos dinámicamente los datos de la cuenta
+        Object.entries(info).forEach(([key, value]) => {
+            // Formateamos la primera letra en mayúscula para que se vea bien (Ej: bank -> Bank)
+            const nombreCampo = key.charAt(0).toUpperCase() + key.slice(1);
+            textToCopy += `• ${nombreCampo}: ${value}\n`;
+        });
+
+        textToCopy += "\n💰 MONTO EXACTO A PAGAR:\n";
+
+        // 2. Verificamos si el método es en Bolívares usando palabras clave
+        const metodosBs = ['pago_movil', 'transferencia', 'transferencia_nacional', 'pago movil', 'bs'];
+        const isBs = metodosBs.some(metodo => paymentMethod.toLowerCase().includes(metodo));
+
+        // 3. Calculamos y agregamos el monto según la moneda
+        if (isBs) {
+            const montoBs = (finalTotal * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            textToCopy += `=> ${montoBs} Bs\n`;
+        } else {
+            textToCopy += `=> $${finalTotal.toFixed(2)} USD\n`;
+        }
+
+        // 4. Ejecutamos la copia al portapapeles
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            alert("✅ ¡Datos y monto copiados al portapapeles!");
+        }).catch(err => {
+            console.error("Error al copiar: ", err);
+            alert("❌ No se pudo copiar automáticamente. Por favor, hazlo de forma manual.");
+        });
+    };
+    // ----------------------------------------------------
+
   return (
     <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-fade-in-up">
       <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 h-fit">
@@ -140,6 +181,15 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
             {coupon && <div className="text-xs text-green-300 mt-1 flex flex-col gap-1"><div className="flex items-center gap-1"><Ticket size={12}/> Cupón aplicado: {coupon.code} (-{(coupon.discountType || coupon.type) === 'fixed' ? '$' : ''}{coupon.discountValue || coupon.amount || coupon.percent || coupon.value}{(coupon.discountType || coupon.type) !== 'fixed' ? '%' : ''})</div>{coupon.excludedIds?.length > 0 && <span className="text-yellow-400 text-[10px]">*Algunos productos no aplican para descuento</span>}</div>}
         </div>
         {(paymentMethod === 'pagomovil' || paymentMethod === 'transfer_bs') && <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-600"><p className="text-gray-400 text-xs mb-1 uppercase tracking-wider">Monto en Bolívares (Tasa: {exchangeRate.toFixed(2)})</p><p className="text-cyan-400 font-bold font-mono text-3xl">Bs {(finalTotal * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>}
+        {/* --- 📋 BOTÓN DE COPIAR DATOS --- */}
+<button
+    type="button"
+    onClick={handleCopyPaymentData}
+    className="mt-4 w-full flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-indigo-400 hover:text-indigo-300 border border-indigo-500/30 font-bold py-2.5 px-4 rounded-lg transition-colors shadow-lg group"
+>
+    <Copy size={18} className="group-hover:scale-110 transition-transform" />
+    Copiar Datos y Monto
+</button>
       </div>
       <div className="bg-gray-900 p-8 rounded-2xl border border-indigo-500/30">
          <h3 className="text-xl font-bold text-white mb-6">Confirmar Pago Manual</h3>

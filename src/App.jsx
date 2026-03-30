@@ -338,21 +338,24 @@ const AppContent = () => {
                                                         </div>
                                                     )}
                                                     
-                                                    {/* PORTADA DE LA TARJETA CON LOGO AUTOMÁTICO */}
-                                                    <div className="h-28 bg-gradient-to-br from-gray-900 via-[#13131a] to-black flex flex-col items-center justify-center relative overflow-hidden border-b border-gray-800">
-                                                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-all duration-300"></div>
+                                                   {/* PORTADA DE LA TARJETA (FULL COVER) */}
+                                                    <div className="h-32 relative overflow-hidden border-b border-gray-800 bg-gradient-to-br from-gray-900 via-[#13131a] to-black flex flex-col items-center justify-center">
                                                         
                                                         {paquetes[0].logo ? (
+                                                            /* La imagen ahora cubre el 100% del espacio sin deformarse */
                                                             <img 
                                                                 src={paquetes[0].logo} 
                                                                 alt={nombreMarcaPais} 
-                                                                className="h-16 max-w-[80%] object-contain z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] group-hover:scale-110 transition-transform duration-300" 
+                                                                className="absolute inset-0 w-full h-full object-cover z-0 group-hover:scale-110 transition-transform duration-500" 
                                                             />
                                                         ) : (
                                                             <h3 className="text-3xl font-black text-white/90 tracking-widest uppercase z-10 drop-shadow-lg">{paquetes[0].pais}</h3>
                                                         )}
                                                         
-                                                        <span className="absolute bottom-1 right-2 text-[9px] font-mono text-indigo-400 z-10 uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded backdrop-blur-sm border border-gray-700">
+                                                        {/* Degradado oscuro superpuesto para que la imagen se fusione suavemente hacia abajo con tu paleta de colores */}
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a12] via-black/40 to-transparent z-0 group-hover:bg-black/10 transition-all duration-500"></div>
+                                                        
+                                                        <span className="absolute bottom-2 right-2 text-[10px] font-mono text-indigo-300 z-10 uppercase tracking-widest bg-black/60 px-2 py-1 rounded backdrop-blur-md border border-gray-700/50 shadow-lg">
                                                             {paquetes[0].pais}
                                                         </span>
                                                     </div>

@@ -132,32 +132,33 @@ const PaymentProofStep = ({ proofData, setProofData, cart, finalTotal, setLastOr
         }
 
         const info = contactInfo[paymentMethod];
-        let textToCopy = "🏦 DATOS DE PAGO:\n\n";
+        let textToCopy = "";
 
-        // 1. Extraemos dinámicamente los datos de la cuenta
-        Object.entries(info).forEach(([key, value]) => {
-            // Formateamos la primera letra en mayúscula para que se vea bien (Ej: bank -> Bank)
-            const nombreCampo = key.charAt(0).toUpperCase() + key.slice(1);
-            textToCopy += `• ${nombreCampo}: ${value}\n`;
-        });
+        // Verificamos si es un método en Bolívares
+        const isBs = paymentMethod === 'pagomovil' || paymentMethod === 'transfer_bs';
 
-        textToCopy += "\n💰 MONTO EXACTO A PAGAR:\n";
-
-        // 2. Verificamos si el método es en Bolívares usando palabras clave
-        const metodosBs = ['pago_movil', 'transferencia', 'transferencia_nacional', 'pago movil', 'bs'];
-        const isBs = metodosBs.some(metodo => paymentMethod.toLowerCase().includes(metodo));
-
-        // 3. Calculamos y agregamos el monto según la moneda
         if (isBs) {
+            // 🇻🇪 FORMATO ESTRICTO SIN PLANTILLAS PARA BOLÍVARES (Solo datos y monto)
+            Object.entries(info).forEach(([key, value]) => {
+                const nombreCampo = key.charAt(0).toUpperCase() + key.slice(1);
+                textToCopy += `${nombreCampo}: ${value}\n`;
+            });
             const montoBs = (finalTotal * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            textToCopy += `=> ${montoBs} Bs\n`;
+            textToCopy += `Monto: ${montoBs}`;
         } else {
-            textToCopy += `=> $${finalTotal.toFixed(2)} USD\n`;
+            // 💵 FORMATO CON PLANTILLA PARA USD (El que ya habías aprobado)
+            textToCopy = "🏦 DATOS DE PAGO:\n\n";
+            Object.entries(info).forEach(([key, value]) => {
+                const nombreCampo = key.charAt(0).toUpperCase() + key.slice(1);
+                textToCopy += `• ${nombreCampo}: ${value}\n`;
+            });
+            textToCopy += "\n💰 MONTO EXACTO A PAGAR:\n";
+            textToCopy += `=> $${finalTotal.toFixed(2)} USD`;
         }
 
-        // 4. Ejecutamos la copia al portapapeles
+        // Ejecutamos la copia al portapapeles
         navigator.clipboard.writeText(textToCopy).then(() => {
-            alert("✅ ¡Datos y monto copiados al portapapeles!");
+            alert("✅ ¡Datos copiados al portapapeles!");
         }).catch(err => {
             console.error("Error al copiar: ", err);
             alert("❌ No se pudo copiar automáticamente. Por favor, hazlo de forma manual.");

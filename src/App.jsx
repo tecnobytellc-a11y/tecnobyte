@@ -338,11 +338,23 @@ const AppContent = () => {
                                                         </div>
                                                     )}
                                                     
-                                                    {/* PORTADA DE LA TARJETA */}
-                                                    <div className="h-28 bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-black flex flex-col items-center justify-center relative overflow-hidden border-b border-gray-800">
-                                                        <div className="absolute inset-0 bg-black/30 group-hover:bg-transparent transition-all"></div>
-                                                        <h3 className="text-3xl font-black text-white/90 tracking-widest uppercase z-10 drop-shadow-lg">{paquetes[0].pais}</h3>
-                                                        <span className="text-[10px] font-mono text-indigo-300 z-10 mt-1 uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded">Digital Delivery</span>
+                                                    {/* PORTADA DE LA TARJETA CON LOGO AUTOMÁTICO */}
+                                                    <div className="h-28 bg-gradient-to-br from-gray-900 via-[#13131a] to-black flex flex-col items-center justify-center relative overflow-hidden border-b border-gray-800">
+                                                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-all duration-300"></div>
+                                                        
+                                                        {paquetes[0].logo ? (
+                                                            <img 
+                                                                src={paquetes[0].logo} 
+                                                                alt={nombreMarcaPais} 
+                                                                className="h-16 max-w-[80%] object-contain z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] group-hover:scale-110 transition-transform duration-300" 
+                                                            />
+                                                        ) : (
+                                                            <h3 className="text-3xl font-black text-white/90 tracking-widest uppercase z-10 drop-shadow-lg">{paquetes[0].pais}</h3>
+                                                        )}
+                                                        
+                                                        <span className="absolute bottom-1 right-2 text-[9px] font-mono text-indigo-400 z-10 uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded backdrop-blur-sm border border-gray-700">
+                                                            {paquetes[0].pais}
+                                                        </span>
                                                     </div>
 
                                                     <div className="p-5 flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-[#0a0a12]">

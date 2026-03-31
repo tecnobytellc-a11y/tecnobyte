@@ -4,6 +4,7 @@ import { Facebook, Instagram, ShoppingCart, Search, Filter } from 'lucide-react'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from './pages/firebase';
+import CinematicLanding from './components/ui/CinematicLanding';
 
 // === CONFIGURATION & STORES ===
 import { SERVER_URL, RATE_API_CONFIG, INITIAL_RATE_BS, DEFAULT_CONTACT_INFO, GLOBAL_STYLES } from './config/constants';
@@ -274,7 +275,7 @@ const AppContent = () => {
                 <Routes>
                     <Route path="/" element={
                         <>
-                            <Hero exchangeRate={exchangeRateBs} />
+                            <CinematicLanding />
                             <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
                                 
                                 {/* 🌟 MÓDULO DE BÚSQUEDA CENTRADO Y PREMIUM 🌟 */}

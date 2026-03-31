@@ -62,7 +62,7 @@ const AppContent = () => {
     const [cart, setCart] = useState([]); 
     const [isCartOpen, setIsCartOpen] = useState(false); 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [activeCategory, setActiveCategory] = useState('All'); 
+    const [activeCategory, setActiveCategory] = useState('Gift Cards'); 
 
     // --- 🔍 ESTADOS DE BÚSQUEDA Y PAGINACIÓN ---
     const [searchTerm, setSearchTerm] = useState('');

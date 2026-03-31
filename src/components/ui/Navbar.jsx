@@ -50,6 +50,13 @@ const Navbar = ({ cartCount, onOpenCart, onOpenSidebar }) => {
 
                 {/* Actions: Profile + Cart */}
                 <div className="flex items-center h-full gap-2 sm:gap-4">
+
+                    <a 
+    href="#services" 
+    className="hidden md:flex items-center justify-center bg-indigo-600 text-white font-bold py-2 px-6 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+>
+    Ir a Tienda
+</a>
                     
                     {/* BOTÓN INTELIGENTE: Cambia según si hay sesión iniciada o no */}
                     {currentUser ? (

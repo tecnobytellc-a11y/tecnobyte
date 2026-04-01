@@ -5,6 +5,8 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from './pages/firebase';
 import CinematicLanding from './components/ui/CinematicLanding';
+import { Link } from 'react-router-dom';
+import LegalPage from './pages/LegalPage'; // Ajusta la ruta si lo guardaste en components/ui/
 
 // === CONFIGURATION & STORES ===
 import { SERVER_URL, RATE_API_CONFIG, INITIAL_RATE_BS, DEFAULT_CONTACT_INFO, GLOBAL_STYLES } from './config/constants';
@@ -538,6 +540,8 @@ const AppContent = () => {
                     <Route path="/perfil" element={<GamificationDashboard />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/registro" element={<Register />} />
+                    <Route path="/terminos" element={<LegalPage title="Términos y Condiciones" content={legalInfo.terms} />} />
+<Route path="/privacidad" element={<LegalPage title="Política de Privacidad y Aviso Legal" content={legalInfo.privacy} />} />
 
                     <Route path="/vortex-pay" element={
                         <div className="pt-24">
@@ -586,8 +590,16 @@ const AppContent = () => {
                     <div>
                         <h4 className="text-slate-800 font-bold mb-4">Legal</h4>
                         <ul className="space-y-3 text-[14px]">
-                            <li className="cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => setShowTerms(true)}>Términos y Condiciones</li>
-                            <li className="cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => setShowPrivacy(true)}>Política de Privacidad</li>
+                            <li>
+                                <Link to="/terminos" className="text-slate-500 hover:text-indigo-600 transition-colors block">
+                                    Términos y Condiciones
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/privacidad" className="text-slate-500 hover:text-indigo-600 transition-colors block">
+                                    Política de Privacidad
+                                </Link>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -596,9 +608,6 @@ const AppContent = () => {
                 </div>
             </footer>
 
-            <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Términos y Condiciones" content={legalInfo.terms} />
-            <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Política de Privacidad y Aviso Legal" content={legalInfo.privacy} />
-            
             <TecnoBot />
             <SocialProofPopup />
         </div>

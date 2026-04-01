@@ -14,7 +14,7 @@ const CinematicLanding = () => {
                     playsInline
                     className="absolute z-0 w-auto min-w-full min-h-full max-w-none object-cover opacity-90"
                 >
-                    <source src="https://cdn.pixabay.com/vimeo/328336110/gaming-22760.mp4?width=1280&hash=123" type="video/mp4" />
+                    <source src="/hero-video.mp4" type="video/mp4" />
                     Tu navegador no soporta videos.
                 </video>
 

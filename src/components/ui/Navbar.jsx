@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, User, LogIn, Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { auth } from '../../pages/firebase';
 
 import { onAuthStateChanged } from 'firebase/auth';
 
 const Navbar = ({ cartCount, onOpenCart, onOpenSidebar }) => {
+    // --- DETECTOR DE RUTA ---
+    const location = useLocation();
+    const rutasPermitidas = ['/', '/checkout', '/perfil'];
+    const mostrarNavbar = rutasPermitidas.includes(location.pathname);
     // --- CEREBRO DE AUTENTICACIÓN ---
     const [currentUser, setCurrentUser] = useState(null);
 
@@ -17,6 +21,11 @@ const Navbar = ({ cartCount, onOpenCart, onOpenSidebar }) => {
         return () => unsubscribe();
     }, []);
     // --------------------------------
+
+    // Si no está en las rutas permitidas, el Navbar se oculta
+    if (!mostrarNavbar) {
+        return null;
+    }
 
     return (
         <motion.nav 

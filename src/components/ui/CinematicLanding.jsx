@@ -25,13 +25,13 @@ const CinematicLanding = () => {
                 {/* Contenido Principal sobre el video */}
                 <div className="relative z-20 text-center px-4 max-w-5xl mx-auto mt-16">
                     <span className="inline-block py-1 px-3 rounded-full bg-indigo-600/80 text-white text-xs font-bold tracking-widest uppercase mb-4 backdrop-blur-md border border-indigo-400/50">
-                        La Nueva Era Digital
+                        SIEMPRE A TU ORDEN
                     </span>
                     <h1 className="text-5xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl tracking-tight">
                         DESBLOQUEA TU <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">MUNDO</span>
                     </h1>
                     <p className="text-lg md:text-2xl text-slate-200 mb-10 max-w-3xl mx-auto font-light drop-shadow-md">
-                        El ecosistema definitivo para Gamers y Nómadas Digitales. Gift cards, números virtuales y exchange automatizado a la velocidad de la luz.
+                        El ecosistema definitivo para gamers y nómadas digitales. gift cards, números virtuales y exchange automatizado a la velocidad de la luz.
                     </p>
                     
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -57,7 +57,7 @@ const CinematicLanding = () => {
             <div className="py-24 bg-white relative z-20">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight mb-4">MÁS QUE UNA TIENDA. <br/>UN ECOSISTEMA.</h2>
+                        <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight mb-4">MÁS QUE UNA TIENDA, <br/>UN ECOSISTEMA.</h2>
                         <div className="w-24 h-1 bg-indigo-600 mx-auto rounded-full"></div>
                     </div>
 
@@ -66,7 +66,7 @@ const CinematicLanding = () => {
                             <div className="w-20 h-20 mx-auto bg-indigo-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors text-indigo-600">
                                 <Zap size={40} />
                             </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-3">Velocidad Extrema</h3>
+                            <h3 className="text-xl font-bold text-slate-800 mb-3">Envios Flash</h3>
                             <p className="text-slate-500">Transacciones automatizadas. Recibe tus Gift Cards y pines al instante, sin tiempos de espera humanos.</p>
                         </div>
                         <div className="text-center p-6 rounded-3xl bg-slate-50 border border-slate-100 hover:shadow-xl transition-all group">

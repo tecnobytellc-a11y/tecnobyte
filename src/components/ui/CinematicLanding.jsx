@@ -66,8 +66,8 @@ const CinematicLanding = () => {
                             <div className="w-20 h-20 mx-auto bg-indigo-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors text-indigo-600">
                                 <Zap size={40} />
                             </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-3">Envios Flash</h3>
-                            <p className="text-slate-500">Transacciones automatizadas. Recibe tus Gift Cards y pines al instante, sin tiempos de espera humanos.</p>
+                            <h3 className="text-xl font-bold text-slate-800 mb-3">Envios Auto</h3>
+                            <p className="text-slate-500">Transacciones automatizadas. Recibe tus gift cards y pines al instante, sin tiempos de espera humanos.</p>
                         </div>
                         <div className="text-center p-6 rounded-3xl bg-slate-50 border border-slate-100 hover:shadow-xl transition-all group">
                             <div className="w-20 h-20 mx-auto bg-indigo-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors text-indigo-600">

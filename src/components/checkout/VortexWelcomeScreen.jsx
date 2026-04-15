@@ -36,7 +36,7 @@ const VortexWelcomeScreen = ({ onAccept }) => {
                     <h2 className="text-3xl font-black font-orbitron text-slate-800 tracking-tight">Bienvenido a <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-green-600">Vortex Pay</span></h2>
                     
                     <p className="text-slate-500 font-medium leading-relaxed text-sm">
-                        Vortex Pay es el servicio avanzado de Tecnobite diseñado para permitir el intercambio instantáneo y seguro de saldo entre usuarios del ecosistema. Construido con arquitectura de <strong>cifrado AES-256</strong> y protegido por tecnología de autenticación múltiple, Vortex garantiza que tus fondos permanezcan seguros en cada transacción.
+                        Vortex Pay es el servicio avanzado de TecnoByte diseñado para permitir el intercambio instantáneo y seguro de saldo entre usuarios del ecosistema. Construido con arquitectura de <strong>cifrado AES-256</strong> y protegido por tecnología de autenticación múltiple, Vortex garantiza que tus fondos permanezcan seguros en cada transacción.
                     </p>
 
                     <p className="text-slate-500 font-medium leading-relaxed text-sm">

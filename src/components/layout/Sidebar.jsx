@@ -70,6 +70,21 @@ const Sidebar = ({ isOpen, onClose, categories, activeCategory, setActiveCategor
                                         </motion.button>
                                     );
                                 })}
+
+                                {/* SMM Link */}
+                                <motion.a
+                                    href="https://www.tecnobyte.lat/smm"
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: visibleCategories.length * 0.05 }}
+                                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-left font-medium text-slate-600 hover:bg-indigo-600 hover:text-white transition-all border border-transparent hover:shadow-md mt-2 group"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-indigo-500 group-hover:bg-white animate-pulse" />
+                                        SMM
+                                    </span>
+                                    <ChevronRight size={18} className="text-slate-400 group-hover:text-white" />
+                                </motion.a>
                             </div>
                         </div>
 

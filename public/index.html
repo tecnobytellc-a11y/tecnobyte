@@ -8,7 +8,6 @@
 
     <meta name="darkreader-lock">
     
-    <!-- SEO & Schema Markup (JSON-LD) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -26,8 +25,144 @@
       }
     }
     </script>
+
+    <style>
+      #seccion-smmxz {
+        display: none; /* Se mantiene oculto hasta que se llame */
+        padding: 40px 20px;
+        background-color: #f9fafb; /* Fondo gris muy claro para resaltar las tarjetas blancas */
+        min-height: 100vh;
+      }
+      .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 25px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .card-smm {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f1f1;
+        transition: all 0.3s ease;
+      }
+      .card-smm:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      }
+      .category-badge {
+        background: #f3f4f6;
+        color: #6b7280;
+        padding: 4px 12px;
+        border-radius: 99px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .price-tag {
+        font-size: 32px;
+        font-weight: 800;
+        color: #111827;
+        margin: 20px 0;
+      }
+      .btn-buy {
+        background: #000000;
+        color: #ffffff;
+        width: 100%;
+        padding: 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: background 0.2s;
+      }
+      .btn-buy:hover {
+        background: #374151;
+      }
+      /* Botón flotante para pruebas */
+      .fab-test {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #ffffff;
+        color: #000;
+        border: 1px solid #ddd;
+        padding: 12px 20px;
+        border-radius: 50px;
+        cursor: pointer;
+        z-index: 9999;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+    </style>
   </head>
   <body class="bg-[#0b0e14]">
     <div id="root"></div>
+
+    <button class="fab-test" onclick="toggleSMMXZ()">🚀 Probar SMMXZ</button>
+
+    <div id="seccion-smmxz">
+      <div class="max-width-7xl mx-auto px-4">
+        <div class="flex justify-between items-center mb-10">
+          <div>
+            <h1 class="text-3xl font-black text-gray-900">SMMXZ Global Services</h1>
+            <p class="text-gray-500">Impulsa tus redes sociales con TecnoByte.</p>
+          </div>
+          <button onclick="toggleSMMXZ()" class="text-gray-400 hover:text-black">Cerrar catálogo ✕</button>
+        </div>
+
+        <div id="smmxz-container" class="services-grid">
+          </div>
+      </div>
+    </div>
+
+    <script>
+      function toggleSMMXZ() {
+        const seccion = document.getElementById('seccion-smmxz');
+        const root = document.getElementById('root');
+        
+        if (seccion.style.display === 'none' || seccion.style.display === '') {
+          seccion.style.display = 'block';
+          root.style.display = 'none'; // Ocultamos el root para mostrar el catálogo limpio
+          cargarServiciosSMM();
+        } else {
+          seccion.style.display = 'none';
+          root.style.display = 'block';
+        }
+      }
+
+      async function cargarServiciosSMM() {
+        const contenedor = document.getElementById('smmxz-container');
+        contenedor.innerHTML = '<p class="col-span-full text-center py-20 text-gray-400">Desplegando arsenal de servicios...</p>';
+
+        try {
+          const res = await fetch('/api/smm/services');
+          const json = await res.json();
+
+          if(json.success && json.data.length > 0) {
+            contenedor.innerHTML = ''; 
+            json.data.forEach(servicio => {
+              contenedor.innerHTML += `
+                <div class="card-smm">
+                  <span class="category-badge">${servicio.category}</span>
+                  <h3 class="mt-4 text-lg font-bold text-gray-800 h-12 overflow-hidden">${servicio.name}</h3>
+                  <div class="price-tag">${servicio.sell_price} <span class="text-sm font-normal text-gray-400">TNB</span></div>
+                  <button class="btn-buy" onclick="abrirCompra('${servicio.id}')">ADQUIRIR AHORA</button>
+                </div>
+              `;
+            });
+          } else {
+            contenedor.innerHTML = '<p class="col-span-full text-center py-20 text-gray-400">No hay servicios disponibles. Ejecuta /api/smm/sync-now primero.</p>';
+          }
+        } catch (error) {
+          contenedor.innerHTML = '<p class="col-span-full text-center py-20 text-red-400">Error de conexión con el servidor de TecnoByte.</p>';
+        }
+      }
+
+      function abrirCompra(id) {
+        alert("Configurando orden para el servicio ID: " + id + "\n\nEn el siguiente paso conectaremos con tu pasarela de pago TNB.");
+      }
+    </script>
   </body>
 </html>

@@ -39,6 +39,7 @@ import OrderVerification from './components/verification/OrderVerification';
 import BovedaSecreta from './components/verification/BovedaSecreta';
 import SupportCenter from './pages/SupportCenter';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import SMMXZ from './pages/SMMXZ';
 
 // === GAMIFICATION ===
 import GamificationDashboard from './pages/GamificationDashboard';
@@ -546,6 +547,7 @@ const AppContent = () => {
                         </ProtectedRoute>
                     } />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/smm" element={<SMMXZ />} />
                     <Route path="/registro" element={<Register />} />
                     <Route path="/terminos" element={<LegalPage title="Términos y Condiciones" content={legalInfo.terms} />} />
 <Route path="/privacidad" element={<LegalPage title="Política de Privacidad y Aviso Legal" content={legalInfo.privacy} />} />

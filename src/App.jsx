@@ -566,7 +566,7 @@ const AppContent = () => {
             <Sidebar 
                 isOpen={isSidebarOpen} 
                 onClose={() => setIsSidebarOpen(false)} 
-                categories={['All', ...new Set([...services.map(s => s.category), 'Gift Cards'])]}
+                categories={['All', 'SMM', ...new Set([...services.map(s => s.category), 'Gift Cards'])]}
                 activeCategory={activeCategory} 
                 setActiveCategory={setActiveCategory} 
             />

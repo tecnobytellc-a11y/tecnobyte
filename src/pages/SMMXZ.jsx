@@ -12,7 +12,7 @@ const SMMXZ = () => {
         console.log("📡 Intentando conectar con el servidor...");
         
         // IMPORTANTE: Asegúrate de que esta ruta coincida con tu backend
-        const res = await fetch('http://api-paypal-secure.vercel.app/api/v2/smm/services');
+        const res = await fetch('https://api-paypal-secure.vercel.app/api/v2/smm/services');
         
         if (!res.ok) {
           throw new Error(`Error HTTP: ${res.status}`);

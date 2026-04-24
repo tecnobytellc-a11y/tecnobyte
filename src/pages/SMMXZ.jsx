@@ -34,7 +34,7 @@ const useServices = () => {
     const fetchServices = async () => {
       try {
         setLoading(true);
-        const querySnapshot = await getDocs(collection(db, "smm_service"));
+        const querySnapshot = await getDocs(collection(db, "smm_services"));
         const servicesList = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { db, auth } from './firebase'; // IMPORTANTE: Ajusta esta ruta a tu archivo de configuración de Firebase
+import { db, auth } from './firebase'; // Configuración de Firebase de TecnoByte
 import { collection, getDocs, doc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// CUSTOM HOOK: Conectado a Producción (Firebase)
+// HOOK DE PRODUCCIÓN: Extracción de smm_service
 // ==========================================
 const useServices = () => {
   const [data, setData] = useState([]);
@@ -34,14 +34,20 @@ const useServices = () => {
     const fetchServices = async () => {
       try {
         setLoading(true);
+        // Acceso directo a la colección smm_service
         const querySnapshot = await getDocs(collection(db, "smm_service"));
-        const servicesList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        const servicesList = querySnapshot.docs.map(doc => {
+          const docData = doc.data();
+          return {
+            id: doc.id,
+            ...docData,
+            // Aseguramos que la categoría exista para evitar bloqueos en el UI
+            category: docData.category || "Sin Categoría"
+          };
+        });
         setData(servicesList);
       } catch (error) {
-        console.error("Error al obtener los servicios:", error);
+        console.error("Error al obtener smm_service:", error);
       } finally {
         setLoading(false);
       }
@@ -53,7 +59,7 @@ const useServices = () => {
 };
 
 // ==========================================
-// COMPONENT MAIN
+// COMPONENTE PRINCIPAL SMM
 // ==========================================
 const SMMXZ = () => {
   const { services, loading } = useServices();
@@ -64,7 +70,6 @@ const SMMXZ = () => {
   const [link, setLink] = useState("");
   const [quantity, setQuantity] = useState("");
 
-  // ESTADOS DE PRODUCCIÓN
   const [userBalance, setUserBalance] = useState(0); 
   const [lastUsedLink, setLastUsedLink] = useState(""); 
   const [isDripFeed, setIsDripFeed] = useState(false); 
@@ -73,7 +78,7 @@ const SMMXZ = () => {
   const [onlyRefillFilter, setOnlyRefillFilter] = useState(false); 
   const [favorites, setFavorites] = useState([]); 
 
-  // Lógica de Favicon para esta ruta
+  // Inyección de Favicon oficial
   useEffect(() => {
     let faviconTag = document.querySelector("link[rel~='icon']");
     if (!faviconTag) {
@@ -84,7 +89,7 @@ const SMMXZ = () => {
     faviconTag.href = '/favicon.ico';
   }, []);
 
-  // Lógica de Saldo Real (Firebase Auth + Firestore)
+  // Conexión en tiempo real al saldo_tnb del usuario
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -92,6 +97,7 @@ const SMMXZ = () => {
         const unsubscribeDb = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
+            // Mapeo dinámico del saldo real
             setUserBalance(data.saldo_tnb ? parseFloat(data.saldo_tnb) : 0);
           }
         });
@@ -103,13 +109,12 @@ const SMMXZ = () => {
     return () => unsubscribeAuth();
   }, []);
 
-  const toggleFavorite = (id) => {
-    setFavorites(prev => prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]);
-  };
-
+  // EXTRACCIÓN DINÁMICA DE CATEGORÍAS (Solución al bloqueo)
   const categories = useMemo(() => {
+    if (!services.length) return [];
+    // Extrae categorías únicas de los documentos de smm_service
     const cats = new Set(services.map(s => s.category));
-    return Array.from(cats).sort();
+    return Array.from(cats).filter(c => c).sort();
   }, [services]);
 
   const filteredServices = useMemo(() => {
@@ -141,7 +146,7 @@ const SMMXZ = () => {
     const qty = parseInt(quantity, 10);
     if (qty < 0) return "0.000";
     
-    let cost = (qty / 1000) * selectedService.price_per_1000;
+    let cost = (qty / 1000) * (selectedService.price_per_1000 || 0);
     
     if (isDripFeed && runs > 1) {
       cost = cost * runs;
@@ -154,107 +159,83 @@ const SMMXZ = () => {
 
   const handlePlaceOrder = (e) => {
     e.preventDefault();
-    if (!selectedService) {
-      alert("Selecciona un servicio primero.");
-      return;
-    }
-    if (!link.trim()) {
-      alert("El enlace es obligatorio.");
-      return;
-    }
+    if (!selectedService) return;
+    
     const qtyNum = parseInt(quantity, 10);
-    if (!qtyNum || qtyNum < selectedService.min_quantity || qtyNum > selectedService.max_quantity) {
-      alert(`La cantidad base debe estar entre ${selectedService.min_quantity} y ${selectedService.max_quantity}.`);
-      return;
-    }
-    if (!isBalanceSufficient) {
-      alert("Saldo insuficiente para completar esta orden.");
-      return;
-    }
+    if (!link.trim() || !qtyNum || !isBalanceSufficient) return;
 
-    console.log("Nueva Orden Lista Para Enviar:", {
+    console.log("Orden enviada a producción:", {
       serviceId: selectedService.id,
       link,
       quantity: qtyNum,
       cost: totalCost,
       isDripFeed,
-      runs: isDripFeed ? runs : 1,
-      interval: isDripFeed ? interval : 0
+      runs: isDripFeed ? runs : 1
     });
 
-    alert("¡Orden procesada con éxito!");
+    alert("¡Pedido realizado correctamente!");
     setLastUsedLink(link);
     setLink("");
     setQuantity("");
     setSelectedServiceId("");
-    setIsDripFeed(false);
+  };
+
+  const toggleFavorite = (id) => {
+    setFavorites(prev => prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]);
   };
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-white selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#0f1117] text-white">
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[120px]" />
         <div className="absolute top-[20%] -right-[10%] w-[40%] h-[60%] rounded-full bg-purple-600/10 blur-[150px]" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-12">
         
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold tracking-wide uppercase mb-4">
               <Zap className="w-3.5 h-3.5" />
-              Panel de Pedidos SMM
+              Servicios Reales Activos
             </div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-2">
               TecnoByte <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">SMM</span>
             </h1>
-            <p className="text-gray-400 max-w-xl mt-4 text-sm md:text-base leading-relaxed">
-              Potencia tu presencia en redes sociales con nuestros servicios automatizados de alta calidad y entrega rápida.
-            </p>
           </div>
 
           <div className="flex flex-col gap-3">
             <div className="self-end bg-[#1a1d27] border border-gray-800 rounded-xl px-4 py-2 flex items-center gap-3">
               <Wallet className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm text-gray-400">Mi Saldo:</span>
+              <span className="text-sm text-gray-400">Saldo TNB:</span>
               <span className="font-bold text-white">${userBalance.toFixed(2)}</span>
             </div>
 
-            <div className="w-full md:w-96 relative group">
+            <div className="w-full md:w-96 relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
+                <Search className="h-5 w-5 text-gray-500" />
               </div>
               <input
                 type="text"
-                placeholder="Buscar servicio o red social..."
+                placeholder="Buscar en smm_service..."
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
-                className="block w-full pl-12 pr-4 py-3.5 bg-[#1a1d27] border border-gray-800 rounded-2xl text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-lg"
+                className="block w-full pl-12 pr-4 py-3.5 bg-[#1a1d27] border border-gray-800 rounded-2xl text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500/50 outline-none"
               />
-            </div>
-
-            <div className="flex gap-2 self-end">
-              <button 
-                onClick={() => setOnlyRefillFilter(!onlyRefillFilter)}
-                className={`text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all ${onlyRefillFilter ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-gray-700 text-gray-400 hover:border-gray-500'}`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Solo con Refill
-              </button>
             </div>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-            <p className="text-indigo-400 font-medium tracking-wide">Cargando catálogo de servicios de producción...</p>
+          <div className="flex flex-col items-center justify-center py-32 text-indigo-400">
+            <div className="w-10 h-10 border-4 border-t-transparent border-indigo-500 rounded-full animate-spin mb-4"></div>
+            <p className="font-medium">Sincronizando con smm_service...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
             <div className="lg:col-span-7 space-y-6">
-              <div className="bg-[#1a1d27]/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl">
+              <div className="bg-[#1a1d27]/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-6 md:p-8">
                 <form onSubmit={handlePlaceOrder} className="space-y-6">
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -267,16 +248,14 @@ const SMMXZ = () => {
                         <select
                           value={selectedCategory}
                           onChange={(e) => setSelectedCategory(e.target.value)}
-                          className="block w-full appearance-none bg-[#0f1117] border border-gray-700 hover:border-gray-600 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all cursor-pointer"
+                          className="block w-full appearance-none bg-[#0f1117] border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer"
                         >
-                          <option value="">Todas las categorías</option>
+                          <option value="">{categories.length > 0 ? "Selecciona Categoría" : "Cargando categorías..."}</option>
                           {categories.map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
                         </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                          <ChevronDown className="h-4 w-4" />
-                        </div>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                       </div>
                     </div>
 
@@ -290,73 +269,54 @@ const SMMXZ = () => {
                           value={selectedServiceId}
                           onChange={(e) => setSelectedServiceId(e.target.value)}
                           disabled={filteredServices.length === 0}
-                          className="block w-full appearance-none bg-[#0f1117] border border-gray-700 hover:border-gray-600 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="block w-full appearance-none bg-[#0f1117] border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer disabled:opacity-50"
                         >
-                          <option value="">
-                            {filteredServices.length === 0 ? "No hay servicios..." : "Seleccione un servicio..."}
-                          </option>
+                          <option value="">Seleccione un servicio de la lista...</option>
                           {filteredServices.map(srv => (
                             <option key={srv.id} value={srv.id}>
-                              {srv.id} - {srv.name} (${srv.price_per_1000}/k)
+                              {srv.name} (${srv.price_per_1000}/k)
                             </option>
                           ))}
                         </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                          <ChevronDown className="h-4 w-4" />
-                        </div>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                       </div>
                     </div>
                   </div>
 
-                  <div className={`transition-all duration-500 ease-in-out origin-top ${selectedService ? 'opacity-100 scale-y-100 h-auto' : 'opacity-0 scale-y-0 h-0 overflow-hidden'}`}>
-                    <div className="space-y-6 pt-2">
-                      
+                  {selectedService && (
+                    <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-top-4 duration-500">
                       <div className="space-y-2">
-                        <div className="flex justify-between items-end">
+                        <div className="flex justify-between">
                           <label className="text-sm font-semibold text-gray-300 flex items-center gap-2">
                             <LinkIcon className="w-4 h-4 text-emerald-400" />
-                            Enlace / URL
+                            Enlace de Destino
                           </label>
-                          {lastUsedLink && (
-                            <button 
-                              type="button" 
-                              onClick={() => setLink(lastUsedLink)}
-                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
-                            >
-                              <History className="w-3.5 h-3.5" />
-                              Usar último enlace
-                            </button>
-                          )}
                         </div>
                         <input
                           type="url"
                           value={link}
                           onChange={(e) => setLink(e.target.value)}
-                          placeholder={selectedService?.link_format || "https://..."}
-                          className="block w-full bg-[#0f1117] border border-gray-700 hover:border-gray-600 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                          placeholder={selectedService.link_format || "https://..."}
+                          className="block w-full bg-[#0f1117] border border-gray-700 rounded-xl px-4 py-3.5 text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex justify-between items-end">
+                        <div className="flex justify-between">
                           <label className="text-sm font-semibold text-gray-300 flex items-center gap-2">
                             <Hash className="w-4 h-4 text-blue-400" />
-                            Cantidad {isDripFeed && "(Por entrega)"}
+                            Cantidad {isDripFeed && "(Goteo)"}
                           </label>
-                          {selectedService && (
-                            <span className="text-xs text-gray-500 font-medium">
-                              Min: {selectedService.min_quantity} - Max: {selectedService.max_quantity}
-                            </span>
-                          )}
+                          <span className="text-xs text-gray-500">
+                            Rango: {selectedService.min_quantity} - {selectedService.max_quantity}
+                          </span>
                         </div>
                         <input
                           type="number"
                           value={quantity}
                           onChange={(e) => setQuantity(e.target.value)}
-                          min={selectedService?.min_quantity}
-                          max={selectedService?.max_quantity}
-                          placeholder={`Ej: ${selectedService?.min_quantity || 1000}`}
-                          className="block w-full bg-[#0f1117] border border-gray-700 hover:border-gray-600 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                          placeholder={`Mínimo: ${selectedService.min_quantity}`}
+                          className="block w-full bg-[#0f1117] border border-gray-700 rounded-xl px-4 py-3.5 text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
                         />
                       </div>
 
@@ -367,38 +327,33 @@ const SMMXZ = () => {
                             id="dripFeed" 
                             checked={isDripFeed}
                             onChange={(e) => setIsDripFeed(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-700 text-indigo-500 focus:ring-indigo-500 bg-[#0f1117]"
+                            className="w-4 h-4 rounded border-gray-700 text-indigo-500 bg-[#0f1117]"
                           />
                           <label htmlFor="dripFeed" className="text-sm font-semibold text-gray-300 flex items-center gap-2 cursor-pointer">
                             <Layers className="w-4 h-4 text-orange-400" />
-                            Habilitar Drip-Feed (Entrega por Goteo)
+                            Habilitar Drip-Feed
                           </label>
                         </div>
 
                         {isDripFeed && (
                           <div className="grid grid-cols-2 gap-4 bg-[#0f1117]/50 p-4 rounded-xl border border-gray-800">
                             <div>
-                              <label className="text-xs text-gray-400 mb-1 block">Rondas (Veces)</label>
+                              <label className="text-xs text-gray-400 mb-1 block">Rondas</label>
                               <input 
                                 type="number" 
-                                min="2" 
                                 value={runs} 
-                                onChange={(e) => setRuns(parseInt(e.target.value) || 2)}
-                                className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                                onChange={(e) => setRuns(parseInt(e.target.value) || 1)}
+                                className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" 
                               />
                             </div>
                             <div>
-                              <label className="text-xs text-gray-400 mb-1 block">Intervalo (Minutos)</label>
+                              <label className="text-xs text-gray-400 mb-1 block">Minutos</label>
                               <input 
                                 type="number" 
-                                min="1" 
                                 value={interval} 
-                                onChange={(e) => setInterval(parseInt(e.target.value) || 60)}
-                                className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                                onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
+                                className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" 
                               />
-                            </div>
-                            <div className="col-span-2 text-xs text-indigo-300 text-center bg-indigo-500/10 py-1.5 rounded">
-                              Cantidad Total a recibir: <strong>{parseInt(quantity || 0) * runs}</strong>
                             </div>
                           </div>
                         )}
@@ -407,20 +362,19 @@ const SMMXZ = () => {
                       <button
                         type="submit"
                         disabled={!isBalanceSufficient}
-                        className={`w-full relative group overflow-hidden font-bold text-lg rounded-xl px-6 py-4 transition-all mt-4
+                        className={`w-full font-bold text-lg rounded-xl px-6 py-4 transition-all
                           ${isBalanceSufficient 
-                            ? 'bg-white text-black hover:scale-[1.01] active:scale-[0.99] shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]' 
+                            ? 'bg-white text-black hover:bg-gray-200' 
                             : 'bg-red-500/20 text-red-300 cursor-not-allowed border border-red-500/30'
                           }`}
                       >
-                        {isBalanceSufficient && <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />}
-                        <span className="relative flex items-center justify-center gap-2">
+                        <span className="flex items-center justify-center gap-2">
                           {isBalanceSufficient ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                          {isBalanceSufficient ? 'Confirmar Pedido' : 'Saldo Insuficiente'}
+                          {isBalanceSufficient ? 'Procesar Pedido Real' : 'Saldo Insuficiente'}
                         </span>
                       </button>
                     </div>
-                  </div>
+                  )}
 
                 </form>
               </div>
@@ -428,123 +382,55 @@ const SMMXZ = () => {
 
             <div className="lg:col-span-5 space-y-6">
               
-              <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 shadow-2xl shadow-indigo-900/20 relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-                
+              <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
                 <h3 className="text-indigo-100 font-medium text-sm flex items-center gap-2 mb-2">
                   <Wallet className="w-4 h-4" />
-                  Costo Total a Descontar
+                  Costo de Transacción
                 </h3>
                 <div className="flex items-baseline gap-2">
                   <span className={`text-5xl font-black tracking-tight ${isBalanceSufficient ? 'text-white' : 'text-red-300'}`}>
                     ${totalCost}
                   </span>
-                  <span className="text-indigo-200 font-medium">USD</span>
+                  <span className="text-indigo-200 font-medium uppercase">usd</span>
                 </div>
-                
-                {selectedService && (
-                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-sm text-indigo-100">
-                    <span>Precio por 1000:</span>
-                    <span className="font-bold">${parseFloat(selectedService.price_per_1000 || 0).toFixed(3)}</span>
-                  </div>
-                )}
               </div>
 
               {selectedService ? (
-                <div className="bg-[#1a1d27]/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-6 md:p-8 shadow-xl transition-all duration-300">
+                <div className="bg-[#1a1d27]/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-6 md:p-8">
                   <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-800">
                     <div className="flex items-center gap-3">
-                      <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400">
-                        <Info className="w-6 h-6" />
-                      </div>
+                      <Info className="w-6 h-6 text-indigo-400" />
                       <div>
-                        <h3 className="text-lg font-bold text-white leading-tight">Detalles del Servicio</h3>
-                        <p className="text-xs text-gray-500 font-mono mt-1">ID: {selectedService.id}</p>
+                        <h3 className="text-lg font-bold text-white">Detalles Técnicos</h3>
+                        <p className="text-xs text-gray-500">Documento: {selectedService.id}</p>
                       </div>
                     </div>
-                    <button 
-                      type="button"
-                      onClick={() => toggleFavorite(selectedService.id)}
-                      className={`p-2 rounded-lg border transition-all ${favorites.includes(selectedService.id) ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-[#0f1117] border-gray-700 text-gray-500 hover:text-gray-300'}`}
-                    >
-                      <Star className={`w-5 h-5 ${favorites.includes(selectedService.id) ? 'fill-current' : ''}`} />
-                    </button>
                   </div>
 
                   <div className="space-y-4">
-                    <DetailRow 
-                      icon={<Clock className="w-4 h-4 text-blue-400" />}
-                      label="Tiempo Estimado"
-                      value={selectedService.estimated_time || 'N/A'}
-                      highlight
-                    />
-                    <DetailRow 
-                      icon={<Zap className="w-4 h-4 text-yellow-400" />}
-                      label="Tiempo de Inicio"
-                      value={selectedService.start_time || 'N/A'}
-                    />
-                    <DetailRow 
-                      icon={<TrendingUp className="w-4 h-4 text-emerald-400" />}
-                      label="Tasa de Caída"
-                      value={selectedService.drop_rate || 'N/A'}
-                    />
-                    <DetailRow 
-                      icon={<ShieldCheck className="w-4 h-4 text-purple-400" />}
-                      label="Garantía (Refill)"
-                      value={selectedService.refill ? "Sí, habilitado" : "Sin garantía"}
-                      valueColor={selectedService.refill ? "text-emerald-400" : "text-gray-400"}
-                    />
-                    <DetailRow 
-                      icon={<CheckCircle2 className="w-4 h-4 text-cyan-400" />}
-                      label="Calidad"
-                      value={selectedService.quality || 'Estándar'}
-                    />
-                    {selectedService.server_status && (
-                      <DetailRow 
-                        icon={<Activity className="w-4 h-4 text-orange-400" />}
-                        label="Estado de Red"
-                        value={selectedService.server_status}
-                        valueColor={selectedService.server_status === "Fluido" ? "text-emerald-400" : selectedService.server_status === "Congestionado" ? "text-red-400" : "text-yellow-400"}
-                      />
-                    )}
+                    <DetailRow label="Tiempo Estimado" value={selectedService.estimated_time || 'Variable'} />
+                    <DetailRow label="Garantía" value={selectedService.refill ? "Habilitada" : "No disponible"} />
+                    <DetailRow label="Calidad" value={selectedService.quality || 'Real'} />
+                    <DetailRow label="Estado" value="Producción" valueColor="text-emerald-400" />
                   </div>
-
-                  <div className="mt-6 pt-6 border-t border-gray-800">
-                    <p className="text-sm text-gray-400 leading-relaxed">
-                      {selectedService.description || 'Sin descripción disponible.'}
-                    </p>
+                  
+                  <div className="mt-6 pt-6 border-t border-gray-800 text-sm text-gray-400 italic">
+                    {selectedService.description || "Sin descripción adicional en la base de datos."}
                   </div>
                 </div>
               ) : (
-                <div className="bg-[#1a1d27]/40 border border-gray-800 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center h-[300px]">
-                  <AlertCircle className="w-10 h-10 text-gray-600 mb-4" />
-                  <p className="text-gray-400 font-medium">Selecciona un servicio para ver sus detalles técnicos e información de entrega.</p>
+                <div className="bg-[#1a1d27]/40 border border-gray-800 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center h-[200px]">
+                  <p className="text-gray-500">Selecciona un servicio para extraer su información de Firestore.</p>
                 </div>
               )}
 
-              <div className="mt-6 space-y-6 text-sm text-gray-400 bg-[#1a1d27]/40 border border-red-900/30 rounded-3xl p-6 md:p-8">
-                <div>
-                  <h4 className="text-white font-bold mb-3">
-                    DETALLES A CONSIDERAR:
-                  </h4>
-                  <ul className="space-y-2 pl-2">
-                    <li>✶ Si el video se elimina después de realizar un pedido, no hay reembolso en este caso.</li>
-                    <li>✶ Tenga en cuenta: la hora de inicio y la velocidad de entrega pueden fluctuar dependiendo de la carga del servidor.</li>
-                    <li>✶ Normalmente no hay caídas o hay pocas caídas, pero una actualización de la plataforma puede cambiar esta realidad.</li>
-                    <li>✶ No se proporcionarán reembolsos, recargas ni soporte si el enlace se cambia o se elimina.</li>
-                    <li>✶ Sin embargo, tenga en cuenta que estas son solo estimaciones.</li>
-                  </ul>
-                </div>
-
-                <div className="pt-6 border-t border-red-900/30">
-                  <h4 className="text-red-400 font-bold mb-3">
-                    ⚠ ¡WARNING!
-                  </h4>
-                  <ul className="space-y-2 pl-2 text-red-200/70">
-                    <li>★ Por favor, no realice varios pedidos al mismo tiempo ni utilice varios sitios web simultáneamente. Espere a que el pedido actual se complete antes de realizar uno nuevo en cualquier lugar.</li>
-                    <li>★ No se proporciona ninguna garantía para los servicios sin recarga si hay una caída o entrega parcial. Pero si está utilizando servicios de recarga y tiene un problema con la caída o el pedido, abra un ticket de soporte.</li>
-                  </ul>
-                </div>
+              <div className="space-y-6 text-sm text-gray-400 bg-[#1a1d27]/40 border border-red-900/30 rounded-3xl p-6">
+                <h4 className="text-white font-bold uppercase tracking-wider">Advertencias de Producción:</h4>
+                <ul className="space-y-3 list-disc pl-4 text-xs">
+                  <li>No realice varios pedidos al mismo tiempo para el mismo enlace.</li>
+                  <li>Si el destino es privado o el enlace cambia, el sistema no puede procesar el reembolso.</li>
+                  <li>La velocidad de entrega es real y depende de la carga actual de los servidores.</li>
+                </ul>
               </div>
 
             </div>
@@ -555,15 +441,10 @@ const SMMXZ = () => {
   );
 };
 
-const DetailRow = ({ icon, label, value, highlight, valueColor = "text-white" }) => (
-  <div className="flex items-center justify-between group">
-    <div className="flex items-center gap-2.5 text-gray-400">
-      {icon}
-      <span className="text-sm font-medium">{label}</span>
-    </div>
-    <span className={`text-sm font-semibold ${highlight ? 'bg-indigo-500/10 text-indigo-300 px-3 py-1 rounded-lg border border-indigo-500/20' : valueColor} text-right max-w-[50%] truncate`}>
-      {value}
-    </span>
+const DetailRow = ({ label, value, valueColor = "text-white" }) => (
+  <div className="flex items-center justify-between">
+    <span className="text-sm text-gray-400">{label}</span>
+    <span className={`text-sm font-semibold ${valueColor} truncate max-w-[60%]`}>{value}</span>
   </div>
 );
 

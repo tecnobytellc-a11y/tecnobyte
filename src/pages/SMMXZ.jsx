@@ -12,7 +12,12 @@ import {
   ShieldCheck, 
   Zap, 
   TrendingUp,
-  Package
+  Package,
+  Star,
+  Activity,
+  History,
+  Filter,
+  Layers
 } from 'lucide-react';
 
 // ==========================================
@@ -32,6 +37,7 @@ const MOCK_SERVICES = [
     refill: true,
     start_time: "Instantáneo",
     quality: "Alta",
+    server_status: "Fluido",
     description: "Likes de perfiles reales y activos. Entrega rápida y segura para el algoritmo de Instagram."
   },
   {
@@ -47,6 +53,7 @@ const MOCK_SERVICES = [
     refill: true,
     start_time: "0-1 hora",
     quality: "Premium",
+    server_status: "Normal",
     description: "Seguidores de alta retención con garantía de reposición de 30 días. Ideales para cuentas comerciales."
   },
   {
@@ -62,6 +69,7 @@ const MOCK_SERVICES = [
     refill: false,
     start_time: "Instantáneo",
     quality: "Intermedia",
+    server_status: "Fluido",
     description: "Vistas ultra rápidas para impulsar tu video en la sección 'Para Ti' de TikTok."
   },
   {
@@ -77,6 +85,7 @@ const MOCK_SERVICES = [
     refill: true,
     start_time: "0-6 horas",
     quality: "Alta",
+    server_status: "Congestionado",
     description: "Seguidores de perfiles mundiales. Puede haber una ligera caída inicial cubierta por la garantía."
   },
   {
@@ -92,6 +101,7 @@ const MOCK_SERVICES = [
     refill: true,
     start_time: "12-24 horas",
     quality: "Premium",
+    server_status: "Normal",
     description: "Suscriptores seguros, 100% orgánicos visualmente y sin caídas. Perfectos para alcanzar los requisitos de monetización."
   },
   {
@@ -107,6 +117,7 @@ const MOCK_SERVICES = [
     refill: true,
     start_time: "24 horas",
     quality: "Premium",
+    server_status: "Normal",
     description: "Oyentes mensuales de cuentas premium, mejoran tu posicionamiento en recomendaciones y playlists algorítmicas."
   }
 ];
@@ -153,13 +164,26 @@ const SMMXZ = () => {
   const [link, setLink] = useState("");
   const [quantity, setQuantity] = useState("");
 
+  // INYECCIÓN DE NUEVOS ESTADOS (Nuevas Funcionalidades)
+  const [userBalance] = useState(15.00); // Mock de saldo de usuario
+  const [lastUsedLink, setLastUsedLink] = useState(""); // Memoria del último link
+  const [isDripFeed, setIsDripFeed] = useState(false); // Switch de Goteo
+  const [runs, setRuns] = useState(2); // Cantidad de repeticiones de Goteo
+  const [interval, setInterval] = useState(60); // Intervalo en minutos
+  const [onlyRefillFilter, setOnlyRefillFilter] = useState(false); // Filtro avanzado
+  const [favorites, setFavorites] = useState([]); // Array de IDs favoritos
+
+  const toggleFavorite = (id) => {
+    setFavorites(prev => prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]);
+  };
+
   // 1. Obtener lista de categorías únicas de forma dinámica
   const categories = useMemo(() => {
     const cats = new Set(services.map(s => s.category));
     return Array.from(cats).sort();
   }, [services]);
 
-  // 2. Filtrar servicios en base a la categoría seleccionada Y la búsqueda global
+  // 2. Filtrar servicios en base a la categoría seleccionada Y la búsqueda global (y nuevos filtros)
   const filteredServices = useMemo(() => {
     return services.filter(service => {
       const matchesSearch = globalSearch === "" || 
@@ -167,10 +191,11 @@ const SMMXZ = () => {
         service.category.toLowerCase().includes(globalSearch.toLowerCase());
       
       const matchesCategory = selectedCategory === "" || service.category === selectedCategory;
+      const matchesRefill = !onlyRefillFilter || service.refill === true; // Inyección de filtro
 
-      return matchesSearch && matchesCategory;
+      return matchesSearch && matchesCategory && matchesRefill;
     });
-  }, [services, globalSearch, selectedCategory]);
+  }, [services, globalSearch, selectedCategory, onlyRefillFilter]);
 
   // 3. Obtener el objeto del servicio seleccionado actualmente
   const selectedService = useMemo(() => {
@@ -183,17 +208,28 @@ const SMMXZ = () => {
     setSelectedServiceId("");
     setQuantity("");
     setLink("");
+    setIsDripFeed(false); // Reseteo inyectado
   }, [selectedCategory]);
 
-  // 5. Cálculo estricto del Costo Total en tiempo real
-  // Fórmula: (Cantidad / 1000) * Precio_por_1000
+  // 5. Cálculo estricto del Costo Total en tiempo real (Modificado para Drip-Feed)
+  // Fórmula base: (Cantidad / 1000) * Precio_por_1000
   const totalCost = useMemo(() => {
     if (!selectedService || !quantity || isNaN(quantity)) return "0.000";
     const qty = parseInt(quantity, 10);
     if (qty < 0) return "0.000";
-    const cost = (qty / 1000) * selectedService.price_per_1000;
+    
+    let cost = (qty / 1000) * selectedService.price_per_1000;
+    
+    // Inyección de Drip-Feed multiplicador
+    if (isDripFeed && runs > 1) {
+      cost = cost * runs;
+    }
+
     return cost.toFixed(4); // 4 decimales para mayor precisión en SMM
-  }, [selectedService, quantity]);
+  }, [selectedService, quantity, isDripFeed, runs]);
+
+  // Validación de saldo para botón de compra
+  const isBalanceSufficient = parseFloat(totalCost) <= userBalance;
 
   // Manejo de la orden
   const handlePlaceOrder = (e) => {
@@ -208,7 +244,11 @@ const SMMXZ = () => {
     }
     const qtyNum = parseInt(quantity, 10);
     if (!qtyNum || qtyNum < selectedService.min_quantity || qtyNum > selectedService.max_quantity) {
-      alert(`La cantidad debe estar entre ${selectedService.min_quantity} y ${selectedService.max_quantity}.`);
+      alert(`La cantidad base debe estar entre ${selectedService.min_quantity} y ${selectedService.max_quantity}.`);
+      return;
+    }
+    if (!isBalanceSufficient) {
+      alert("Saldo insuficiente para completar esta orden.");
       return;
     }
 
@@ -217,13 +257,18 @@ const SMMXZ = () => {
       serviceId: selectedService.id,
       link,
       quantity: qtyNum,
-      cost: totalCost
+      cost: totalCost,
+      isDripFeed,
+      runs: isDripFeed ? runs : 1,
+      interval: isDripFeed ? interval : 0
     });
 
     alert("¡Orden procesada con éxito! (Modo Desarrollo)");
+    setLastUsedLink(link); // Guardamos el link exitoso
     setLink("");
     setQuantity("");
     setSelectedServiceId("");
+    setIsDripFeed(false);
   };
 
   return (
@@ -252,18 +297,39 @@ const SMMXZ = () => {
             </p>
           </div>
 
-          {/* Módulo 1: Búsqueda Global */}
-          <div className="w-full md:w-96 relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
+          {/* Área Derecha del Header (Saldo + Búsqueda) */}
+          <div className="flex flex-col gap-3">
+            {/* INYECCIÓN: Validador de Saldo Superior */}
+            <div className="self-end bg-[#1a1d27] border border-gray-800 rounded-xl px-4 py-2 flex items-center gap-3">
+              <Wallet className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm text-gray-400">Mi Saldo:</span>
+              <span className="font-bold text-white">${userBalance.toFixed(2)}</span>
             </div>
-            <input
-              type="text"
-              placeholder="Buscar servicio o red social..."
-              value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
-              className="block w-full pl-12 pr-4 py-3.5 bg-[#1a1d27] border border-gray-800 rounded-2xl text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-lg"
-            />
+
+            {/* Módulo 1: Búsqueda Global */}
+            <div className="w-full md:w-96 relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar servicio o red social..."
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                className="block w-full pl-12 pr-4 py-3.5 bg-[#1a1d27] border border-gray-800 rounded-2xl text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-lg"
+              />
+            </div>
+
+            {/* INYECCIÓN: Filtros Avanzados */}
+            <div className="flex gap-2 self-end">
+              <button 
+                onClick={() => setOnlyRefillFilter(!onlyRefillFilter)}
+                className={`text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all ${onlyRefillFilter ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-gray-700 text-gray-400 hover:border-gray-500'}`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Solo con Refill
+              </button>
+            </div>
           </div>
         </div>
 
@@ -336,12 +402,26 @@ const SMMXZ = () => {
                   {/* Mostrar campos de link y cantidad SOLO si hay un servicio seleccionado */}
                   <div className={`transition-all duration-500 ease-in-out origin-top ${selectedService ? 'opacity-100 scale-y-100 h-auto' : 'opacity-0 scale-y-0 h-0 overflow-hidden'}`}>
                     <div className="space-y-6 pt-2">
+                      
                       {/* Módulo 4: Link */}
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                          <LinkIcon className="w-4 h-4 text-emerald-400" />
-                          Enlace / URL
-                        </label>
+                        <div className="flex justify-between items-end">
+                          <label className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                            <LinkIcon className="w-4 h-4 text-emerald-400" />
+                            Enlace / URL
+                          </label>
+                          {/* INYECCIÓN: Botón Memoria Último Link */}
+                          {lastUsedLink && (
+                            <button 
+                              type="button" 
+                              onClick={() => setLink(lastUsedLink)}
+                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                            >
+                              <History className="w-3.5 h-3.5" />
+                              Usar último enlace
+                            </button>
+                          )}
+                        </div>
                         <input
                           type="url"
                           value={link}
@@ -356,7 +436,7 @@ const SMMXZ = () => {
                         <div className="flex justify-between items-end">
                           <label className="text-sm font-semibold text-gray-300 flex items-center gap-2">
                             <Hash className="w-4 h-4 text-blue-400" />
-                            Cantidad
+                            Cantidad {isDripFeed && "(Por entrega)"}
                           </label>
                           {selectedService && (
                             <span className="text-xs text-gray-500 font-medium">
@@ -375,15 +455,65 @@ const SMMXZ = () => {
                         />
                       </div>
 
-                      {/* Submit Button */}
+                      {/* INYECCIÓN: Módulo Drip-Feed (Goteo) */}
+                      <div className="pt-2">
+                        <div className="flex items-center gap-2 mb-4">
+                          <input 
+                            type="checkbox" 
+                            id="dripFeed" 
+                            checked={isDripFeed}
+                            onChange={(e) => setIsDripFeed(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-700 text-indigo-500 focus:ring-indigo-500 bg-[#0f1117]"
+                          />
+                          <label htmlFor="dripFeed" className="text-sm font-semibold text-gray-300 flex items-center gap-2 cursor-pointer">
+                            <Layers className="w-4 h-4 text-orange-400" />
+                            Habilitar Drip-Feed (Entrega por Goteo)
+                          </label>
+                        </div>
+
+                        {isDripFeed && (
+                          <div className="grid grid-cols-2 gap-4 bg-[#0f1117]/50 p-4 rounded-xl border border-gray-800">
+                            <div>
+                              <label className="text-xs text-gray-400 mb-1 block">Rondas (Veces)</label>
+                              <input 
+                                type="number" 
+                                min="2" 
+                                value={runs} 
+                                onChange={(e) => setRuns(parseInt(e.target.value) || 2)}
+                                className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-400 mb-1 block">Intervalo (Minutos)</label>
+                              <input 
+                                type="number" 
+                                min="1" 
+                                value={interval} 
+                                onChange={(e) => setInterval(parseInt(e.target.value) || 60)}
+                                className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                              />
+                            </div>
+                            <div className="col-span-2 text-xs text-indigo-300 text-center bg-indigo-500/10 py-1.5 rounded">
+                              Cantidad Total a recibir: <strong>{parseInt(quantity || 0) * runs}</strong>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Submit Button (Modificado para validar saldo) */}
                       <button
                         type="submit"
-                        className="w-full relative group overflow-hidden bg-white text-black font-bold text-lg rounded-xl px-6 py-4 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] mt-4"
+                        disabled={!isBalanceSufficient}
+                        className={`w-full relative group overflow-hidden font-bold text-lg rounded-xl px-6 py-4 transition-all mt-4
+                          ${isBalanceSufficient 
+                            ? 'bg-white text-black hover:scale-[1.01] active:scale-[0.99] shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]' 
+                            : 'bg-red-500/20 text-red-300 cursor-not-allowed border border-red-500/30'
+                          }`}
                       >
-                        <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+                        {isBalanceSufficient && <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />}
                         <span className="relative flex items-center justify-center gap-2">
-                          <CheckCircle2 className="w-5 h-5" />
-                          Confirmar Pedido
+                          {isBalanceSufficient ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                          {isBalanceSufficient ? 'Confirmar Pedido' : 'Saldo Insuficiente'}
                         </span>
                       </button>
                     </div>
@@ -405,7 +535,9 @@ const SMMXZ = () => {
                   Costo Total a Descontar
                 </h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-black text-white tracking-tight">${totalCost}</span>
+                  <span className={`text-5xl font-black tracking-tight ${isBalanceSufficient ? 'text-white' : 'text-red-300'}`}>
+                    ${totalCost}
+                  </span>
                   <span className="text-indigo-200 font-medium">USD</span>
                 </div>
                 
@@ -420,14 +552,24 @@ const SMMXZ = () => {
               {/* Módulo 8 & 6: Detalles del Servicio y Tiempo */}
               {selectedService ? (
                 <div className="bg-[#1a1d27]/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-6 md:p-8 shadow-xl transition-all duration-300">
-                  <div className="flex items-center gap-3 mb-6 pb-6 border-b border-gray-800">
-                    <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400">
-                      <Info className="w-6 h-6" />
+                  <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-800">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400">
+                        <Info className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white leading-tight">Detalles del Servicio</h3>
+                        <p className="text-xs text-gray-500 font-mono mt-1">ID: {selectedService.id}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white leading-tight">Detalles del Servicio</h3>
-                      <p className="text-xs text-gray-500 font-mono mt-1">ID: {selectedService.id}</p>
-                    </div>
+                    {/* INYECCIÓN: Botón Favorito */}
+                    <button 
+                      type="button"
+                      onClick={() => toggleFavorite(selectedService.id)}
+                      className={`p-2 rounded-lg border transition-all ${favorites.includes(selectedService.id) ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-[#0f1117] border-gray-700 text-gray-500 hover:text-gray-300'}`}
+                    >
+                      <Star className={`w-5 h-5 ${favorites.includes(selectedService.id) ? 'fill-current' : ''}`} />
+                    </button>
                   </div>
 
                   <div className="space-y-4">
@@ -458,6 +600,15 @@ const SMMXZ = () => {
                       label="Calidad"
                       value={selectedService.quality}
                     />
+                    {/* INYECCIÓN: Estado del Servidor */}
+                    {selectedService.server_status && (
+                      <DetailRow 
+                        icon={<Activity className="w-4 h-4 text-orange-400" />}
+                        label="Estado de Red"
+                        value={selectedService.server_status}
+                        valueColor={selectedService.server_status === "Fluido" ? "text-emerald-400" : selectedService.server_status === "Congestionado" ? "text-red-400" : "text-yellow-400"}
+                      />
+                    )}
                   </div>
 
                   <div className="mt-6 pt-6 border-t border-gray-800">
@@ -472,8 +623,35 @@ const SMMXZ = () => {
                   <p className="text-gray-400 font-medium">Selecciona un servicio para ver sus detalles técnicos e información de entrega.</p>
                 </div>
               )}
-            </div>
 
+              {/* INYECCIÓN: BLOQUE DE TEXTOS DE ADVERTENCIA EXACTOS */}
+              <div className="mt-6 space-y-6 text-sm text-gray-400 bg-[#1a1d27]/40 border border-red-900/30 rounded-3xl p-6 md:p-8">
+                <div>
+                  <h4 className="text-white font-bold mb-3">
+                    DETALLES A CONSIDERAR:
+                  </h4>
+                  <ul className="space-y-2 pl-2">
+                    <li>✶ Si el video se elimina después de realizar un pedido, no hay reembolso en este caso.</li>
+                    <li>✶ Tenga en cuenta: la hora de inicio y la velocidad de entrega pueden fluctuar dependiendo de la carga del servidor.</li>
+                    <li>✶ Normalmente no hay caídas o hay pocas caídas, pero una actualización de la plataforma puede cambiar esta realidad.</li>
+                    <li>✶ No se proporcionarán reembolsos, recargas ni soporte si el enlace se cambia o se elimina.</li>
+                    <li>✶ Sin embargo, tenga en cuenta que estas son solo estimaciones.</li>
+                  </ul>
+                </div>
+
+                <div className="pt-6 border-t border-red-900/30">
+                  <h4 className="text-red-400 font-bold mb-3">
+                    ⚠ ¡WARNING!
+                  </h4>
+                  <ul className="space-y-2 pl-2 text-red-200/70">
+                    <li>★ Por favor, no realice varios pedidos al mismo tiempo ni utilice varios sitios web simultáneamente. Espere a que el pedido actual se complete antes de realizar uno nuevo en cualquier lugar.</li>
+                    <li>★ No se proporciona ninguna garantía para los servicios sin recarga si hay una caída o entrega parcial. Pero si está utilizando servicios de recarga y tiene un problema con la caída o el pedido, abra un ticket de soporte.</li>
+                  </ul>
+                </div>
+              </div>
+              {/* FIN INYECCIÓN */}
+
+            </div>
           </div>
         )}
       </div>

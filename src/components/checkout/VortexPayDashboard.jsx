@@ -334,7 +334,7 @@ const handleRequestEmailCode = async () => {
                     {/* NUEVO AVISO LEGAL */}
                     <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl shadow-sm">
                         <p className="text-[11px] text-slate-500 leading-relaxed text-justify">
-                            <strong className="text-slate-700">Nota Importante:</strong> Vortex Pay no actúa como entidad bancaria, custodio de fondos, ni casa de cambio de divisas. Es un servicio tecnológico proporcionado por TecnoByte diseñado para permitir a los usuarios el intercambio de saldo entre cuentas (ej. como modalidad de regalo). La opción de retiro a USDT está habilitada estrictamente como una alternativa para usuarios ante situaciones de emergencia que requieran disponer de su saldo, aplicándose una comisión por el servicio por parte de Tecnobite.
+                            <strong className="text-slate-700">Nota Importante:</strong> Vortex Pay no actúa como entidad bancaria, custodio de fondos, ni casa de cambio de divisas. Es un servicio tecnológico proporcionado por TecnoByte diseñado para permitir a los usuarios el intercambio de saldo entre cuentas (ej. como modalidad de regalo). La opción de retiro a USDT está habilitada estrictamente como una alternativa para usuarios ante situaciones de emergencia que requieran disponer de su saldo, aplicándose una comisión por el servicio por parte de TecnoByte.
                         </p>
                     </div>
                 </div>

@@ -171,12 +171,12 @@ const AppContent = () => {
     useEffect(() => {
         const init = async () => {
             try {
-                const ipRes = await fetch('https://ipapi.co/json/');
+                const ipRes = await fetch('https://ipwho.is/');
                 if(ipRes.ok) {
                     const ipData = await ipRes.json();
-                    if (!ipData.error && ipData.ip) {
-                        const org = (ipData.org || "").toLowerCase();
-                        const asn = (ipData.asn || "").toString().toLowerCase(); 
+                    if (ipData.success) {
+                        const org = (ipData.connection?.org || ipData.connection?.isp || "").toLowerCase();
+                        const asn = (ipData.connection?.asn || "").toString().toLowerCase(); 
                         if (["vpn", "proxy", "hosting", "cloud", "datacenter"].some(k => org.includes(k) || asn.includes(k))) { setIsBlocked(true); reportSuspiciousIP(ipData, `Auto-Detect VPN: ${ipData.org}`); setIsLoadingSecurity(false); return; }
                         try { const checkRes = await fetch(`${SERVER_URL}/api/check-ip?ip=${ipData.ip}`); if (checkRes.ok && (await checkRes.json()).blocked) { setIsBlocked(true); setIsLoadingSecurity(false); return; } } catch(e){}
                     }

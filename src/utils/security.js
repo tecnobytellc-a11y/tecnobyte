@@ -28,12 +28,6 @@ export const getAdvancedGeoData = async () => {
             return { ip: d.ip, isp: d.org, country: d.country_name, city: d.city, region: d.region, postal: d.postal, coordinates: `${d.latitude},${d.longitude}` };
         },
         async () => {
-            const r = await fetch('https://ipwho.is/');
-            const d = await r.json();
-            if (!d.success) throw new Error();
-            return { ip: d.ip, isp: d.connection?.isp || d.connection?.org, country: d.country, city: d.city, region: d.region, postal: d.postal, coordinates: `${d.latitude},${d.longitude}` };
-        },
-        async () => {
             const r = await fetch('https://freeipapi.com/api/json');
             const d = await r.json();
             return { ip: d.ipAddress, isp: 'N/A', country: d.countryName, city: d.cityName, region: d.regionName, postal: d.zipCode, coordinates: `${d.latitude},${d.longitude}` };
